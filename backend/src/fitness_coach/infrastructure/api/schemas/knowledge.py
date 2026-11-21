@@ -71,6 +71,7 @@ class CandidateStudyResponse(BaseModel):
     rejection_reason: str | None
     curator_notes: str | None
     pdf_storage_path: str | None
+    monthly_cut_run_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -99,6 +100,7 @@ class CandidateStudyResponse(BaseModel):
             rejection_reason=candidate.rejection_reason,
             curator_notes=candidate.curator_notes,
             pdf_storage_path=candidate.pdf_storage_path,
+            monthly_cut_run_id=candidate.monthly_cut_run_id,
             created_at=candidate.created_at,
             updated_at=candidate.updated_at,
         )
