@@ -1,0 +1,3 @@
+# Base de Conocimiento compartida con aislamiento estricto por Atleta
+
+Aunque el sistema nace para uso personal (un único usuario que ejerce como Atleta y Curador), toda la información personal (perfil, Mesociclos, Sesiones de Entrenamiento, Fases Nutricionales, Check-ins y conversaciones) se modela desde el inicio aislada por Atleta, mientras que la Base de Conocimiento científica permanece única, compartida y gestionada exclusivamente por el rol Curador. Elegimos este diseño frente a un modelo global de usuario único para permitir escalar a múltiples Atletas en el futuro sin migrar el esquema de datos ni mezclar contextos personales.

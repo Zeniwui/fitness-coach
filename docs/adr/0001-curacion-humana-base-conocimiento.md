@@ -1,0 +1,3 @@
+# Curación humana obligatoria en la Base de Conocimiento
+
+La Base de Conocimiento científica solo incorpora nueva evidencia tras la revisión y aprobación explícita del Curador sobre un Estudio Candidato con su análisis crítico; las búsquedas en vivo durante una conversación con el Coach quedan marcadas como no verificadas y pueden proponerse a la bandeja de aprobación, pero nunca modifican la Base de Conocimiento automáticamente. Elegimos este flujo frente a la auto-ingesta autónoma para evitar la contaminación del sistema con estudios de baja calidad metodológica, sesgos o tendencias sin respaldo, manteniendo además trazabilidad de estudios rechazados y de fichas matizadas o superadas por nueva evidencia.
