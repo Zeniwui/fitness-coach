@@ -18,6 +18,8 @@ from fitness_coach.domain.coach import (
     ProposalStatus,
     QuarantinedLiveResult,
 )
+from fitness_coach.domain.multimodal import Attachment
+from fitness_coach.infrastructure.api.schemas.multimodal import AttachmentResponse
 
 
 class CreateConversationRequest(BaseModel):
@@ -95,12 +97,18 @@ class ChatMessageResponse(BaseModel):
     content: str
     citations: list[CitationResponse] = Field(default_factory=list)
     live_search_results: list[QuarantinedLiveResultResponse] = Field(default_factory=list)
+    attachments: list[AttachmentResponse] = Field(default_factory=list)
     used_general_knowledge: bool = False
     boundary_triggered: BoundaryKind = BoundaryKind.NONE
     created_at: datetime | None = None
 
     @classmethod
-    def from_domain(cls, msg: ChatMessage) -> ChatMessageResponse:
+    def from_domain(
+        cls,
+        msg: ChatMessage,
+        *,
+        attachments: list[Attachment] | None = None,
+    ) -> ChatMessageResponse:
         return cls(
             id=msg.id,
             conversation_id=msg.conversation_id,
@@ -110,6 +118,7 @@ class ChatMessageResponse(BaseModel):
             live_search_results=[
                 QuarantinedLiveResultResponse.from_domain(r) for r in msg.live_search_results
             ],
+            attachments=[AttachmentResponse.from_domain(a) for a in (attachments or [])],
             used_general_knowledge=msg.used_general_knowledge,
             boundary_triggered=msg.boundary_triggered,
             created_at=msg.created_at,
@@ -119,6 +128,7 @@ class ChatMessageResponse(BaseModel):
 class SendMessageRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=6000)
     enable_live_search: bool = False
+    attachment_ids: list[UUID] = Field(default_factory=list)
 
 
 class PromoteLiveSearchRequest(BaseModel):

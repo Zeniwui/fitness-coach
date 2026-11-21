@@ -19,6 +19,7 @@ from fitness_coach.infrastructure.api.routers.curation import router as curation
 from fitness_coach.infrastructure.api.routers.identity import router as identity_router
 from fitness_coach.infrastructure.api.routers.knowledge import router as knowledge_router
 from fitness_coach.infrastructure.api.routers.monthly_cut import router as monthly_cut_router
+from fitness_coach.infrastructure.api.routers.multimodal import router as multimodal_router
 from fitness_coach.infrastructure.api.routers.nutrition import router as nutrition_router
 from fitness_coach.infrastructure.api.routers.profile import router as profile_router
 from fitness_coach.infrastructure.api.routers.training import router as training_router
@@ -80,6 +81,7 @@ def create_app(
     app.include_router(curation_router)
     app.include_router(monthly_cut_router)
     app.include_router(coach_router)
+    app.include_router(multimodal_router)
     app.include_router(training_router)
     app.include_router(nutrition_router)
 

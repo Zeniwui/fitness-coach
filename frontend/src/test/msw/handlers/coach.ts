@@ -72,9 +72,14 @@ export const coachHandlers = [
 
   http.post("*/api/v1/coach/conversations/:id/messages", async ({ params, request }) => {
     const id = String(params.id);
-    const body = (await request.json()) as { content: string; enable_live_search?: boolean };
+    const body = (await request.json()) as {
+      content: string;
+      enable_live_search?: boolean;
+      attachment_ids?: string[];
+    };
     const text = body.content.trim();
     const lowered = text.toLowerCase();
+    const attachmentIds = body.attachment_ids ?? [];
 
     msgCounter += 1;
     const userMsg: ChatMessageResponse = {
@@ -84,6 +89,16 @@ export const coachHandlers = [
       content: text,
       citations: [],
       live_search_results: [],
+      attachments: attachmentIds.map((attId) => ({
+        id: attId,
+        message_id: `bbbb0000-0000-0000-0000-0000000000${msgCounter}`,
+        media_type: "image",
+        mime_type: "image/png",
+        original_filename: "comida.png",
+        size_bytes: 128,
+        category: "meal",
+        created_at: "2026-11-21T12:00:00Z",
+      })),
       used_general_knowledge: false,
       boundary_triggered: "none",
       created_at: "2026-11-21T12:00:00Z",
@@ -95,6 +110,11 @@ export const coachHandlers = [
     let liveResults: ChatMessageResponse["live_search_results"] = [];
     let usedGeneralKnowledge = true;
     let emittedProposal: ProfileProposalResponse | null = null;
+
+    if (attachmentIds.length > 0) {
+      replyText =
+        "Estimación aproximada del plato: 500-620 kcal (38-48 g proteína). Al no estar pesado existe margen de incertidumbre.";
+    }
 
     if (lowered.includes("creatina")) {
       replyText = "La creatina monohidrato a 3-5 g/día mejora fuerza y masa muscular.";

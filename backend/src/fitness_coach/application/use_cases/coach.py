@@ -9,11 +9,14 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from fitness_coach.application.ports.ai_provider import AIProviderPort, ModelTier
+from fitness_coach.application.ports.identity_storage import BinaryStoragePort
 from fitness_coach.application.ports.repositories.coach import CoachRepositoryPort
 from fitness_coach.application.ports.repositories.knowledge import KnowledgeRepositoryPort
+from fitness_coach.application.ports.repositories.multimodal import MultimodalRepositoryPort
 from fitness_coach.application.ports.repositories.profile import ProfileRepositoryPort
 from fitness_coach.application.ports.scientific_sources import ScientificSourcesPort
 from fitness_coach.application.use_cases.knowledge import generate_critical_sheet
+from fitness_coach.application.use_cases.multimodal import ParseNaturalTrainingSessionUseCase
 from fitness_coach.application.use_cases.profile import LivingProfileSnapshot
 from fitness_coach.domain.coach import (
     CLINICAL_BOUNDARY_NOTICE_ES,
@@ -46,6 +49,12 @@ from fitness_coach.domain.knowledge import (
     compute_content_hash,
     normalize_doi,
     normalize_pmid,
+)
+from fitness_coach.domain.multimodal import (
+    AttachmentMediaType,
+    AttachmentNotFoundError,
+    build_multimodal_image_prompt_block,
+    detect_training_session_description,
 )
 from fitness_coach.domain.profile import (
     ExperienceLevel,
@@ -117,6 +126,7 @@ class CoachContextAssembler:
         user_message: str,
         history: Sequence[ChatMessage],
         enable_live_search: bool = False,
+        extra_prompt_blocks: Sequence[str] = (),
     ) -> AssembledCoachContext:
         profile = await self._profile_repo.get_profile(athlete_id)
         if profile is None:
@@ -183,6 +193,9 @@ class CoachContextAssembler:
                 block = await provider.get_context_block(athlete_id)
                 if block:
                     extra_blocks.append(block)
+        for inline_block in extra_prompt_blocks:
+            if inline_block.strip():
+                extra_blocks.append(inline_block)
 
         system_prompt = self._build_system_prompt(
             profile=profile,
@@ -398,10 +411,14 @@ class SendCoachMessageStreamUseCase:
         coach_repo: CoachRepositoryPort,
         context_assembler: CoachContextAssembler,
         ai_provider: AIProviderPort,
+        multimodal_repo: MultimodalRepositoryPort | None = None,
+        binary_storage: BinaryStoragePort | None = None,
     ) -> None:
         self._coach_repo = coach_repo
         self._assembler = context_assembler
         self._ai_provider = ai_provider
+        self._multimodal_repo = multimodal_repo
+        self._binary_storage = binary_storage
 
     async def execute(
         self,
@@ -410,6 +427,7 @@ class SendCoachMessageStreamUseCase:
         conversation_id: UUID,
         content: str,
         enable_live_search: bool = False,
+        attachment_ids: Sequence[UUID] = (),
     ) -> AsyncIterator[CoachStreamEvent]:
         cleaned = content.strip()
         if not cleaned:
@@ -421,17 +439,54 @@ class SendCoachMessageStreamUseCase:
         if conv is None:
             raise ConversationNotFoundError("No se encontró la conversación solicitada.")
 
+        # Resolve & isolate Athlete-scoped attachments before persisting
+        resolved_attachments = []
+        image_payloads: list[tuple[bytes, str]] = []
+        extra_prompt_blocks: list[str] = []
+        if attachment_ids:
+            if self._multimodal_repo is None or self._binary_storage is None:
+                raise AttachmentNotFoundError("Almacenamiento multimodal no disponible.")
+            unique_ids = list(dict.fromkeys(attachment_ids))
+            resolved_attachments = await self._multimodal_repo.list_attachments_by_ids(
+                athlete_id=auth.athlete_id,
+                attachment_ids=unique_ids,
+            )
+            if len(resolved_attachments) != len(unique_ids):
+                raise AttachmentNotFoundError("No se encontró el archivo adjunto solicitado.")
+            image_attachments = [
+                a for a in resolved_attachments if a.media_type == AttachmentMediaType.IMAGE
+            ]
+            for att in image_attachments:
+                raw_bytes = await self._binary_storage.get_athlete_object(
+                    athlete_id=auth.athlete_id,
+                    storage_path=att.storage_path,
+                )
+                image_payloads.append((raw_bytes, att.mime_type))
+            if image_attachments:
+                extra_prompt_blocks.append(
+                    build_multimodal_image_prompt_block(
+                        attachments=image_attachments,
+                        user_text=cleaned,
+                    )
+                )
+
         history = await self._coach_repo.list_messages(
             athlete_id=auth.athlete_id, conversation_id=conversation_id, limit=20
         )
 
         # Persist Athlete turn first
-        await self._coach_repo.create_message(
+        user_msg = await self._coach_repo.create_message(
             conversation_id=conversation_id,
             athlete_id=auth.athlete_id,
             role=MessageRole.USER,
             content=cleaned,
         )
+        if resolved_attachments and self._multimodal_repo is not None:
+            await self._multimodal_repo.link_attachments_to_message(
+                athlete_id=auth.athlete_id,
+                attachment_ids=[a.id for a in resolved_attachments],
+                message_id=user_msg.id,
+            )
 
         # Auto-title default conversations on first message
         next_title: str | None = None
@@ -449,6 +504,7 @@ class SendCoachMessageStreamUseCase:
             user_message=cleaned,
             history=history,
             enable_live_search=enable_live_search,
+            extra_prompt_blocks=extra_prompt_blocks,
         )
 
         # Stream tokens from AIProviderPort (reasoning tier for coaching)
@@ -457,6 +513,7 @@ class SendCoachMessageStreamUseCase:
             tier=ModelTier.REASONING,
             system_prompt=assembled.system_prompt,
             user_prompt=assembled.user_prompt,
+            images=image_payloads or None,
         ):
             if delta:
                 collected_chunks.append(delta)
@@ -533,6 +590,15 @@ class SendCoachMessageStreamUseCase:
                         "resolved_at": None,
                     }
                 },
+            )
+
+        # Detect natural-language TrainingSession description -> emit unconfirmed draft
+        if detect_training_session_description(cleaned):
+            draft_parser = ParseNaturalTrainingSessionUseCase(ai_provider=self._ai_provider)
+            draft = await draft_parser.execute(auth=auth, text=cleaned)
+            yield CoachStreamEvent(
+                event="session_draft",
+                data={"draft": draft.to_dict()},
             )
 
         yield CoachStreamEvent(

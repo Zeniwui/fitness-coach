@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "../../api/client";
 import type { components } from "../../api/generated/schema";
+import { NaturalSessionLogger } from "../multimodal/NaturalSessionLogger";
 
 type MesocycleResponse = components["schemas"]["MesocycleResponse"];
 type TodaySessionResponse = components["schemas"]["TodaySessionResponse"];
@@ -544,6 +545,13 @@ export function TrainingPage() {
           {/* TAB 2: QUICK SESSION LOGGER & HISTORY */}
           {activeTab === "sessions" && (
             <div className="space-y-5">
+              <NaturalSessionLogger
+                activeMesocycleId={todayData?.active_mesocycle?.id ?? null}
+                onSessionSaved={async () => {
+                  setFeedbackMsg("Sesión de Entrenamiento confirmada y guardada en tu historial.");
+                  await loadAll();
+                }}
+              />
               <form
                 onSubmit={handleSaveSession}
                 className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"

@@ -18,6 +18,7 @@ from fitness_coach.infrastructure.db.models.monthly_cut import (
     MonthlyCutRunModel,
     TrendingTopicModel,
 )
+from fitness_coach.infrastructure.db.models.multimodal import AttachmentModel
 from fitness_coach.infrastructure.db.models.nutrition import (
     NutritionPhaseModel,
     WeeklyCheckInModel,
@@ -35,6 +36,7 @@ from fitness_coach.infrastructure.db.models.training import (
 
 __all__ = [
     "AthleteModel",
+    "AttachmentModel",
     "CandidateStudyModel",
     "ConversationModel",
     "EvidenceCardModel",
