@@ -290,3 +290,42 @@ async def test_supabase_jwt_verifier_validates_and_rejects_tokens() -> None:
     )
     with pytest.raises(UnauthorizedError):
         await verifier.verify_token(bad_token)
+
+
+@pytest.mark.asyncio
+async def test_production_rejects_default_insecure_jwt_secret() -> None:
+    from fitness_coach.infrastructure.config import Settings
+
+    with pytest.raises(ValueError, match="supabase_jwt_secret"):
+        Settings(environment="production")
+
+    # Explicit non-default secret is accepted in production
+    prod_settings = Settings(
+        environment="production",
+        supabase_jwt_secret="real-production-secret-at-least-32-chars",
+    )
+    assert prod_settings.environment == "production"
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_curator_refuses_open_bootstrap_when_unconfigured(
+    db_session: AsyncSession,
+) -> None:
+    from fitness_coach.application.ports.identity_storage import VerifiedIdentity
+    from fitness_coach.application.use_cases.identity import BootstrapCuratorUseCase
+    from fitness_coach.infrastructure.db.repositories.identity import SqlAlchemyIdentityRepository
+
+    repo = SqlAlchemyIdentityRepository(db_session)
+    use_case = BootstrapCuratorUseCase(
+        repo,
+        bootstrap_email=None,
+        bootstrap_subject=None,
+    )
+    with pytest.raises(ForbiddenError, match="deshabilitado|configur"):
+        await use_case.execute(
+            verified=VerifiedIdentity(
+                auth_subject="sub-anyone",
+                email="anyone@fitness.test",
+                display_name="Intruso",
+            )
+        )

@@ -95,8 +95,16 @@ function isRetriableStatus(status: number): boolean {
   return status === 502 || status === 503 || status === 504;
 }
 
-async function coldStartAwareFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const request = input instanceof Request ? input : new Request(input, init);
+export async function coldStartAwareFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const resolvedInput =
+    typeof input === "string" && input.startsWith("/")
+      ? `${config.baseUrl.replace(/\/$/, "")}${input}`
+      : input;
+  const request =
+    resolvedInput instanceof Request ? resolvedInput : new Request(resolvedInput, init);
   const method = request.method.toUpperCase();
   const isIdempotentGet = method === "GET" || method === "HEAD";
   const mutationKey = `${method}:${request.url}`;
@@ -128,7 +136,10 @@ async function coldStartAwareFetch(input: RequestInfo | URL, init?: RequestInit)
   try {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
-        const attemptReq = new Request(request.clone(), { headers });
+        const attemptReq =
+          maxAttempts > 1
+            ? new Request(request.clone(), { headers })
+            : new Request(request, { headers });
         const response = await fetch(attemptReq);
 
         if (isIdempotentGet && isRetriableStatus(response.status) && attempt < maxAttempts) {

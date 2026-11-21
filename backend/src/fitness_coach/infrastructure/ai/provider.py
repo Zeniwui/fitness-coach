@@ -43,8 +43,11 @@ class ConfigurableAIProvider:
         embedding_provider: str,
         embedding_model: str,
         api_key: str | None = None,
+        embedding_api_key: str | None = None,
         base_url: str | None = None,
+        embedding_base_url: str | None = None,
         timeout_seconds: float = 45.0,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         normalized = provider_name.strip().lower()
         if normalized not in SUPPORTED_AI_PROVIDERS:
@@ -58,8 +61,21 @@ class ConfigurableAIProvider:
         self.embedding_provider = embedding_provider.strip().lower()
         self.embedding_model = embedding_model
         self._api_key = api_key
+        if embedding_api_key is not None:
+            self._embedding_api_key: str | None = embedding_api_key
+        elif self.embedding_provider == normalized:
+            self._embedding_api_key = api_key
+        else:
+            self._embedding_api_key = None
         self._base_url = base_url.rstrip("/") if base_url else None
+        self._embedding_base_url = (
+            embedding_base_url.rstrip("/") if embedding_base_url else None
+        )
         self._timeout = timeout_seconds
+        self._transport = transport
+
+    def _client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(timeout=self._timeout, transport=self._transport)
 
     def resolve_model(self, tier: ModelTier) -> str:
         """Return the configured model identifier for fast_tier or reasoning_tier."""
@@ -95,6 +111,7 @@ class ConfigurableAIProvider:
                 model=model,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
+                json_schema=json_schema,
                 images=images,
             )
         return await self._generate_openai_compatible(
@@ -127,14 +144,15 @@ class ConfigurableAIProvider:
     async def embed_texts(self, texts: list[str]) -> list[EmbeddingResult]:
         if not texts:
             return []
-        if not self._api_key:
+        if not self._embedding_api_key:
             raise RuntimeError(
-                f"Falta la clave API para generar embeddings con '{self.embedding_model}'."
+                f"Falta la clave API para generar embeddings con '{self.embedding_provider}' "
+                f"(modelo {self.embedding_model})."
             )
-        if self.embedding_provider == "google_ai_studio":
+        if self.embedding_provider in ("google_ai_studio", "gemini"):
             url = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{self.embedding_model}:batchEmbedContents?key={self._api_key}"
+                f"{self.embedding_model}:batchEmbedContents?key={self._embedding_api_key}"
             )
             payload = {
                 "requests": [
@@ -145,7 +163,7 @@ class ConfigurableAIProvider:
                     for text in texts
                 ]
             }
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with self._client() as client:
                 resp = await client.post(url, json=payload)
             self._raise_for_status(resp)
             data = resp.json()
@@ -154,11 +172,11 @@ class ConfigurableAIProvider:
                 for item in data.get("embeddings", [])
             ]
 
-        base = self._base_url or "https://api.openai.com/v1"
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
+        base = self._embedding_base_url or "https://api.openai.com/v1"
+        async with self._client() as client:
             resp = await client.post(
                 f"{base}/embeddings",
-                headers={"Authorization": f"Bearer {self._api_key}"},
+                headers={"Authorization": f"Bearer {self._embedding_api_key}"},
                 json={"model": self.embedding_model, "input": texts},
             )
         self._raise_for_status(resp)
@@ -305,9 +323,18 @@ class ConfigurableAIProvider:
         model: str,
         system_prompt: str,
         user_prompt: str,
+        json_schema: dict[str, Any] | None = None,
         images: list[tuple[bytes, str]] | None = None,
     ) -> LLMResponse:
         base = self._base_url or "https://api.anthropic.com/v1"
+        effective_system = system_prompt
+        if json_schema is not None:
+            schema_hint = json.dumps(json_schema, ensure_ascii=False)
+            effective_system = (
+                f"{system_prompt}\n\n"
+                "RESPUESTA ESTRUCTURADA OBLIGATORIA: Devuelve únicamente un objeto JSON válido "
+                f"(sin texto adicional) que cumpla con este esquema: {schema_hint}"
+            )
         user_content: Any = user_prompt
         if images:
             user_content = [{"type": "text", "text": user_prompt}]
@@ -322,7 +349,7 @@ class ConfigurableAIProvider:
                         },
                     }
                 )
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
+        async with self._client() as client:
             resp = await client.post(
                 f"{base}/messages",
                 headers={
@@ -332,7 +359,7 @@ class ConfigurableAIProvider:
                 json={
                     "model": model,
                     "max_tokens": 2048,
-                    "system": system_prompt,
+                    "system": effective_system,
                     "messages": [{"role": "user", "content": user_content}],
                 },
             )
@@ -342,22 +369,37 @@ class ConfigurableAIProvider:
         text = "".join(
             str(b.get("text", "")) for b in blocks if b.get("type") == "text"
         ).strip()
-        return LLMResponse(text=text)
+        structured = _try_parse_json(text) if json_schema is not None else {}
+        return LLMResponse(text=text, structured_data=structured)
 
 
 def _try_parse_json(raw: str) -> dict[str, Any]:
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(cleaned)
         return parsed if isinstance(parsed, dict) else {}
     except json.JSONDecodeError:
         return {}
 
 
-def build_ai_provider(settings: Settings) -> ConfigurableAIProvider:
+def build_ai_provider(
+    settings: Settings,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> ConfigurableAIProvider:
     """Instantiate the configured AI provider from Settings without changing domain rules."""
     provider = settings.ai_provider.strip().lower()
+    embedding_provider = settings.embedding_provider.strip().lower()
     api_key_map = {
         "google_ai_studio": settings.google_api_key,
+        "gemini": settings.google_api_key,
         "openai": settings.openai_api_key,
         "anthropic": settings.anthropic_api_key,
         "openai_compatible": settings.openai_api_key,
@@ -366,8 +408,10 @@ def build_ai_provider(settings: Settings) -> ConfigurableAIProvider:
         provider_name=provider,
         fast_model=settings.ai_fast_model,
         reasoning_model=settings.ai_reasoning_model,
-        embedding_provider=settings.embedding_provider,
+        embedding_provider=embedding_provider,
         embedding_model=settings.embedding_model,
         api_key=api_key_map.get(provider),
+        embedding_api_key=api_key_map.get(embedding_provider),
         base_url=settings.ai_base_url,
+        transport=transport,
     )

@@ -9,7 +9,7 @@ import {
 
 const NAV_ITEMS = [
   { to: "/coach", label: "Coach", icon: MessageSquare },
-  { to: "/training", label: "Entreno", icon: Dumbbell },
+  { to: "/training", label: "Entrenamiento", icon: Dumbbell },
   { to: "/nutrition", label: "Nutrición", icon: Utensils },
   { to: "/science", label: "Ciencia", icon: FlaskConical },
   { to: "/profile", label: "Perfil Vivo", icon: UserCheck },

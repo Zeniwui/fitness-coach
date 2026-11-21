@@ -134,14 +134,14 @@ async def _process_run_from_checkpoint(
             continue
 
         source_text = article.full_text or article.abstract or article.title
-        related_cards = await _find_related_kb_cards(
-            knowledge_repo=knowledge_repo,
-            ai_provider=ai_provider,
-            query_text=f"{article.title} {article.abstract or ''}".strip(),
-            limit=3,
-        )
 
         try:
+            related_cards = await _find_related_kb_cards(
+                knowledge_repo=knowledge_repo,
+                ai_provider=ai_provider,
+                query_text=f"{article.title} {article.abstract or ''}".strip(),
+                limit=3,
+            )
             sheet = await generate_critical_sheet(
                 ai_provider=ai_provider,
                 title=article.title,
@@ -226,12 +226,27 @@ async def _process_run_from_checkpoint(
         live_hits = await scientific_sources.live_web_search(query=trend_query, max_results=3)
 
         if live_hits:
-            kb_cards = await _find_related_kb_cards(
-                knowledge_repo=knowledge_repo,
-                ai_provider=ai_provider,
-                query_text=" ".join(h.title for h in live_hits),
-                limit=5,
-            )
+            try:
+                kb_cards = await _find_related_kb_cards(
+                    knowledge_repo=knowledge_repo,
+                    ai_provider=ai_provider,
+                    query_text=" ".join(h.title for h in live_hits),
+                    limit=5,
+                )
+            except RateLimitError as exc:
+                cursor["next_index"] = len(queue)
+                cursor["processed_keys"] = processed_keys
+                cursor["trending_generated"] = False
+                run = await monthly_cut_repo.update_run(
+                    run_id=run.id,
+                    status=MonthlyCutStatus.PAUSED_RATE_LIMIT,
+                    analyzed_count=analyzed_count,
+                    checkpoint_cursor=cursor,
+                    pause_reason=str(exc)
+                    or "Cuota de IA alcanzada al consultar Base de Conocimiento (HTTP 429).",
+                )
+                await commit()
+                return run
             kb_context = (
                 "\n".join(f"- [{c.id}] {c.title}: {c.curated_text_es}" for c in kb_cards)
                 if kb_cards

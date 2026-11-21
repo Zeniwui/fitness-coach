@@ -15,7 +15,10 @@ from fitness_coach.application.ports.repositories.knowledge import KnowledgeRepo
 from fitness_coach.application.ports.repositories.multimodal import MultimodalRepositoryPort
 from fitness_coach.application.ports.repositories.profile import ProfileRepositoryPort
 from fitness_coach.application.ports.scientific_sources import ScientificSourcesPort
-from fitness_coach.application.use_cases.knowledge import generate_critical_sheet
+from fitness_coach.application.use_cases.knowledge import (
+    check_existing_candidate_for_proposal,
+    generate_critical_sheet,
+)
 from fitness_coach.application.use_cases.multimodal import ParseNaturalTrainingSessionUseCase
 from fitness_coach.application.use_cases.profile import LivingProfileSnapshot
 from fitness_coach.domain.coach import (
@@ -41,9 +44,8 @@ from fitness_coach.domain.identity import AuthContext
 from fitness_coach.domain.knowledge import (
     AccessLevel,
     CandidateOrigin,
+    CandidateStatus,
     CandidateStudy,
-    DuplicateActiveStudyError,
-    DuplicateRejectedStudyError,
     EvidenceSearchHit,
     ValidityStatus,
     compute_content_hash,
@@ -167,18 +169,28 @@ class CoachContextAssembler:
             raw_live = await self._scientific_sources.live_web_search(
                 query=user_message.strip(), max_results=3
             )
-            live_results = tuple(
-                QuarantinedLiveResult(
-                    title=hit.title,
-                    url=hit.url,
-                    snippet=hit.snippet,
-                    doi=hit.doi,
-                    pmid=hit.pmid,
-                    published_year=hit.published_year,
-                    quarantine_label=LIVE_SEARCH_QUARANTINE_LABEL,
+            filtered_live: list[QuarantinedLiveResult] = []
+            for hit in raw_live:
+                norm_doi = normalize_doi(hit.doi)
+                norm_pmid = normalize_pmid(hit.pmid)
+                if norm_doi or norm_pmid:
+                    existing = await self._knowledge_repo.find_candidate_by_identifiers(
+                        doi=norm_doi, pmid=norm_pmid
+                    )
+                    if existing is not None and existing.status == CandidateStatus.REJECTED:
+                        continue
+                filtered_live.append(
+                    QuarantinedLiveResult(
+                        title=hit.title,
+                        url=hit.url,
+                        snippet=hit.snippet,
+                        doi=hit.doi,
+                        pmid=hit.pmid,
+                        published_year=hit.published_year,
+                        quarantine_label=LIVE_SEARCH_QUARANTINE_LABEL,
+                    )
                 )
-                for hit in raw_live
-            )
+            live_results = tuple(filtered_live)
 
         boundary = CoachPolicy.classify_boundary(user_message)
 
@@ -659,19 +671,13 @@ class PromoteLiveSearchResultUseCase:
         content_hash = compute_content_hash(f"{cleaned_title}\n{cleaned_url}\n{snippet}")
 
         # Respect existing deduplication invariants without bypassing Curator rejection history
-        existing_candidate = await self._knowledge_repo.find_candidate_by_identifiers(
-            doi=norm_doi, pmid=norm_pmid, content_hash=content_hash
+        await check_existing_candidate_for_proposal(
+            repo=self._knowledge_repo,
+            doi=norm_doi,
+            pmid=norm_pmid,
+            content_hash=content_hash,
+            allow_reopen=False,
         )
-        if existing_candidate is not None:
-            if existing_candidate.status.value == "rejected":
-                raise DuplicateRejectedStudyError(prior_candidate=existing_candidate)
-            if existing_candidate.status.value == "approved":
-                raise DuplicateActiveStudyError(
-                    "Este estudio ya forma parte de la Base de Conocimiento aprobada."
-                )
-            raise DuplicateActiveStudyError(
-                "Este estudio ya está en la Bandeja del Curador como Estudio Candidato."
-            )
 
         source_text = snippet.strip() or cleaned_title
         sheet = await generate_critical_sheet(

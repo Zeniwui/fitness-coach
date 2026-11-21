@@ -711,3 +711,77 @@ async def test_autonomous_cli_runner_executes_scheduled_run_resume_and_seed(
     seed2 = await run_cli_seed(database_url=test_database_url)
     assert seed2.created_count == 0
     assert seed2.skipped_count == seed1.total_in_catalog
+
+
+@pytest.mark.asyncio
+async def test_monthly_cut_pauses_cleanly_on_429_during_kb_embedding_lookup(
+    client: AsyncClient,
+    seed_accounts,
+    fake_ai: FakeAIProvider,
+    fake_scientific_sources: FakeScientificSources,
+) -> None:
+    _, curator_token = seed_accounts["dual"]
+
+    # Seed 1 approved EvidenceCard so _find_related_kb_cards invokes embed_texts
+    fake_scientific_sources.articles = [
+        ScientificArticleRecord(
+            title="Baseline Volume Meta-Analysis",
+            source_name="PubMed",
+            source_url="https://doi.org/10.1007/kb.base.2024",
+            doi="10.1007/kb.base.2024",
+            pmid="45000001",
+            abstract="Higher weekly volume increases hypertrophy.",
+            full_text="Full text baseline volume meta-analysis.",
+            is_open_access=True,
+        ),
+    ]
+    prop = await client.post(
+        "/api/v1/curator/candidates/from-doi",
+        headers=_auth_header(curator_token),
+        json={"doi_or_url": "10.1007/kb.base.2024"},
+    )
+    assert prop.status_code == 201
+    approve = await client.post(
+        f"/api/v1/curator/candidates/{prop.json()['id']}/approve",
+        headers=_auth_header(curator_token),
+        json={"tags": ["volumen"], "relations": []},
+    )
+    assert approve.status_code == 201
+
+    # Queue a new article for Monthly Cut and trigger 429 on the very next embed_texts call
+    fake_scientific_sources.articles = [
+        ScientificArticleRecord(
+            title="New 2026 Hypertrophy Frequency RCT",
+            source_name="PubMed",
+            source_url="https://doi.org/10.1007/new.freq.2026",
+            doi="10.1007/new.freq.2026",
+            pmid="45000002",
+            abstract="Frequency RCT abstract.",
+            full_text="Full text frequency RCT.",
+            is_open_access=True,
+        ),
+    ]
+    fake_scientific_sources.live_hits = []
+    fake_ai.simulate_embed_rate_limit_after = len(fake_ai.embed_calls)
+
+    run_resp = await client.post(
+        "/api/v1/curator/monthly-cuts",
+        headers=_auth_header(curator_token),
+        json={"max_candidates": 5},
+    )
+    assert run_resp.status_code == 201, run_resp.text
+    paused = run_resp.json()
+    assert paused["status"] == "paused_rate_limit"
+    assert paused["analyzed_count"] == 0
+    assert paused["pause_reason"] is not None
+
+    # Quota resets -> resume completes cleanly
+    fake_ai.simulate_embed_rate_limit_after = None
+    resume_resp = await client.post(
+        f"/api/v1/curator/monthly-cuts/{paused['id']}/resume",
+        headers=_auth_header(curator_token),
+    )
+    assert resume_resp.status_code == 200, resume_resp.text
+    resumed = resume_resp.json()
+    assert resumed["status"] == "completed"
+    assert resumed["analyzed_count"] == 1

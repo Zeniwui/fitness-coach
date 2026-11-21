@@ -93,6 +93,14 @@ function isCurator(request: Request): boolean {
   return request.headers.get("authorization") === "Bearer tok-dual";
 }
 
+export let lastApprovePayload: Record<string, unknown> | null = null;
+export let lastFromPdfReceived = false;
+
+export function resetMockKnowledgeState(): void {
+  lastApprovePayload = null;
+  lastFromPdfReceived = false;
+}
+
 export const knowledgeHandlers = [
   http.get("*/api/v1/knowledge/search", ({ request }) => {
     const url = new URL(request.url);
@@ -180,6 +188,26 @@ export const knowledgeHandlers = [
     );
   }),
 
+  http.post("*/api/v1/curator/candidates/from-pdf", async ({ request }) => {
+    if (!isCurator(request)) {
+      return HttpResponse.json(
+        { detail: "Se requiere el rol de Curador para realizar esta acción." },
+        { status: 403 },
+      );
+    }
+    lastFromPdfReceived = true;
+    return HttpResponse.json(
+      {
+        ...SAMPLE_PAYWALL_CANDIDATE,
+        id: "88888888-8888-8888-8888-888888888888",
+        access_level: "full_text_uploaded_pdf",
+        paywall_warning: null,
+        title: "Estudio propuesto desde PDF",
+      },
+      { status: 201 },
+    );
+  }),
+
   http.post("*/api/v1/curator/candidates/:candidateId/upload-pdf", async ({ request }) => {
     if (!isCurator(request)) {
       return HttpResponse.json(
@@ -207,6 +235,7 @@ export const knowledgeHandlers = [
         { status: 403 },
       );
     }
+    lastApprovePayload = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json(
       {
         ...SAMPLE_ACTIVE_CARD,

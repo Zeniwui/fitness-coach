@@ -27,7 +27,10 @@ from fitness_coach.infrastructure.api.schemas.identity import HealthResponse
 from fitness_coach.infrastructure.auth.supabase_jwt import SupabaseJWTVerifier
 from fitness_coach.infrastructure.config import Settings, get_settings
 from fitness_coach.infrastructure.db.session import create_engine, create_session_factory
-from fitness_coach.infrastructure.storage.local_storage import InMemoryBinaryStorage
+from fitness_coach.infrastructure.scientific_sources.http_adapter import (
+    HttpScientificSourcesAdapter,
+)
+from fitness_coach.infrastructure.storage.supabase_storage import build_binary_storage
 
 
 def create_app(
@@ -67,9 +70,9 @@ def create_app(
         jwt_secret=resolved_settings.supabase_jwt_secret,
         audience=resolved_settings.supabase_jwt_audience,
     )
-    app.state.binary_storage = binary_storage or InMemoryBinaryStorage()
+    app.state.binary_storage = binary_storage or build_binary_storage(resolved_settings)
     app.state.ai_provider = ai_provider or build_ai_provider(resolved_settings)
-    app.state.scientific_sources = scientific_sources
+    app.state.scientific_sources = scientific_sources or HttpScientificSourcesAdapter()
 
     @app.get("/api/v1/health", response_model=HealthResponse, tags=["system"])
     async def health() -> HealthResponse:

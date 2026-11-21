@@ -24,7 +24,7 @@ describe("Auth, Roles, PWA Shell & Cold-Start Handling (#2)", () => {
 
     const nav = await screen.findByRole("navigation", { name: /navegación principal/i });
     expect(nav).toHaveTextContent("Coach");
-    expect(nav).toHaveTextContent("Entreno");
+    expect(nav).toHaveTextContent("Entrenamiento");
     expect(nav).toHaveTextContent("Nutrición");
     expect(nav).toHaveTextContent("Ciencia");
     expect(nav).toHaveTextContent("Perfil Vivo");

@@ -1,4 +1,4 @@
-import { getAuthToken } from "../../api/client";
+import { coldStartAwareFetch } from "../../api/client";
 import type { components } from "../../api/generated/schema";
 
 export type CitationItem = components["schemas"]["CitationResponse"];
@@ -88,18 +88,12 @@ export async function uploadCoachAttachment(
   file: File,
   category: "meal" | "label_supplement" | "scale_tracker" | "general" = "general",
 ): Promise<AttachmentItem> {
-  const token = getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
   const formData = new FormData();
   formData.append("file", file);
   formData.append("category", category);
 
-  const response = await fetch(`${getBaseUrl()}/api/v1/multimodal/attachments`, {
+  const response = await coldStartAwareFetch(`${getBaseUrl()}/api/v1/multimodal/attachments`, {
     method: "POST",
-    headers,
     body: formData,
   });
 
@@ -121,16 +115,12 @@ export async function streamCoachMessage(
   payload: { content: string; enable_live_search: boolean; attachment_ids?: string[] },
   callbacks: CoachStreamCallbacks,
 ): Promise<void> {
-  const token = getAuthToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "text/event-stream",
   };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
 
-  const response = await fetch(
+  const response = await coldStartAwareFetch(
     `${getBaseUrl()}/api/v1/coach/conversations/${conversationId}/messages`,
     {
       method: "POST",
