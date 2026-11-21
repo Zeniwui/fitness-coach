@@ -90,6 +90,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Living Profile */
+        get: operations["get_living_profile_api_v1_profile_get"];
+        /** Upsert Living Profile */
+        put: operations["upsert_living_profile_api_v1_profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/injuries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Injuries */
+        get: operations["list_injuries_api_v1_profile_injuries_get"];
+        put?: never;
+        /** Create Injury */
+        post: operations["create_injury_api_v1_profile_injuries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/injuries/{injury_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Injury */
+        delete: operations["delete_injury_api_v1_profile_injuries__injury_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Injury */
+        patch: operations["update_injury_api_v1_profile_injuries__injury_id__patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -112,10 +166,25 @@ export interface components {
             /** Roles */
             roles: components["schemas"]["Role"][];
         };
+        /**
+         * BiologicalSex
+         * @description Biological sex used as reference context for training/nutrition physiology.
+         * @enum {string}
+         */
+        BiologicalSex: "male" | "female" | "other" | "prefer_not_to_say";
         /** BootstrapCuratorRequest */
         BootstrapCuratorRequest: {
             /** Display Name */
             display_name?: string | null;
+        };
+        /** CreateInjuryRequest */
+        CreateInjuryRequest: {
+            /** Body Part */
+            body_part: string;
+            /** Description */
+            description: string;
+            /** @default moderate */
+            severity: components["schemas"]["InjurySeverity"];
         };
         /** CreateInvitationRequest */
         CreateInvitationRequest: {
@@ -155,6 +224,12 @@ export interface components {
              */
             status: "pending" | "accepted" | "expired";
         };
+        /**
+         * ExperienceLevel
+         * @description Athlete's resistance training experience level.
+         * @enum {string}
+         */
+        ExperienceLevel: "beginner" | "intermediate" | "advanced";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -170,6 +245,46 @@ export interface components {
              */
             status: "ok";
         };
+        /** InjuryListResponse */
+        InjuryListResponse: {
+            /** Items */
+            items: components["schemas"]["InjuryResponse"][];
+        };
+        /** InjuryResponse */
+        InjuryResponse: {
+            /** Body Part */
+            body_part: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Resolution Notes */
+            resolution_notes: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
+            severity: components["schemas"]["InjurySeverity"];
+            status: components["schemas"]["InjuryStatus"];
+        };
+        /**
+         * InjurySeverity
+         * @description Severity level of an active or historical injury/restriction.
+         * @enum {string}
+         */
+        InjurySeverity: "mild" | "moderate" | "severe";
+        /**
+         * InjuryStatus
+         * @description Lifecycle status of an injury/restriction.
+         * @enum {string}
+         */
+        InjuryStatus: "active" | "resolved";
         /** InvitationListResponse */
         InvitationListResponse: {
             /** Items */
@@ -204,6 +319,50 @@ export interface components {
              */
             status: "pending" | "accepted" | "expired";
         };
+        /** LivingProfileResponse */
+        LivingProfileResponse: {
+            /** Active Injuries Count */
+            active_injuries_count: number;
+            /** Age */
+            age: number | null;
+            /** Allergies */
+            allergies: string[];
+            /**
+             * Athlete Id
+             * Format: uuid
+             */
+            athlete_id: string;
+            /** Base Weight Kg */
+            base_weight_kg: number | null;
+            /** Equipment */
+            equipment: string[];
+            experience_level: components["schemas"]["ExperienceLevel"] | null;
+            /** Food Preferences */
+            food_preferences: string[];
+            /** Has Saved Profile */
+            has_saved_profile: boolean;
+            /** Height Cm */
+            height_cm: number | null;
+            /** Injuries */
+            injuries: components["schemas"]["InjuryResponse"][];
+            /** Notes */
+            notes: string | null;
+            primary_goal: components["schemas"]["PrimaryGoal"] | null;
+            /** Session Duration Min */
+            session_duration_min: number | null;
+            sex: components["schemas"]["BiologicalSex"] | null;
+            training_approach: components["schemas"]["TrainingApproach"];
+            /** Training Days Per Week */
+            training_days_per_week: number | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /**
+         * PrimaryGoal
+         * @description Athlete's primary physique / performance objective.
+         * @enum {string}
+         */
+        PrimaryGoal: "hypertrophy" | "strength" | "fat_loss" | "body_recomposition" | "maintenance";
         /** RedeemInvitationRequest */
         RedeemInvitationRequest: {
             /** Display Name */
@@ -217,6 +376,51 @@ export interface components {
          * @enum {string}
          */
         Role: "athlete" | "curator";
+        /**
+         * TrainingApproach
+         * @description Training approach preference; defaults to natural (Coach never prescribes PEDs).
+         * @enum {string}
+         */
+        TrainingApproach: "natural" | "enhanced_context_only";
+        /** UpdateInjuryRequest */
+        UpdateInjuryRequest: {
+            /** Body Part */
+            body_part?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Resolution Notes */
+            resolution_notes?: string | null;
+            /** Resolved At */
+            resolved_at?: string | null;
+            severity?: components["schemas"]["InjurySeverity"] | null;
+            status?: components["schemas"]["InjuryStatus"] | null;
+        };
+        /** UpsertLivingProfileRequest */
+        UpsertLivingProfileRequest: {
+            /** Age */
+            age?: number | null;
+            /** Allergies */
+            allergies?: string[];
+            /** Base Weight Kg */
+            base_weight_kg?: number | null;
+            /** Equipment */
+            equipment?: string[];
+            experience_level?: components["schemas"]["ExperienceLevel"] | null;
+            /** Food Preferences */
+            food_preferences?: string[];
+            /** Height Cm */
+            height_cm?: number | null;
+            /** Notes */
+            notes?: string | null;
+            primary_goal?: components["schemas"]["PrimaryGoal"] | null;
+            /** Session Duration Min */
+            session_duration_min?: number | null;
+            sex?: components["schemas"]["BiologicalSex"] | null;
+            /** @default natural */
+            training_approach: components["schemas"]["TrainingApproach"];
+            /** Training Days Per Week */
+            training_days_per_week?: number | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -394,6 +598,187 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    get_living_profile_api_v1_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LivingProfileResponse"];
+                };
+            };
+        };
+    };
+    upsert_living_profile_api_v1_profile_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertLivingProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LivingProfileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_injuries_api_v1_profile_injuries_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["InjuryStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InjuryListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_injury_api_v1_profile_injuries_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInjuryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InjuryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_injury_api_v1_profile_injuries__injury_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                injury_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_injury_api_v1_profile_injuries__injury_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                injury_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateInjuryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InjuryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
