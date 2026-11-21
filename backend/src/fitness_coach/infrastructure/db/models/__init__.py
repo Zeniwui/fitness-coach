@@ -18,6 +18,10 @@ from fitness_coach.infrastructure.db.models.monthly_cut import (
     MonthlyCutRunModel,
     TrendingTopicModel,
 )
+from fitness_coach.infrastructure.db.models.nutrition import (
+    NutritionPhaseModel,
+    WeeklyCheckInModel,
+)
 from fitness_coach.infrastructure.db.models.profile import (
     InjuryRestrictionModel,
     LivingProfileModel,
@@ -41,9 +45,11 @@ __all__ = [
     "MesocycleModel",
     "MessageModel",
     "MonthlyCutRunModel",
+    "NutritionPhaseModel",
     "PlannedSessionModel",
     "ProfileUpdateProposalModel",
     "SessionSetModel",
     "TrainingSessionModel",
     "TrendingTopicModel",
+    "WeeklyCheckInModel",
 ]
