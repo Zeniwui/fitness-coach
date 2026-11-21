@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
-import { setAuthToken } from "../../api/client";
+import { seedSupabaseSession } from "../../test/authHelpers";
 import { resetMonthlyCutFixtures } from "../../test/msw/handlers/monthlyCut";
 
 describe("Ciencia — Corte Mensual, Lote Semilla y Temas de Actualidad (#5)", () => {
@@ -11,7 +11,7 @@ describe("Ciencia — Corte Mensual, Lote Semilla y Temas de Actualidad (#5)", (
   });
 
   it("shows Athlete Temas de Actualidad separately from Base de Conocimiento and hides Curator controls", async () => {
-    setAuthToken("tok-athlete");
+    seedSupabaseSession("tok-athlete");
     const user = userEvent.setup();
     render(<App initialEntries={["/science"]} />);
 
@@ -37,7 +37,7 @@ describe("Ciencia — Corte Mensual, Lote Semilla y Temas de Actualidad (#5)", (
   });
 
   it("allows Curator to view/resume paused Corte Mensual, trigger manual run, load seed batch, and review Temas de Actualidad", async () => {
-    setAuthToken("tok-dual");
+    seedSupabaseSession("tok-dual");
     const user = userEvent.setup();
     render(<App initialEntries={["/science"]} />);
 

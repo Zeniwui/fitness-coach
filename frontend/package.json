@@ -12,6 +12,7 @@
     "api:generate": "openapi-typescript ../backend/openapi.json -o src/api/generated/schema.d.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
     "lucide-react": "^0.468.0",
     "openapi-fetch": "^0.13.4",
     "react": "^18.3.1",

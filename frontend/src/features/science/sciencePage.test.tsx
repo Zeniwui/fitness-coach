@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
-import { setAuthToken } from "../../api/client";
+import { seedSupabaseSession } from "../../test/authHelpers";
 import {
   SAMPLE_ACTIVE_CARD,
   lastApprovePayload,
@@ -15,7 +15,7 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
     resetMockKnowledgeState();
   });
   it("allows Athlete to run hybrid search on approved Knowledge Base and hides Curator inbox", async () => {
-    setAuthToken("tok-athlete");
+    seedSupabaseSession("tok-athlete");
     const user = userEvent.setup();
     render(<App initialEntries={["/science"]} />);
 
@@ -45,7 +45,7 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
   });
 
   it("shows Curator Inbox with 6-block critical sheet, paywall warning, PDF upload, reject/approve & reindex", async () => {
-    setAuthToken("tok-dual");
+    seedSupabaseSession("tok-dual");
     const user = userEvent.setup();
     render(<App initialEntries={["/science"]} />);
 
@@ -81,7 +81,7 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
   });
 
   it("allows Curator to propose a new CandidateStudy via PDF upload and attach evolution relations on approval", async () => {
-    setAuthToken("tok-dual");
+    seedSupabaseSession("tok-dual");
     const user = userEvent.setup();
     render(<App initialEntries={["/science"]} />);
 

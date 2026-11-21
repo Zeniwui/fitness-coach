@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
-import { setAuthToken } from "../../api/client";
+import { seedSupabaseSession } from "../../test/authHelpers";
 import { resetMockNutritionState } from "../../test/msw/handlers/nutrition";
 
 describe("Nutrition: Fase Nutricional & Guided Weekly Check-in UI (#8)", () => {
   beforeEach(() => {
     resetMockNutritionState();
-    setAuthToken("tok-athlete");
+    seedSupabaseSession("tok-athlete");
   });
 
   it("creates, edits, switches, and completes a Fase Nutricional with history", async () => {

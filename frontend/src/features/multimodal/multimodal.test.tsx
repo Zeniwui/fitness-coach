@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
-import { setAuthToken } from "../../api/client";
+import { seedSupabaseSession } from "../../test/authHelpers";
 import { resetMockCoachState } from "../../test/msw/handlers/coach";
 import {
   getMockParseNaturalCalls,
@@ -53,7 +53,7 @@ describe("Multimodal Gym Flows: Voice Dictation, NL Training Session Draft & Ima
     resetMockCoachState();
     resetMockMultimodalState();
     resetMockTrainingState();
-    setAuthToken("tok-athlete");
+    seedSupabaseSession("tok-athlete");
     MockSpeechRecognition.nextError = null;
     MockSpeechRecognition.nextTranscript = "Cuánta proteína debo tomar al día";
     (window as unknown as Record<string, unknown>).SpeechRecognition = MockSpeechRecognition;

@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
-import { setAuthToken } from "../../api/client";
+import { seedSupabaseSession } from "../../test/authHelpers";
 import { resetMockTrainingState } from "../../test/msw/handlers/training";
 
 describe("Training (Entrenamiento) UI (#7)", () => {
   beforeEach(() => {
     resetMockTrainingState();
-    setAuthToken("tok-athlete");
+    seedSupabaseSession("tok-athlete");
   });
 
   it("shows today's planned session from the active Mesociclo with previous recorded marks", async () => {

@@ -1,7 +1,6 @@
 import createClient from "openapi-fetch";
 import type { paths } from "./generated/schema";
-
-const TOKEN_STORAGE_KEY = "fitness_coach_auth_token";
+import { getSupabaseAccessToken } from "../features/auth/supabaseClient";
 
 export type ConnectionStatus = "idle" | "waking" | "network_error";
 
@@ -75,18 +74,6 @@ export function resetApiClientState(): void {
   setConnectionState({ status: "idle", message: null });
 }
 
-export function getAuthToken(): string | null {
-  return window.localStorage.getItem(TOKEN_STORAGE_KEY);
-}
-
-export function setAuthToken(token: string): void {
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
-}
-
-export function clearAuthToken(): void {
-  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -116,7 +103,7 @@ export async function coldStartAwareFetch(
     inFlightMutations.add(mutationKey);
   }
 
-  const token = getAuthToken();
+  const token = await getSupabaseAccessToken();
   const headers = new Headers(request.headers);
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
