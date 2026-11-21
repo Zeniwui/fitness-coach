@@ -7,13 +7,13 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from alembic import command
 from fitness_coach.domain.identity import Athlete, Role
 from fitness_coach.infrastructure.api.main import create_app
 from fitness_coach.infrastructure.config import Settings
