@@ -13,6 +13,8 @@ from fitness_coach.application.ports.identity_storage import (
     IdentityVerifierPort,
 )
 from fitness_coach.application.ports.scientific_sources import ScientificSourcesPort
+from fitness_coach.infrastructure.ai.provider import build_ai_provider
+from fitness_coach.infrastructure.api.routers.coach import router as coach_router
 from fitness_coach.infrastructure.api.routers.curation import router as curation_router
 from fitness_coach.infrastructure.api.routers.identity import router as identity_router
 from fitness_coach.infrastructure.api.routers.knowledge import router as knowledge_router
@@ -63,7 +65,7 @@ def create_app(
         audience=resolved_settings.supabase_jwt_audience,
     )
     app.state.binary_storage = binary_storage or InMemoryBinaryStorage()
-    app.state.ai_provider = ai_provider
+    app.state.ai_provider = ai_provider or build_ai_provider(resolved_settings)
     app.state.scientific_sources = scientific_sources
 
     @app.get("/api/v1/health", response_model=HealthResponse, tags=["system"])
@@ -75,6 +77,7 @@ def create_app(
     app.include_router(knowledge_router)
     app.include_router(curation_router)
     app.include_router(monthly_cut_router)
+    app.include_router(coach_router)
 
     return app
 

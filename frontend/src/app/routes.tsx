@@ -1,6 +1,7 @@
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
+import { CoachPage } from "../features/coach/CoachPage";
 import { LivingProfilePage } from "../features/profile/LivingProfilePage";
 import { SciencePage } from "../features/science/SciencePage";
 import { BottomNav } from "./BottomNav";
@@ -56,17 +57,6 @@ function ProtectedLayout() {
   );
 }
 
-function CoachPlaceholder() {
-  return (
-    <section className="space-y-2">
-      <h1 className="text-xl font-bold text-white">Coach</h1>
-      <p className="text-sm text-slate-400">
-        Conversaciones activas con tu Coach respaldadas por tu Perfil Vivo y la Base de Conocimiento curada.
-      </p>
-    </section>
-  );
-}
-
 function TrainingPlaceholder() {
   return (
     <section className="space-y-2">
@@ -93,7 +83,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route element={<ProtectedLayout />}>
-        <Route path="/coach" element={<CoachPlaceholder />} />
+        <Route path="/coach" element={<CoachPage />} />
         <Route path="/training" element={<TrainingPlaceholder />} />
         <Route path="/nutrition" element={<NutritionPlaceholder />} />
         <Route path="/science" element={<SciencePage />} />
