@@ -95,6 +95,24 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     expect(screen.queryByRole("navigation", { name: /navegación principal/i })).not.toBeInTheDocument();
   });
 
+  it("signs in Dual-role Curator+Athlete via email/password form and grants both Curator and personal access", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/coach"]} />);
+
+    await user.type(await screen.findByLabelText(/correo electrónico/i), "curador@fitness.test");
+    await user.type(screen.getByLabelText(/contraseña/i), "password123");
+    await user.click(screen.getByRole("button", { name: /iniciar sesión/i }));
+
+    expect(await screen.findByRole("navigation", { name: /navegación principal/i })).toBeInTheDocument();
+    expect(screen.getByText(/^Curador$/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: /ciencia/i }));
+    expect(await screen.findByText(/panel del curador/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: /perfil vivo/i }));
+    expect(await screen.findByRole("heading", { name: /perfil vivo/i })).toBeInTheDocument();
+  });
+
   it("allows Dual-role Curator+Athlete to access personal tabs and issue invitations", async () => {
     seedSupabaseSession("tok-dual");
     const user = userEvent.setup();
@@ -118,6 +136,34 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     // Can navigate to personal Perfil Vivo without switching account
     await user.click(screen.getByRole("link", { name: /perfil vivo/i }));
     expect(await screen.findByRole("heading", { name: /perfil vivo/i })).toBeInTheDocument();
+  });
+
+  it("shows an error instead of false copy confirmation when Clipboard API is unavailable", async () => {
+    seedSupabaseSession("tok-dual");
+    const user = userEvent.setup();
+    render(<App initialEntries={["/science"]} />);
+
+    const emailInput = await screen.findByLabelText(/correo del atleta/i);
+    await user.type(emailInput, "sinclipboard@fitness.test");
+    await user.click(screen.getByRole("button", { name: /generar invitación/i }));
+    expect(await screen.findByText("inv-token-generated-123")).toBeInTheDocument();
+
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      value: undefined,
+      configurable: true,
+    });
+    try {
+      await user.click(screen.getByRole("button", { name: /copiar enlace/i }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(/portapapeles/i);
+      expect(screen.queryByText(/enlace copiado/i)).not.toBeInTheDocument();
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, "clipboard", originalClipboard);
+      } else {
+        delete (navigator as { clipboard?: Clipboard }).clipboard;
+      }
+    }
   });
 
   it("shows explicit cold-start indicator during slow wake-up and retries idempotent GET on 503", async () => {
@@ -290,21 +336,67 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     expect(screen.getByText(/Alex Nuevo/i)).toBeInTheDocument();
   });
 
+  it("transitions to unauthenticated instead of activation when cached JWT is revoked or invalid on 401", async () => {
+    seedSupabaseSession("tok-revoked", { email: "revocado@fitness.test" });
+    server.use(
+      http.get(`${TEST_SUPABASE_URL}/auth/v1/user`, () => {
+        return HttpResponse.json({ msg: "Invalid JWT" }, { status: 401 });
+      }),
+    );
+
+    render(<App initialEntries={["/coach"]} />);
+
+    expect(await screen.findByLabelText(/correo electrónico/i)).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /tu sesión ha caducado o dejó de ser válida/i,
+    );
+    expect(screen.queryByLabelText(/código de invitación/i)).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(TEST_SUPABASE_STORAGE_KEY)).toBeNull();
+  });
+
   it("captures ?invite= query param before login, pre-fills it on activation, and cleans it after redemption", async () => {
     const user = userEvent.setup();
-    render(<App initialEntries={["/?invite=inv-deep-456"]} />);
+    window.history.pushState({}, "", "/coach?invite=inv-deep-456");
+    try {
+      render(<App />);
+
+      await user.type(await screen.findByLabelText(/correo electrónico/i), "nuevo@fitness.test");
+      await user.type(screen.getByLabelText(/contraseña/i), "password123");
+      await user.click(screen.getByRole("button", { name: /iniciar sesión/i }));
+
+      const codeInput = (await screen.findByLabelText(/código de invitación/i)) as HTMLInputElement;
+      expect(codeInput.value).toBe("inv-deep-456");
+
+      await user.click(screen.getByRole("button", { name: /activar cuenta con invitación/i }));
+
+      expect(await screen.findByRole("navigation", { name: /navegación principal/i })).toBeInTheDocument();
+      expect(window.sessionStorage.getItem("fitness_coach_pending_invite")).toBeNull();
+      expect(window.location.search).toBe("");
+      expect(window.location.pathname).toBe("/coach");
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+
+  it("allows clearing an invalid pre-filled invite code and typing a corrected one", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/?invite=inv-invalid"]} />);
 
     await user.type(await screen.findByLabelText(/correo electrónico/i), "nuevo@fitness.test");
     await user.type(screen.getByLabelText(/contraseña/i), "password123");
     await user.click(screen.getByRole("button", { name: /iniciar sesión/i }));
 
     const codeInput = (await screen.findByLabelText(/código de invitación/i)) as HTMLInputElement;
-    expect(codeInput.value).toBe("inv-deep-456");
+    expect(codeInput.value).toBe("inv-invalid");
+
+    await user.clear(codeInput);
+    expect(codeInput.value).toBe("");
+
+    await user.type(codeInput, "inv-valid-999");
+    expect(codeInput.value).toBe("inv-valid-999");
 
     await user.click(screen.getByRole("button", { name: /activar cuenta con invitación/i }));
-
     expect(await screen.findByRole("navigation", { name: /navegación principal/i })).toBeInTheDocument();
-    expect(window.sessionStorage.getItem("fitness_coach_pending_invite")).toBeNull();
   });
 
   it("allows signing out from the activation screen to switch Supabase accounts", async () => {

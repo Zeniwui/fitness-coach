@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { apiClient, DuplicateSubmissionError } from "../../api/client";
+import {
+  apiClient,
+  DuplicateSubmissionError,
+  extractApiErrorDetail,
+} from "../../api/client";
 import type { components } from "../../api/generated/schema";
 
 type InvitationSummary = components["schemas"]["InvitationSummaryResponse"];
@@ -50,11 +54,7 @@ export function CuratorInvitationsPanel() {
         setGrantCurator(false);
         setInvitations((prev) => [data, ...prev]);
       } else {
-        const detail =
-          typeof apiError === "object" && apiError && "detail" in apiError
-            ? String((apiError as { detail: unknown }).detail)
-            : "No se pudo generar la invitación.";
-        setError(detail);
+        setError(extractApiErrorDetail(apiError, "No se pudo generar la invitación."));
       }
     } catch (err) {
       if (!(err instanceof DuplicateSubmissionError)) {
@@ -67,10 +67,19 @@ export function CuratorInvitationsPanel() {
 
   async function handleCopyLink() {
     if (!directInviteLink) return;
+    if (!navigator.clipboard?.writeText) {
+      setCopied(false);
+      setError(
+        "El portapapeles no está disponible en este navegador. Copia el enlace manualmente.",
+      );
+      return;
+    }
+    setError(null);
     try {
-      await navigator.clipboard?.writeText(directInviteLink);
+      await navigator.clipboard.writeText(directInviteLink);
       setCopied(true);
     } catch {
+      setCopied(false);
       setError("No se pudo copiar el enlace al portapapeles.");
     }
   }

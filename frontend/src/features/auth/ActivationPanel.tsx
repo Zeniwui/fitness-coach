@@ -16,10 +16,10 @@ export function ActivationPanel() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (pendingInviteCode && !invitationToken) {
+    if (pendingInviteCode) {
       setInvitationToken(pendingInviteCode);
     }
-  }, [pendingInviteCode, invitationToken]);
+  }, [pendingInviteCode]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
