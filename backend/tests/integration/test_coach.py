@@ -618,3 +618,85 @@ class TestLivingProfileUpdateProposals:
         after_dismiss = await client.get("/api/v1/profile", headers=_auth_headers(tok_a))
         assert after_dismiss.json()["session_duration_min"] is None
         assert after_dismiss.json()["equipment"] == ["Barra"]
+
+
+@pytest.mark.asyncio
+async def test_live_search_filters_out_previously_rejected_studies(
+    client: AsyncClient,
+    seed_accounts,
+    fake_ai: FakeAIProvider,
+    fake_scientific_sources: FakeScientificSources,
+) -> None:
+    from fitness_coach.application.ports.scientific_sources import (
+        LiveSearchHit,
+        ScientificArticleRecord,
+    )
+
+    _, tok_dual = seed_accounts["dual"]
+    _, tok_a = seed_accounts["athlete_a"]
+
+    # 1. Curator proposes and rejects a study
+    fake_scientific_sources.articles.append(
+        ScientificArticleRecord(
+            title="Flawed study to reject",
+            source_name="PubMed",
+            source_url="https://pubmed.ncbi.nlm.nih.gov/99988877/",
+            doi="10.1000/rejected-live",
+            pmid="99988877",
+            abstract="Weak methodology.",
+        )
+    )
+    prop_resp = await client.post(
+        "/api/v1/curator/candidates/from-doi",
+        headers=_auth_headers(tok_dual),
+        json={"doi_or_url": "10.1000/rejected-live"},
+    )
+    assert prop_resp.status_code == 201
+    cand_id = prop_resp.json()["id"]
+
+    rej_resp = await client.post(
+        f"/api/v1/curator/candidates/{cand_id}/reject",
+        headers=_auth_headers(tok_dual),
+        json={"rejection_reason": "Sin grupo control ni aleatorización."},
+    )
+    assert rej_resp.status_code == 200
+
+    # 2. Live search returns both the previously rejected study and a fresh study
+    fake_scientific_sources.live_hits = [
+        LiveSearchHit(
+            title="Flawed study to reject",
+            url="https://pubmed.ncbi.nlm.nih.gov/99988877/",
+            snippet="Weak methodology.",
+            doi="10.1000/rejected-live",
+            pmid="99988877",
+            published_year=2025,
+        ),
+        LiveSearchHit(
+            title="Fresh promising hypertrophy study",
+            url="https://doi.org/10.1000/fresh-live",
+            snippet="Randomized trial on lengthened partials.",
+            doi="10.1000/fresh-live",
+            pmid="11122233",
+            published_year=2025,
+        ),
+    ]
+
+    conv_resp = await client.post(
+        "/api/v1/coach/conversations",
+        headers=_auth_headers(tok_a),
+        json={"title": "Live search filter"},
+    )
+    conv_id = conv_resp.json()["id"]
+
+    fake_ai.canned_responses.append(LLMResponse(text="Aquí tienes el resultado reciente."))
+    resp = await client.post(
+        f"/api/v1/coach/conversations/{conv_id}/messages",
+        headers=_auth_headers(tok_a),
+        json={"content": "Busca estudios recientes de parciales", "enable_live_search": True},
+    )
+    assert resp.status_code == 200
+    events = _parse_sse(resp.text)
+    live_ev = next(p for name, p in events if name == "live_search_quarantine")
+    dois = [r["doi"] for r in live_ev["results"]]
+    assert "10.1000/rejected-live" not in dois
+    assert dois == ["10.1000/fresh-live"]

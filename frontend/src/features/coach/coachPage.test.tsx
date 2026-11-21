@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { delay, http, HttpResponse } from "msw";
 import { App } from "../../app/App";
-import { setAuthToken } from "../../api/client";
+import { configureApiClient, setAuthToken } from "../../api/client";
+import { server } from "../../test/msw/server";
 import { getMockPromotedPayloads, resetMockCoachState } from "../../test/msw/handlers/coach";
+import { uploadCoachAttachment } from "./sse";
 
 describe("Coach Chat SSE, Citations, Live Search Quarantine & Profile Proposals (#6)", () => {
   beforeEach(() => {
@@ -69,5 +72,63 @@ describe("Coach Chat SSE, Citations, Live Search Quarantine & Profile Proposals 
 
     await user.click(screen.getByRole("button", { name: /aceptar actualización/i }));
     expect(await screen.findByText(/perfil vivo actualizado/i)).toBeInTheDocument();
+  });
+
+  it("surfaces ColdStartBanner during slow Coach SSE streaming and image attachment upload", async () => {
+    configureApiClient({ coldStartThresholdMs: 30, retryDelayMs: 20 });
+    server.use(
+      http.post("*/api/v1/coach/conversations/:conversationId/messages", async () => {
+        await delay(120);
+        const sseBody =
+          'event: token\ndata: {"delta":"Respuesta tras cold start"}\n\n' +
+          'event: done\ndata: {"message":{"id":"m-cs","conversation_id":"conv-1","role":"assistant","content":"Respuesta tras cold start","citations":[],"live_search_results":[],"used_general_knowledge":false,"boundary_triggered":"none","created_at":"2026-11-21T18:00:00Z"}}\n\n';
+        return new HttpResponse(sseBody, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      }),
+      http.post("*/api/v1/multimodal/attachments", async () => {
+        await delay(120);
+        return HttpResponse.json(
+          {
+            id: "att-cs-1",
+            category: "meal",
+            filename: "plato.jpg",
+            mime_type: "image/jpeg",
+            size_bytes: 123,
+            created_at: "2026-11-21T18:00:00Z",
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<App initialEntries={["/coach"]} />);
+
+    const input = await screen.findByLabelText(/mensaje para el coach/i);
+    await user.type(input, "Hola Coach");
+    await user.click(screen.getByRole("button", { name: /enviar/i }));
+
+    expect(
+      await screen.findByText(/activando servidor tras periodo de inactividad/i),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/respuesta tras cold start/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByText(/activando servidor tras periodo de inactividad/i),
+      ).not.toBeInTheDocument();
+    });
+
+    // Also verify slow image upload surfaces ColdStartBanner
+    const uploadPromise = uploadCoachAttachment(
+      new File(["img-bytes"], "plato.jpg", { type: "image/jpeg" }),
+      "meal",
+    );
+    expect(
+      await screen.findByText(/activando servidor tras periodo de inactividad/i),
+    ).toBeInTheDocument();
+    const uploaded = await uploadPromise;
+    expect(uploaded.id).toBe("att-cs-1");
   });
 });

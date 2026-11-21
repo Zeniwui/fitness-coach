@@ -1,10 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
 import { setAuthToken } from "../../api/client";
+import {
+  SAMPLE_ACTIVE_CARD,
+  lastApprovePayload,
+  lastFromPdfReceived,
+  resetMockKnowledgeState,
+} from "../../test/msw/handlers/knowledge";
 
 describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
+  beforeEach(() => {
+    resetMockKnowledgeState();
+  });
   it("allows Athlete to run hybrid search on approved Knowledge Base and hides Curator inbox", async () => {
     setAuthToken("tok-athlete");
     const user = userEvent.setup();
@@ -69,5 +78,44 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
     // Controlled re-indexation action
     await user.click(screen.getByRole("button", { name: /re-indexar base/i }));
     expect(await screen.findByText(/re-indexación completada/i)).toBeInTheDocument();
+  });
+
+  it("allows Curator to propose a new CandidateStudy via PDF upload and attach evolution relations on approval", async () => {
+    setAuthToken("tok-dual");
+    const user = userEvent.setup();
+    render(<App initialEntries={["/science"]} />);
+
+    const inboxTab = await screen.findByRole("tab", { name: /bandeja del curador/i });
+    await user.click(inboxTab);
+
+    // 1. Propose new CandidateStudy from PDF
+    const pdfInput = await screen.findByLabelText(/proponer nuevo estudio desde pdf/i);
+    const pdfFile = new File(["%PDF-1.4 fake study"], "study.pdf", { type: "application/pdf" });
+    await user.upload(pdfInput, pdfFile);
+
+    expect(await screen.findByText(/estudio propuesto desde pdf/i)).toBeInTheDocument();
+    expect(lastFromPdfReceived).toBe(true);
+
+    // 2. Attach an evolution relation (supersedes) targeting an existing approved EvidenceCard
+    const relationTypeSelect = await screen.findByLabelText(/tipo de relación de evolución/i);
+    await user.selectOptions(relationTypeSelect, "supersedes");
+
+    const targetCardSelect = screen.getByLabelText(/ficha de evidencia objetivo/i);
+    await user.selectOptions(targetCardSelect, SAMPLE_ACTIVE_CARD.id);
+
+    await user.click(screen.getByRole("button", { name: /añadir relación/i }));
+
+    await user.click(screen.getByRole("button", { name: /aprobar ficha/i }));
+    expect(
+      await screen.findByText(/ficha de evidencia aprobada e indexada/i),
+    ).toBeInTheDocument();
+
+    expect(lastApprovePayload?.relations).toEqual([
+      {
+        target_card_id: SAMPLE_ACTIVE_CARD.id,
+        relation_type: "supersedes",
+        rationale: null,
+      },
+    ]);
   });
 });

@@ -5,7 +5,7 @@ import { App } from "../../app/App";
 import { setAuthToken } from "../../api/client";
 import { resetMockTrainingState } from "../../test/msw/handlers/training";
 
-describe("Training (Entreno) UI (#7)", () => {
+describe("Training (Entrenamiento) UI (#7)", () => {
   beforeEach(() => {
     resetMockTrainingState();
     setAuthToken("tok-athlete");
@@ -14,6 +14,7 @@ describe("Training (Entreno) UI (#7)", () => {
   it("shows today's planned session from the active Mesociclo with previous recorded marks", async () => {
     render(<App initialEntries={["/training"]} />);
 
+    expect(await screen.findByRole("heading", { level: 1, name: "Entrenamiento" })).toBeInTheDocument();
     expect(await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /sesión planificada: torso a/i }),

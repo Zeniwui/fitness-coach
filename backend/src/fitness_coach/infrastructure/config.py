@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_INSECURE_JWT_SECRET = "dev-insecure-jwt-secret-change-in-production"
 
 
 class Settings(BaseSettings):
@@ -27,11 +30,17 @@ class Settings(BaseSettings):
     ]
 
     # Auth (Supabase Auth JWT verification; public signup disabled)
-    supabase_jwt_secret: str = "dev-insecure-jwt-secret-change-in-production"
+    supabase_jwt_secret: str = DEFAULT_INSECURE_JWT_SECRET
     supabase_jwt_audience: str = "authenticated"
     invitation_ttl_hours: int = 72
 
-    # Bootstrap Curator (optional: allows first curator onboarding on empty DB)
+    # Supabase Storage (ADR-0003: private isolated buckets in production)
+    supabase_url: str | None = None
+    supabase_service_role_key: str | None = None
+    supabase_athlete_bucket: str = "athlete-private"
+    supabase_curator_bucket: str = "curator-pdfs"
+
+    # Bootstrap Curator (explicit allowlist required to enable first curator onboarding)
     bootstrap_curator_email: str | None = None
     bootstrap_curator_subject: str | None = None
 
@@ -45,6 +54,20 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     embedding_provider: str = "google_ai_studio"
     embedding_model: str = "text-embedding-004"
+
+    @model_validator(mode="after")
+    def _validate_security_invariants(self) -> Settings:
+        env = self.environment.strip().lower()
+        if env not in ("development", "test"):
+            if (
+                not self.supabase_jwt_secret
+                or self.supabase_jwt_secret == DEFAULT_INSECURE_JWT_SECRET
+            ):
+                raise ValueError(
+                    "supabase_jwt_secret must be explicitly configured outside "
+                    "development/test environments."
+                )
+        return self
 
 
 @lru_cache

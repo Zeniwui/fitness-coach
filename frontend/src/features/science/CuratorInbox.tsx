@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { apiClient, getAuthToken } from "../../api/client";
+import { apiClient, coldStartAwareFetch } from "../../api/client";
 import type { components } from "../../api/generated/schema";
 
 type CandidateStudy = components["schemas"]["CandidateStudyResponse"];
 type CandidateStatus = components["schemas"]["CandidateStatus"];
 type EvidenceLevel = components["schemas"]["EvidenceLevel"];
+type RelationType = components["schemas"]["RelationType"];
+type EvidenceRelationInput = components["schemas"]["EvidenceRelationInputSchema"];
+type EvidenceCardSummary = components["schemas"]["KnowledgeSearchResponse"]["items"][number]["card"];
 
 interface PriorRejectionConflict {
   doiOrUrl: string;
@@ -12,29 +15,48 @@ interface PriorRejectionConflict {
   priorReason: string;
 }
 
+const RELATION_LABELS: Record<RelationType, string> = {
+  confirms: "Confirma",
+  nuances: "Matiza",
+  supersedes: "Supera",
+};
+
 export function CuratorInbox() {
   const [statusFilter, setStatusFilter] = useState<CandidateStatus>("pending");
   const [candidates, setCandidates] = useState<CandidateStudy[]>([]);
+  const [approvedCards, setApprovedCards] = useState<EvidenceCardSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  // Manual DOI proposal
+  // Manual DOI / PDF proposal
   const [doiInput, setDoiInput] = useState("");
   const [priorRejection, setPriorRejection] = useState<PriorRejectionConflict | null>(null);
 
-  // Per-candidate draft state for approve/reject
+  // Per-candidate draft state for approve/reject & evolution relations
   const [notesById, setNotesById] = useState<Record<string, string>>({});
   const [tagsById, setTagsById] = useState<Record<string, string>>({});
   const [rejectReasonById, setRejectReasonById] = useState<Record<string, string>>({});
+  const [relationsById, setRelationsById] = useState<Record<string, EvidenceRelationInput[]>>({});
+  const [draftRelTypeById, setDraftRelTypeById] = useState<Record<string, RelationType>>({});
+  const [draftRelTargetById, setDraftRelTargetById] = useState<Record<string, string>>({});
+  const [draftRelRationaleById, setDraftRelRationaleById] = useState<Record<string, string>>({});
 
   const loadCandidates = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: apiError } = await apiClient.GET("/api/v1/curator/candidates", {
-        params: { query: { status: statusFilter } },
-      });
+      const [{ data, error: apiError }, kbRes] = await Promise.all([
+        apiClient.GET("/api/v1/curator/candidates", {
+          params: { query: { status: statusFilter } },
+        }),
+        apiClient.GET("/api/v1/knowledge/search", {
+          params: { query: { limit: 50 } },
+        }),
+      ]);
+      if (kbRes.data) {
+        setApprovedCards(kbRes.data.items.map((item) => item.card));
+      }
       if (data) {
         setCandidates(data.items);
       } else {
@@ -100,6 +122,35 @@ export function CuratorInbox() {
     void submitDoiProposal(doiInput, false);
   };
 
+  const handleProposeFromPdf = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setFeedback(null);
+    setPriorRejection(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await coldStartAwareFetch("/api/v1/curator/candidates/from-pdf", {
+      method: "POST",
+      body: formData,
+    });
+    e.target.value = "";
+    if (!res.ok) {
+      const errJson = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+      const detail = errJson?.detail;
+      setError(
+        typeof detail === "string"
+          ? detail
+          : "No se pudo proponer el Estudio Candidato desde PDF.",
+      );
+      return;
+    }
+    const created = (await res.json()) as CandidateStudy;
+    setFeedback(`Estudio Candidato añadido desde PDF: ${created.title}`);
+    await loadCandidates();
+  };
+
   const handleUploadCandidatePdf = async (
     candidateId: string,
     e: ChangeEvent<HTMLInputElement>,
@@ -111,10 +162,8 @@ export function CuratorInbox() {
 
     const formData = new FormData();
     formData.append("file", file);
-    const token = getAuthToken();
-    const res = await fetch(`/api/v1/curator/candidates/${candidateId}/upload-pdf`, {
+    const res = await coldStartAwareFetch(`/api/v1/curator/candidates/${candidateId}/upload-pdf`, {
       method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: formData,
     });
     if (!res.ok) {
@@ -124,6 +173,37 @@ export function CuratorInbox() {
     }
     setFeedback("PDF procesado y ficha crítica de 6 bloques regenerada con texto completo.");
     await loadCandidates();
+  };
+
+  const handleAddRelation = (candidateId: string) => {
+    const targetCardId = draftRelTargetById[candidateId];
+    if (!targetCardId) return;
+    const relationType: RelationType = draftRelTypeById[candidateId] ?? "confirms";
+    const rationale = (draftRelRationaleById[candidateId] || "").trim() || null;
+
+    setRelationsById((prev) => {
+      const current = prev[candidateId] ?? [];
+      const alreadyExists = current.some(
+        (r) => r.target_card_id === targetCardId && r.relation_type === relationType,
+      );
+      if (alreadyExists) return prev;
+      return {
+        ...prev,
+        [candidateId]: [
+          ...current,
+          { target_card_id: targetCardId, relation_type: relationType, rationale },
+        ],
+      };
+    });
+    setDraftRelTargetById((prev) => ({ ...prev, [candidateId]: "" }));
+    setDraftRelRationaleById((prev) => ({ ...prev, [candidateId]: "" }));
+  };
+
+  const handleRemoveRelation = (candidateId: string, index: number) => {
+    setRelationsById((prev) => ({
+      ...prev,
+      [candidateId]: (prev[candidateId] ?? []).filter((_, i) => i !== index),
+    }));
   };
 
   const handleApprove = async (candidate: CandidateStudy) => {
@@ -143,7 +223,7 @@ export function CuratorInbox() {
           evidence_level: candidate.critical_sheet.suggested_evidence_level as EvidenceLevel,
           tags: parsedTags,
           curator_notes: notesById[candidate.id] || null,
-          relations: [],
+          relations: relationsById[candidate.id] ?? [],
         },
       },
     );
@@ -243,6 +323,16 @@ export function CuratorInbox() {
           >
             Proponer por DOI
           </button>
+          <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-semibold text-sky-300 hover:border-sky-500">
+            Proponer nuevo estudio desde PDF
+            <input
+              type="file"
+              accept="application/pdf"
+              aria-label="Proponer nuevo estudio desde PDF"
+              onChange={(e) => void handleProposeFromPdf(e)}
+              className="sr-only"
+            />
+          </label>
         </form>
 
         {priorRejection && (
@@ -427,6 +517,83 @@ export function CuratorInbox() {
                       className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
                     />
                   </div>
+
+                  {approvedCards.length > 0 && (
+                    <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                      <p className="text-[11px] font-semibold text-slate-300">
+                        Relaciones de evolución con Fichas de Evidencia existentes (opcional)
+                      </p>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <select
+                          aria-label="Tipo de relación de evolución"
+                          value={draftRelTypeById[cand.id] ?? "confirms"}
+                          onChange={(e) =>
+                            setDraftRelTypeById((prev) => ({
+                              ...prev,
+                              [cand.id]: e.target.value as RelationType,
+                            }))
+                          }
+                          className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value="confirms">Confirma</option>
+                          <option value="nuances">Matiza</option>
+                          <option value="supersedes">Supera</option>
+                        </select>
+                        <select
+                          aria-label="Ficha de Evidencia objetivo"
+                          value={draftRelTargetById[cand.id] ?? ""}
+                          onChange={(e) =>
+                            setDraftRelTargetById((prev) => ({
+                              ...prev,
+                              [cand.id]: e.target.value,
+                            }))
+                          }
+                          className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value="">Selecciona Ficha de Evidencia…</option>
+                          {approvedCards.map((card) => (
+                            <option key={card.id} value={card.id}>
+                              {card.title}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => handleAddRelation(cand.id)}
+                          className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20"
+                        >
+                          Añadir relación
+                        </button>
+                      </div>
+                      {(relationsById[cand.id] ?? []).length > 0 && (
+                        <ul className="space-y-1">
+                          {(relationsById[cand.id] ?? []).map((rel, idx) => {
+                            const target = approvedCards.find((c) => c.id === rel.target_card_id);
+                            return (
+                              <li
+                                key={`${rel.target_card_id}-${rel.relation_type}-${idx}`}
+                                className="flex items-center justify-between gap-2 rounded bg-slate-900 px-2.5 py-1 text-xs text-slate-200"
+                              >
+                                <span>
+                                  <strong className="text-emerald-300">
+                                    {RELATION_LABELS[rel.relation_type]}
+                                  </strong>{" "}
+                                  → {target?.title ?? rel.target_card_id}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveRelation(cand.id, idx)}
+                                  className="text-rose-300 hover:underline"
+                                >
+                                  Quitar
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap items-center gap-2">
                     <button

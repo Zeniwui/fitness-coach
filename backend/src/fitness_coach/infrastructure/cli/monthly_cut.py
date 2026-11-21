@@ -25,12 +25,16 @@ from fitness_coach.domain.monthly_cut import (
     MonthlyCutRun,
     MonthlyCutRunType,
 )
+from fitness_coach.infrastructure.ai.provider import build_ai_provider
 from fitness_coach.infrastructure.config import get_settings
 from fitness_coach.infrastructure.db.repositories.knowledge import SqlAlchemyKnowledgeRepository
 from fitness_coach.infrastructure.db.repositories.monthly_cut import (
     SqlAlchemyMonthlyCutRepository,
 )
 from fitness_coach.infrastructure.db.session import create_engine, create_session_factory
+from fitness_coach.infrastructure.scientific_sources.http_adapter import (
+    HttpScientificSourcesAdapter,
+)
 
 
 async def run_cli_monthly_cut(
@@ -163,10 +167,45 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
-    raise RuntimeError(
-        "Configure AIProviderPort and ScientificSourcesPort adapters in production environment "
-        "before invoking 'run' or 'resume' from CLI."
+    ai_provider = build_ai_provider(settings)
+    scientific_sources = HttpScientificSourcesAdapter()
+
+    if args.command == "run":
+        run = asyncio.run(
+            run_cli_monthly_cut(
+                database_url=settings.database_url,
+                ai_provider=ai_provider,
+                scientific_sources=scientific_sources,
+                date_from=_parse_date(args.date_from),
+                date_to=_parse_date(args.date_to),
+                query_override=args.query,
+                max_candidates=args.max_candidates,
+            )
+        )
+    elif args.command == "resume":
+        run = asyncio.run(
+            run_cli_resume(
+                database_url=settings.database_url,
+                run_id=UUID(args.run_id),
+                ai_provider=ai_provider,
+                scientific_sources=scientific_sources,
+            )
+        )
+    else:
+        parser.error(f"Comando desconocido: {args.command}")
+
+    print(
+        json.dumps(
+            {
+                "run_id": str(run.id),
+                "status": run.status.value,
+                "candidates_found": run.candidates_found,
+                "analyzed_count": run.analyzed_count,
+                "pause_reason": run.pause_reason,
+            }
+        )
     )
+    return 0
 
 
 if __name__ == "__main__":

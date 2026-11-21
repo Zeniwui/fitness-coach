@@ -48,6 +48,40 @@ def _build_embedding_input(
     return "\n".join(p for p in parts if p)
 
 
+async def check_existing_candidate_for_proposal(
+    *,
+    repo: KnowledgeRepositoryPort,
+    doi: str | None = None,
+    pmid: str | None = None,
+    content_hash: str | None = None,
+    allow_reopen: bool = False,
+) -> CandidateStudy | None:
+    """Shared deduplication & rejection-history guard for CandidateStudy creation/promotion.
+
+    Returns the prior rejected CandidateStudy only when `allow_reopen=True`.
+    Raises DuplicateRejectedStudyError if previously rejected and `allow_reopen=False`.
+    Raises DuplicateActiveStudyError if already pending or approved.
+    """
+    existing = await repo.find_candidate_by_identifiers(
+        doi=doi,
+        pmid=pmid,
+        content_hash=content_hash,
+    )
+    if existing is None:
+        return None
+    if existing.status == CandidateStatus.REJECTED:
+        if not allow_reopen:
+            raise DuplicateRejectedStudyError(prior_candidate=existing)
+        return existing
+    if existing.status == CandidateStatus.APPROVED:
+        raise DuplicateActiveStudyError(
+            "Este estudio ya forma parte de la Base de Conocimiento aprobada."
+        )
+    raise DuplicateActiveStudyError(
+        "Este estudio ya está en la Bandeja del Curador como Estudio Candidato."
+    )
+
+
 async def generate_critical_sheet(
     *,
     ai_provider: AIProviderPort,
@@ -251,42 +285,41 @@ class ProposeCandidateFromDoiUseCase:
 
         doi = normalize_doi(article.doi) or normalized_doi
         pmid = normalize_pmid(article.pmid)
-        existing = await self._repo.find_candidate_by_identifiers(doi=doi, pmid=pmid)
-        if existing is not None:
-            if existing.status == CandidateStatus.REJECTED:
-                if not allow_reopen:
-                    raise DuplicateRejectedStudyError(prior_candidate=existing)
-                access_level = (
-                    AccessLevel.FULL_TEXT_OPEN_ACCESS
-                    if article.is_open_access and article.full_text
-                    else AccessLevel.ABSTRACT_ONLY_PAYWALL
-                )
-                source_text = (
-                    article.full_text
-                    if access_level == AccessLevel.FULL_TEXT_OPEN_ACCESS and article.full_text
-                    else (article.abstract or article.title)
-                )
-                sheet = await generate_critical_sheet(
-                    ai_provider=self._ai_provider,
-                    title=article.title,
-                    authors=list(article.authors),
-                    journal=article.journal,
-                    published_year=article.published_year,
-                    doi=doi,
-                    pmid=pmid,
-                    source_url=article.source_url,
-                    access_level=access_level,
-                    source_text=source_text,
-                )
-                return await self._repo.reopen_rejected_candidate(
-                    candidate_id=existing.id,
-                    access_level=access_level,
-                    critical_sheet=sheet,
-                    pdf_storage_path=None,
-                    content_hash=compute_content_hash(source_text),
-                )
-            raise DuplicateActiveStudyError(
-                f"El estudio con DOI '{doi}' ya existe con estado '{existing.status.value}'."
+        existing_rejected = await check_existing_candidate_for_proposal(
+            repo=self._repo,
+            doi=doi,
+            pmid=pmid,
+            allow_reopen=allow_reopen,
+        )
+        if existing_rejected is not None:
+            access_level = (
+                AccessLevel.FULL_TEXT_OPEN_ACCESS
+                if article.is_open_access and article.full_text
+                else AccessLevel.ABSTRACT_ONLY_PAYWALL
+            )
+            source_text = (
+                article.full_text
+                if access_level == AccessLevel.FULL_TEXT_OPEN_ACCESS and article.full_text
+                else (article.abstract or article.title)
+            )
+            sheet = await generate_critical_sheet(
+                ai_provider=self._ai_provider,
+                title=article.title,
+                authors=list(article.authors),
+                journal=article.journal,
+                published_year=article.published_year,
+                doi=doi,
+                pmid=pmid,
+                source_url=article.source_url,
+                access_level=access_level,
+                source_text=source_text,
+            )
+            return await self._repo.reopen_rejected_candidate(
+                candidate_id=existing_rejected.id,
+                access_level=access_level,
+                critical_sheet=sheet,
+                pdf_storage_path=None,
+                content_hash=compute_content_hash(source_text),
             )
 
         access_level = (
@@ -354,38 +387,35 @@ class ProposeCandidateFromPdfUseCase:
         normalized_doi = normalize_doi(doi)
         content_hash = compute_content_hash(extracted_text)
 
-        existing = await self._repo.find_candidate_by_identifiers(
-            doi=normalized_doi, content_hash=content_hash
+        existing_rejected = await check_existing_candidate_for_proposal(
+            repo=self._repo,
+            doi=normalized_doi,
+            content_hash=content_hash,
+            allow_reopen=allow_reopen,
         )
-        if existing is not None:
-            if existing.status == CandidateStatus.REJECTED:
-                if not allow_reopen:
-                    raise DuplicateRejectedStudyError(prior_candidate=existing)
-                storage_path = await self._binary_storage.put_curator_pdf(
-                    relative_path=f"manual/{content_hash[:12]}-{filename}",
-                    data=pdf_bytes,
-                )
-                sheet = await generate_critical_sheet(
-                    ai_provider=self._ai_provider,
-                    title=title or existing.title,
-                    authors=list(existing.authors),
-                    journal=existing.journal,
-                    published_year=existing.published_year,
-                    doi=normalized_doi or existing.doi,
-                    pmid=existing.pmid,
-                    source_url=existing.source_url,
-                    access_level=AccessLevel.FULL_TEXT_UPLOADED_PDF,
-                    source_text=extracted_text,
-                )
-                return await self._repo.reopen_rejected_candidate(
-                    candidate_id=existing.id,
-                    access_level=AccessLevel.FULL_TEXT_UPLOADED_PDF,
-                    critical_sheet=sheet,
-                    pdf_storage_path=storage_path,
-                    content_hash=content_hash,
-                )
-            raise DuplicateActiveStudyError(
-                f"Este estudio ya existe en el sistema con estado '{existing.status.value}'."
+        if existing_rejected is not None:
+            storage_path = await self._binary_storage.put_curator_pdf(
+                relative_path=f"manual/{content_hash[:12]}-{filename}",
+                data=pdf_bytes,
+            )
+            sheet = await generate_critical_sheet(
+                ai_provider=self._ai_provider,
+                title=title or existing_rejected.title,
+                authors=list(existing_rejected.authors),
+                journal=existing_rejected.journal,
+                published_year=existing_rejected.published_year,
+                doi=normalized_doi or existing_rejected.doi,
+                pmid=existing_rejected.pmid,
+                source_url=existing_rejected.source_url,
+                access_level=AccessLevel.FULL_TEXT_UPLOADED_PDF,
+                source_text=extracted_text,
+            )
+            return await self._repo.reopen_rejected_candidate(
+                candidate_id=existing_rejected.id,
+                access_level=AccessLevel.FULL_TEXT_UPLOADED_PDF,
+                critical_sheet=sheet,
+                pdf_storage_path=storage_path,
+                content_hash=content_hash,
             )
 
         resolved_title = (title or "").strip() or extracted_text.splitlines()[0][:180] or filename

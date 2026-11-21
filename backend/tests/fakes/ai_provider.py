@@ -55,10 +55,12 @@ class FakeAIProvider:
         embedding_dim: int = 16,
         embedding_model_id: str = "fake-embedding-v1",
         simulate_rate_limit_after: int | None = None,
+        simulate_embed_rate_limit_after: int | None = None,
     ) -> None:
         self.embedding_dim = embedding_dim
         self.embedding_model_id = embedding_model_id
         self.simulate_rate_limit_after = simulate_rate_limit_after
+        self.simulate_embed_rate_limit_after = simulate_embed_rate_limit_after
         self.generate_calls: list[dict[str, Any]] = []
         self.embed_calls: list[list[str]] = []
         self.transcribe_calls: list[str] = []
@@ -113,6 +115,11 @@ class FakeAIProvider:
             yield token + " "
 
     async def embed_texts(self, texts: list[str]) -> list[EmbeddingResult]:
+        if (
+            self.simulate_embed_rate_limit_after is not None
+            and len(self.embed_calls) >= self.simulate_embed_rate_limit_after
+        ):
+            raise RateLimitError("HTTP 429: simulated embedding quota exhausted")
         self.embed_calls.append(list(texts))
         results: list[EmbeddingResult] = []
         for text in texts:

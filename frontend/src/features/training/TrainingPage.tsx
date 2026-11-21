@@ -350,7 +350,7 @@ export function TrainingPage() {
   return (
     <section className="space-y-5">
       <header className="space-y-1">
-        <h1 className="text-xl font-bold text-white">Entreno</h1>
+        <h1 className="text-xl font-bold text-white">Entrenamiento</h1>
         <p className="text-xs text-slate-400">
           Planificación de Mesociclos, sesión de hoy con marcas previas, registro rápido y volumen
           semanal efectivo.

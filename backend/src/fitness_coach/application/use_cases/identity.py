@@ -136,6 +136,12 @@ class BootstrapCuratorUseCase:
         verified: VerifiedIdentity,
         display_name: str | None = None,
     ) -> Athlete:
+        if not self._bootstrap_email and not self._bootstrap_subject:
+            raise ForbiddenError(
+                "El arranque inicial del Curador está deshabilitado: configura "
+                "BOOTSTRAP_CURATOR_EMAIL o BOOTSTRAP_CURATOR_SUBJECT explícitamente."
+            )
+
         if await self._repo.count_athletes() > 0:
             raise ForbiddenError(
                 "El alta inicial del Curador está deshabilitada porque el sistema ya tiene cuentas."
