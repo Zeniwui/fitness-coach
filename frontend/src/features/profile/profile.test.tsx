@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
-import { setAuthToken } from "../../api/client";
+import { seedSupabaseSession } from "../../test/authHelpers";
 import { resetMockProfileState } from "../../test/msw/handlers/profile";
 
 describe("Living Profile (Perfil Vivo) & Injuries UI (#3)", () => {
   beforeEach(() => {
     resetMockProfileState();
-    setAuthToken("tok-athlete");
+    seedSupabaseSession("tok-athlete");
   });
 
   it("displays active Coach context banner and saves structured Living Profile fields", async () => {

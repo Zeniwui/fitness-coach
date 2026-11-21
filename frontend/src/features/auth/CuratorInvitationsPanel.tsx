@@ -9,8 +9,13 @@ export function CuratorInvitationsPanel() {
   const [email, setEmail] = useState("");
   const [grantCurator, setGrantCurator] = useState(false);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const directInviteLink = generatedToken
+    ? `${window.location.origin}/?invite=${encodeURIComponent(generatedToken)}`
+    : null;
 
   const loadInvitations = useCallback(async () => {
     const { data } = await apiClient.GET("/api/v1/curator/invitations");
@@ -40,6 +45,7 @@ export function CuratorInvitationsPanel() {
       );
       if (data) {
         setGeneratedToken(data.invitation_token);
+        setCopied(false);
         setEmail("");
         setGrantCurator(false);
         setInvitations((prev) => [data, ...prev]);
@@ -56,6 +62,16 @@ export function CuratorInvitationsPanel() {
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleCopyLink() {
+    if (!directInviteLink) return;
+    try {
+      await navigator.clipboard?.writeText(directInviteLink);
+      setCopied(true);
+    } catch {
+      setError("No se pudo copiar el enlace al portapapeles.");
     }
   }
 
@@ -117,14 +133,38 @@ export function CuratorInvitationsPanel() {
         </button>
       </form>
 
-      {generatedToken && (
-        <div className="mt-4 rounded-lg border border-emerald-500/40 bg-emerald-950/40 p-3">
-          <p className="text-xs font-medium text-emerald-200">
-            Código generado (compártelo de forma privada):
-          </p>
-          <code className="mt-1 block break-all text-xs font-mono text-white">
-            {generatedToken}
-          </code>
+      {generatedToken && directInviteLink && (
+        <div className="mt-4 space-y-2 rounded-lg border border-emerald-500/40 bg-emerald-950/40 p-3">
+          <div>
+            <p className="text-xs font-medium text-emerald-200">
+              Código generado (compártelo de forma privada):
+            </p>
+            <code className="mt-1 block break-all text-xs font-mono text-white">
+              {generatedToken}
+            </code>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-emerald-200">
+              Enlace directo de invitación:
+            </p>
+            <code className="mt-1 block break-all text-xs font-mono text-emerald-100">
+              {directInviteLink}
+            </code>
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => void handleCopyLink()}
+              className="rounded-md border border-emerald-500/50 bg-emerald-900/50 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-800/60"
+            >
+              Copiar enlace
+            </button>
+            {copied && (
+              <span role="status" className="text-xs font-medium text-emerald-300">
+                Enlace copiado
+              </span>
+            )}
+          </div>
         </div>
       )}
 

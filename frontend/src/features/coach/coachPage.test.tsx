@@ -3,7 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { App } from "../../app/App";
-import { configureApiClient, setAuthToken } from "../../api/client";
+import { configureApiClient } from "../../api/client";
+import { seedSupabaseSession } from "../../test/authHelpers";
 import { server } from "../../test/msw/server";
 import { getMockPromotedPayloads, resetMockCoachState } from "../../test/msw/handlers/coach";
 import { uploadCoachAttachment } from "./sse";
@@ -11,7 +12,7 @@ import { uploadCoachAttachment } from "./sse";
 describe("Coach Chat SSE, Citations, Live Search Quarantine & Profile Proposals (#6)", () => {
   beforeEach(() => {
     resetMockCoachState();
-    setAuthToken("tok-athlete");
+    seedSupabaseSession("tok-athlete");
   });
 
   it("streams Coach response over SSE and renders clickable EvidenceCard citation chips", async () => {

@@ -42,7 +42,7 @@ function ProtectedLayout() {
           </div>
           <button
             type="button"
-            onClick={logout}
+            onClick={() => void logout()}
             className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 hover:border-slate-500 hover:text-white"
           >
             Salir
