@@ -55,6 +55,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/curator/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Candidates */
+        get: operations["list_candidates_api_v1_curator_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/candidates/from-doi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose Candidate From Doi */
+        post: operations["propose_candidate_from_doi_api_v1_curator_candidates_from_doi_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/candidates/from-pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose Candidate From Pdf */
+        post: operations["propose_candidate_from_pdf_api_v1_curator_candidates_from_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/candidates/{candidate_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Candidate */
+        get: operations["get_candidate_api_v1_curator_candidates__candidate_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/candidates/{candidate_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Candidate */
+        post: operations["approve_candidate_api_v1_curator_candidates__candidate_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/candidates/{candidate_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Candidate */
+        post: operations["reject_candidate_api_v1_curator_candidates__candidate_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/candidates/{candidate_id}/upload-pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Candidate Pdf */
+        post: operations["upload_candidate_pdf_api_v1_curator_candidates__candidate_id__upload_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/cards/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Evidence Card */
+        patch: operations["update_evidence_card_api_v1_curator_cards__card_id__patch"];
+        trace?: never;
+    };
     "/api/v1/curator/invitations": {
         parameters: {
             query?: never;
@@ -73,6 +209,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/curator/reindex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reindex Knowledge Base */
+        post: operations["reindex_knowledge_base_api_v1_curator_reindex_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -82,6 +235,40 @@ export interface paths {
         };
         /** Health */
         get: operations["health_api_v1_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/cards/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Evidence Card */
+        get: operations["get_evidence_card_api_v1_knowledge_cards__card_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Knowledge Base */
+        get: operations["search_knowledge_base_api_v1_knowledge_search_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -148,6 +335,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccessLevel
+         * @enum {string}
+         */
+        AccessLevel: "full_text_open_access" | "full_text_uploaded_pdf" | "abstract_only_paywall";
+        /** ApproveCandidateRequest */
+        ApproveCandidateRequest: {
+            /** Curated Text Es */
+            curated_text_es?: string | null;
+            /** Curator Notes */
+            curator_notes?: string | null;
+            evidence_level?: components["schemas"]["EvidenceLevel"] | null;
+            /** Key Terms En */
+            key_terms_en?: string[] | null;
+            /** Relations */
+            relations?: components["schemas"]["EvidenceRelationInputSchema"][];
+            /** Tags */
+            tags?: string[] | null;
+        };
         /** AuthMeResponse */
         AuthMeResponse: {
             /**
@@ -172,10 +378,91 @@ export interface components {
          * @enum {string}
          */
         BiologicalSex: "male" | "female" | "other" | "prefer_not_to_say";
+        /** Body_propose_candidate_from_pdf_api_v1_curator_candidates_from_pdf_post */
+        Body_propose_candidate_from_pdf_api_v1_curator_candidates_from_pdf_post: {
+            /**
+             * Allow Reopen
+             * @default false
+             */
+            allow_reopen: boolean;
+            /** Doi */
+            doi?: string | null;
+            /** File */
+            file: string;
+            /** Title */
+            title?: string | null;
+        };
+        /** Body_upload_candidate_pdf_api_v1_curator_candidates__candidate_id__upload_pdf_post */
+        Body_upload_candidate_pdf_api_v1_curator_candidates__candidate_id__upload_pdf_post: {
+            /** File */
+            file: string;
+        };
         /** BootstrapCuratorRequest */
         BootstrapCuratorRequest: {
             /** Display Name */
             display_name?: string | null;
+        };
+        /**
+         * CandidateOrigin
+         * @enum {string}
+         */
+        CandidateOrigin: "monthly_cut" | "live_search_promoted" | "manual_upload" | "seed_batch";
+        /**
+         * CandidateStatus
+         * @enum {string}
+         */
+        CandidateStatus: "pending" | "approved" | "rejected";
+        /** CandidateStudyListResponse */
+        CandidateStudyListResponse: {
+            /** Items */
+            items: components["schemas"]["CandidateStudyResponse"][];
+        };
+        /** CandidateStudyResponse */
+        CandidateStudyResponse: {
+            access_level: components["schemas"]["AccessLevel"];
+            /** Authors */
+            authors: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            critical_sheet: components["schemas"]["CriticalSheet6BlocksSchema"];
+            /** Curator Notes */
+            curator_notes: string | null;
+            /** Doi */
+            doi: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Journal */
+            journal: string | null;
+            origin: components["schemas"]["CandidateOrigin"];
+            /** Paywall Warning */
+            paywall_warning: string | null;
+            /** Pdf Storage Path */
+            pdf_storage_path: string | null;
+            /** Pmcid */
+            pmcid: string | null;
+            /** Pmid */
+            pmid: string | null;
+            previous_critical_sheet: components["schemas"]["CriticalSheet6BlocksSchema"] | null;
+            /** Published Year */
+            published_year: number | null;
+            /** Rejection Reason */
+            rejection_reason: string | null;
+            /** Source Url */
+            source_url: string | null;
+            status: components["schemas"]["CandidateStatus"];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** CreateInjuryRequest */
         CreateInjuryRequest: {
@@ -223,6 +510,181 @@ export interface components {
              * @enum {string}
              */
             status: "pending" | "accepted" | "expired";
+        };
+        /** CriticalSheet6BlocksSchema */
+        CriticalSheet6BlocksSchema: {
+            /** Block 1 Identification */
+            block_1_identification: string;
+            /** Block 2 Design And Evidence Level */
+            block_2_design_and_evidence_level: string;
+            /** Block 3 Population And Protocol */
+            block_3_population_and_protocol: string;
+            /** Block 4 Key Findings And Applicability */
+            block_4_key_findings_and_applicability: string;
+            /** Block 5 Limitations And Conflicts */
+            block_5_limitations_and_conflicts: string;
+            /** Block 6 Impact Vs Existing Kb */
+            block_6_impact_vs_existing_kb: string;
+            /** Curated Summary Es */
+            curated_summary_es: string;
+            /** Key Terms En */
+            key_terms_en: string[];
+            suggested_evidence_level: components["schemas"]["EvidenceLevel"];
+            /** Suggested Tags */
+            suggested_tags: string[];
+        };
+        /** EvidenceCardDetailResponse */
+        EvidenceCardDetailResponse: {
+            /**
+             * Candidate Study Id
+             * Format: uuid
+             */
+            candidate_study_id: string;
+            coverage: components["schemas"]["EvidenceCoverage"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Curated Text Es */
+            curated_text_es: string;
+            /** Curator Notes */
+            curator_notes: string | null;
+            /** Doi */
+            doi: string | null;
+            /** Embedding Model */
+            embedding_model: string;
+            evidence_level: components["schemas"]["EvidenceLevel"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Incoming Relations */
+            incoming_relations: components["schemas"]["EvidenceRelationResponse"][];
+            /** Key Terms En */
+            key_terms_en: string[];
+            /** Outgoing Relations */
+            outgoing_relations: components["schemas"]["EvidenceRelationResponse"][];
+            /** Pmid */
+            pmid: string | null;
+            /** Source Url */
+            source_url: string | null;
+            /** Tags */
+            tags: string[];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Updated By Cards */
+            updated_by_cards: components["schemas"]["EvidenceCardSummaryResponse"][];
+            validity_status: components["schemas"]["ValidityStatus"];
+        };
+        /** EvidenceCardSummaryResponse */
+        EvidenceCardSummaryResponse: {
+            /**
+             * Candidate Study Id
+             * Format: uuid
+             */
+            candidate_study_id: string;
+            coverage: components["schemas"]["EvidenceCoverage"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Curated Text Es */
+            curated_text_es: string;
+            /** Curator Notes */
+            curator_notes: string | null;
+            /** Doi */
+            doi: string | null;
+            /** Embedding Model */
+            embedding_model: string;
+            evidence_level: components["schemas"]["EvidenceLevel"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key Terms En */
+            key_terms_en: string[];
+            /** Pmid */
+            pmid: string | null;
+            /** Source Url */
+            source_url: string | null;
+            /** Tags */
+            tags: string[];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            validity_status: components["schemas"]["ValidityStatus"];
+        };
+        /**
+         * EvidenceCoverage
+         * @enum {string}
+         */
+        EvidenceCoverage: "full_text" | "abstract_only";
+        /**
+         * EvidenceLevel
+         * @enum {string}
+         */
+        EvidenceLevel: "meta_analysis" | "systematic_review" | "position_stand" | "rct" | "controlled_trial" | "observational" | "mechanistic" | "preprint";
+        /** EvidenceRelationInputSchema */
+        EvidenceRelationInputSchema: {
+            /** Rationale */
+            rationale?: string | null;
+            relation_type: components["schemas"]["RelationType"];
+            /**
+             * Target Card Id
+             * Format: uuid
+             */
+            target_card_id: string;
+        };
+        /** EvidenceRelationResponse */
+        EvidenceRelationResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Rationale */
+            rationale: string | null;
+            relation_type: components["schemas"]["RelationType"];
+            /**
+             * Source Card Id
+             * Format: uuid
+             */
+            source_card_id: string;
+            /**
+             * Target Card Id
+             * Format: uuid
+             */
+            target_card_id: string;
+        };
+        /** EvidenceSearchHitResponse */
+        EvidenceSearchHitResponse: {
+            card: components["schemas"]["EvidenceCardSummaryResponse"];
+            /** Lexical Rank */
+            lexical_rank: number | null;
+            /** Score */
+            score: number;
+            /** Updated By Cards */
+            updated_by_cards: components["schemas"]["EvidenceCardSummaryResponse"][];
+            /** Vector Rank */
+            vector_rank: number | null;
         };
         /**
          * ExperienceLevel
@@ -319,6 +781,13 @@ export interface components {
              */
             status: "pending" | "accepted" | "expired";
         };
+        /** KnowledgeSearchResponse */
+        KnowledgeSearchResponse: {
+            /** Items */
+            items: components["schemas"]["EvidenceSearchHitResponse"][];
+            /** Total */
+            total: number;
+        };
         /** LivingProfileResponse */
         LivingProfileResponse: {
             /** Active Injuries Count */
@@ -363,6 +832,16 @@ export interface components {
          * @enum {string}
          */
         PrimaryGoal: "hypertrophy" | "strength" | "fat_loss" | "body_recomposition" | "maintenance";
+        /** ProposeCandidateFromDoiRequest */
+        ProposeCandidateFromDoiRequest: {
+            /**
+             * Allow Reopen
+             * @default false
+             */
+            allow_reopen: boolean;
+            /** Doi Or Url */
+            doi_or_url: string;
+        };
         /** RedeemInvitationRequest */
         RedeemInvitationRequest: {
             /** Display Name */
@@ -370,6 +849,33 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** ReindexRequest */
+        ReindexRequest: {
+            /**
+             * Force
+             * @default false
+             */
+            force: boolean;
+        };
+        /** ReindexResponse */
+        ReindexResponse: {
+            /** Embedding Model */
+            embedding_model: string;
+            /** Reindexed Count */
+            reindexed_count: number;
+            /** Skipped Count */
+            skipped_count: number;
+        };
+        /** RejectCandidateRequest */
+        RejectCandidateRequest: {
+            /** Rejection Reason */
+            rejection_reason: string;
+        };
+        /**
+         * RelationType
+         * @enum {string}
+         */
+        RelationType: "confirms" | "nuances" | "supersedes";
         /**
          * Role
          * @description Canonical roles in Fitness Coach (see GLOSSARY.md).
@@ -382,6 +888,20 @@ export interface components {
          * @enum {string}
          */
         TrainingApproach: "natural" | "enhanced_context_only";
+        /** UpdateEvidenceCardRequest */
+        UpdateEvidenceCardRequest: {
+            /** Add Relations */
+            add_relations?: components["schemas"]["EvidenceRelationInputSchema"][];
+            /** Curated Text Es */
+            curated_text_es?: string | null;
+            /** Curator Notes */
+            curator_notes?: string | null;
+            /** Key Terms En */
+            key_terms_en?: string[] | null;
+            /** Tags */
+            tags?: string[] | null;
+            validity_status?: components["schemas"]["ValidityStatus"] | null;
+        };
         /** UpdateInjuryRequest */
         UpdateInjuryRequest: {
             /** Body Part */
@@ -434,6 +954,11 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * ValidityStatus
+         * @enum {string}
+         */
+        ValidityStatus: "active" | "nuanced" | "superseded" | "archived";
     };
     responses: never;
     parameters: never;
@@ -529,6 +1054,274 @@ export interface operations {
             };
         };
     };
+    list_candidates_api_v1_curator_candidates_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["CandidateStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateStudyListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_candidate_from_doi_api_v1_curator_candidates_from_doi_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposeCandidateFromDoiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateStudyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_candidate_from_pdf_api_v1_curator_candidates_from_pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_propose_candidate_from_pdf_api_v1_curator_candidates_from_pdf_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateStudyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_candidate_api_v1_curator_candidates__candidate_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateStudyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_candidate_api_v1_curator_candidates__candidate_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveCandidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceCardDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_candidate_api_v1_curator_candidates__candidate_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectCandidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateStudyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_candidate_pdf_api_v1_curator_candidates__candidate_id__upload_pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_candidate_pdf_api_v1_curator_candidates__candidate_id__upload_pdf_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateStudyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_evidence_card_api_v1_curator_cards__card_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEvidenceCardRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceCardDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_invitations_api_v1_curator_invitations_get: {
         parameters: {
             query?: never;
@@ -582,6 +1375,39 @@ export interface operations {
             };
         };
     };
+    reindex_knowledge_base_api_v1_curator_reindex_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReindexRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReindexResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_api_v1_health_get: {
         parameters: {
             query?: never;
@@ -598,6 +1424,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    get_evidence_card_api_v1_knowledge_cards__card_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceCardDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_knowledge_base_api_v1_knowledge_search_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                tags?: string[] | null;
+                evidence_level?: components["schemas"]["EvidenceLevel"] | null;
+                validity_status?: components["schemas"]["ValidityStatus"] | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeSearchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
