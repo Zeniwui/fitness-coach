@@ -20,6 +20,7 @@ from fitness_coach.infrastructure.api.routers.identity import router as identity
 from fitness_coach.infrastructure.api.routers.knowledge import router as knowledge_router
 from fitness_coach.infrastructure.api.routers.monthly_cut import router as monthly_cut_router
 from fitness_coach.infrastructure.api.routers.profile import router as profile_router
+from fitness_coach.infrastructure.api.routers.training import router as training_router
 from fitness_coach.infrastructure.api.schemas.identity import HealthResponse
 from fitness_coach.infrastructure.auth.supabase_jwt import SupabaseJWTVerifier
 from fitness_coach.infrastructure.config import Settings, get_settings
@@ -78,6 +79,7 @@ def create_app(
     app.include_router(curation_router)
     app.include_router(monthly_cut_router)
     app.include_router(coach_router)
+    app.include_router(training_router)
 
     return app
 

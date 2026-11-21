@@ -558,6 +558,162 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/training/mesocycles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Mesocycles */
+        get: operations["list_mesocycles_api_v1_training_mesocycles_get"];
+        put?: never;
+        /** Create Mesocycle */
+        post: operations["create_mesocycle_api_v1_training_mesocycles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/training/mesocycles/draft-with-coach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Draft Mesocycle With Coach */
+        post: operations["draft_mesocycle_with_coach_api_v1_training_mesocycles_draft_with_coach_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/training/mesocycles/{mesocycle_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Mesocycle */
+        patch: operations["update_mesocycle_api_v1_training_mesocycles__mesocycle_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/training/mesocycles/{mesocycle_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Mesocycle */
+        post: operations["activate_mesocycle_api_v1_training_mesocycles__mesocycle_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/training/mesocycles/{mesocycle_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition Mesocycle Status */
+        post: operations["transition_mesocycle_status_api_v1_training_mesocycles__mesocycle_id__status_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/training/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Training Sessions */
+        get: operations["list_training_sessions_api_v1_training_sessions_get"];
+        put?: never;
+        /** Create Training Session */
+        post: operations["create_training_session_api_v1_training_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/training/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Training Session */
+        put: operations["update_training_session_api_v1_training_sessions__session_id__put"];
+        post?: never;
+        /** Delete Training Session */
+        delete: operations["delete_training_session_api_v1_training_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/training/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Today Session */
+        get: operations["get_today_session_api_v1_training_today_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/training/volume-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Weekly Volume Summary */
+        get: operations["get_weekly_volume_summary_api_v1_training_volume_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -567,6 +723,15 @@ export interface components {
          * @enum {string}
          */
         AccessLevel: "full_text_open_access" | "full_text_uploaded_pdf" | "abstract_only_paywall";
+        /** ActivateMesocycleRequest */
+        ActivateMesocycleRequest: {
+            confirm_transition_status?: components["schemas"]["PriorMesocycleAction"] | null;
+        };
+        /** ActivateMesocycleResponse */
+        ActivateMesocycleResponse: {
+            mesocycle: components["schemas"]["MesocycleResponse"];
+            previous_mesocycle: components["schemas"]["MesocycleResponse"] | null;
+        };
         /** ApproveCandidateRequest */
         ApproveCandidateRequest: {
             /** Curated Text Es */
@@ -751,6 +916,14 @@ export interface components {
             /** Validity Status */
             validity_status: string;
         };
+        /** CoachMesocycleDraftResponse */
+        CoachMesocycleDraftResponse: {
+            /** Cited Card Ids */
+            cited_card_ids: string[];
+            /** Coach Rationale Es */
+            coach_rationale_es: string;
+            mesocycle: components["schemas"]["MesocycleResponse"];
+        };
         /** ConversationResponse */
         ConversationResponse: {
             /**
@@ -823,6 +996,46 @@ export interface components {
              */
             status: "pending" | "accepted" | "expired";
         };
+        /** CreateMesocycleRequest */
+        CreateMesocycleRequest: {
+            /** Deload Criteria */
+            deload_criteria?: string | null;
+            /**
+             * Duration Weeks
+             * @default 5
+             */
+            duration_weeks: number;
+            /** Goal */
+            goal: string;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes?: string | null;
+            /** Planned Sessions */
+            planned_sessions: components["schemas"]["PlannedSessionInput"][];
+            /** Progression Criteria */
+            progression_criteria?: string | null;
+        };
+        /** CreateTrainingSessionRequest */
+        CreateTrainingSessionRequest: {
+            /** Fatigue Notes */
+            fatigue_notes?: string | null;
+            /** Mesocycle Id */
+            mesocycle_id?: string | null;
+            /** Name */
+            name: string;
+            /** @default manual_form */
+            origin: components["schemas"]["SessionOrigin"];
+            /** Planned Session Id */
+            planned_session_id?: string | null;
+            /**
+             * Session Date
+             * Format: date
+             */
+            session_date: string;
+            /** Sets */
+            sets: components["schemas"]["SessionSetInput"][];
+        };
         /** CriticalSheet6BlocksSchema */
         CriticalSheet6BlocksSchema: {
             /** Block 1 Identification */
@@ -844,6 +1057,28 @@ export interface components {
             suggested_evidence_level: components["schemas"]["EvidenceLevel"];
             /** Suggested Tags */
             suggested_tags: string[];
+        };
+        /** DeloadAssessmentResponse */
+        DeloadAssessmentResponse: {
+            /** High Fatigue Sessions */
+            high_fatigue_sessions: number;
+            /** Reasons Es */
+            reasons_es: string[];
+            /** Recommended */
+            recommended: boolean;
+            /** Regressing Exercises */
+            regressing_exercises: string[];
+            /** Status */
+            status: string;
+            /** Weeks Into Mesocycle */
+            weeks_into_mesocycle: number;
+        };
+        /** DraftMesocycleWithCoachRequest */
+        DraftMesocycleWithCoachRequest: {
+            /** Duration Weeks */
+            duration_weeks?: number | null;
+            /** Focus Notes */
+            focus_notes?: string | null;
         };
         /** EvidenceCardDetailResponse */
         EvidenceCardDetailResponse: {
@@ -998,6 +1233,23 @@ export interface components {
             /** Vector Rank */
             vector_rank: number | null;
         };
+        /** ExerciseTrendResponse */
+        ExerciseTrendResponse: {
+            /** E1Rm Delta Pct */
+            e1rm_delta_pct: number;
+            /** Exercise Name */
+            exercise_name: string;
+            /** Latest Avg Rir */
+            latest_avg_rir: number | null;
+            /** Latest E1Rm Kg */
+            latest_e1rm_kg: number;
+            /** Previous E1Rm Kg */
+            previous_e1rm_kg: number;
+            /** Sessions Analyzed */
+            sessions_analyzed: number;
+            /** Status */
+            status: string;
+        };
         /**
          * ExperienceLevel
          * @description Athlete's resistance training experience level.
@@ -1139,6 +1391,56 @@ export interface components {
             updated_at: string | null;
         };
         /**
+         * LoadUnit
+         * @description Weight unit for a recorded set.
+         * @enum {string}
+         */
+        LoadUnit: "kg" | "lb";
+        /** MesocycleResponse */
+        MesocycleResponse: {
+            /** Activated At */
+            activated_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Deload Criteria */
+            deload_criteria: string | null;
+            /** Duration Weeks */
+            duration_weeks: number;
+            /** Goal */
+            goal: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string | null;
+            /** Planned Sessions */
+            planned_sessions: components["schemas"]["PlannedSessionResponse"][];
+            /** Progression Criteria */
+            progression_criteria: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * MesocycleStatus
+         * @description Lifecycle states of a Mesocycle (single active|deload per Athlete).
+         * @enum {string}
+         */
+        MesocycleStatus: "draft" | "active" | "deload" | "completed" | "archived";
+        /**
          * MessageRole
          * @enum {string}
          */
@@ -1199,12 +1501,111 @@ export interface components {
          * @enum {string}
          */
         MonthlyCutStatus: "queued" | "collecting" | "filtering" | "analyzing" | "completed" | "paused_rate_limit" | "failed";
+        /** MuscleGroupVolumeResponse */
+        MuscleGroupVolumeResponse: {
+            /** Average Rir */
+            average_rir: number | null;
+            /** Direct Sets */
+            direct_sets: number;
+            /** Effective Sets */
+            effective_sets: number;
+            /** Muscle Group */
+            muscle_group: string;
+            /** Planned Sets */
+            planned_sets: number;
+            /** Secondary Sets */
+            secondary_sets: number;
+        };
+        /** PlannedExerciseSchema */
+        PlannedExerciseSchema: {
+            /** Exercise Name */
+            exercise_name: string;
+            /** Notes */
+            notes?: string | null;
+            /** Primary Muscle Group */
+            primary_muscle_group: string;
+            /**
+             * Rep Range Max
+             * @default 12
+             */
+            rep_range_max: number;
+            /**
+             * Rep Range Min
+             * @default 8
+             */
+            rep_range_min: number;
+            /** Secondary Muscle Groups */
+            secondary_muscle_groups?: string[];
+            /**
+             * Target Rir
+             * @default 2
+             */
+            target_rir: number | null;
+            /** Target Rpe */
+            target_rpe?: number | null;
+            /**
+             * Target Sets
+             * @default 3
+             */
+            target_sets: number;
+        };
+        /** PlannedSessionInput */
+        PlannedSessionInput: {
+            /** Day Order */
+            day_order: number;
+            /** Exercises */
+            exercises: components["schemas"]["PlannedExerciseSchema"][];
+            /** Name */
+            name: string;
+        };
+        /** PlannedSessionResponse */
+        PlannedSessionResponse: {
+            /** Day Order */
+            day_order: number;
+            /** Exercises */
+            exercises: components["schemas"]["PlannedExerciseSchema"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** PreviousExerciseMarkResponse */
+        PreviousExerciseMarkResponse: {
+            /** Best E1Rm Kg */
+            best_e1rm_kg: number;
+            /** Best Load */
+            best_load: number;
+            /** Best Reps */
+            best_reps: number;
+            /** Best Rir */
+            best_rir: number | null;
+            /** Best Unit */
+            best_unit: string;
+            /** Exercise Name */
+            exercise_name: string;
+            /**
+             * Last Session Date
+             * Format: date
+             */
+            last_session_date: string;
+            /** Last Sets */
+            last_sets: components["schemas"]["SessionSetResponse"][];
+        };
         /**
          * PrimaryGoal
          * @description Athlete's primary physique / performance objective.
          * @enum {string}
          */
         PrimaryGoal: "hypertrophy" | "strength" | "fat_loss" | "body_recomposition" | "maintenance";
+        /**
+         * PriorMesocycleAction
+         * @description Explicit transition target for a prior active/deload Mesocycle upon replacement.
+         * @enum {string}
+         */
+        PriorMesocycleAction: "completed" | "archived";
         /** ProfileProposalResponse */
         ProfileProposalResponse: {
             /**
@@ -1364,11 +1765,121 @@ export interface components {
             enable_live_search: boolean;
         };
         /**
+         * SessionOrigin
+         * @description How a Training Session was recorded.
+         * @enum {string}
+         */
+        SessionOrigin: "manual_form" | "chat_text" | "chat_voice";
+        /** SessionSetInput */
+        SessionSetInput: {
+            /** Exercise Name */
+            exercise_name: string;
+            /** Load */
+            load: number;
+            /** Muscle Group */
+            muscle_group: string;
+            /** Notes */
+            notes?: string | null;
+            /** Reps */
+            reps: number;
+            /** Rir */
+            rir?: number | null;
+            /** Rpe */
+            rpe?: number | null;
+            /** Secondary Muscle Groups */
+            secondary_muscle_groups?: string[];
+            /** Set Order */
+            set_order: number;
+            /** @default kg */
+            unit: components["schemas"]["LoadUnit"];
+        };
+        /** SessionSetResponse */
+        SessionSetResponse: {
+            /** Exercise Name */
+            exercise_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Load */
+            load: number;
+            /** Muscle Group */
+            muscle_group: string;
+            /** Notes */
+            notes: string | null;
+            /** Reps */
+            reps: number;
+            /** Rir */
+            rir: number | null;
+            /** Rpe */
+            rpe: number | null;
+            /** Secondary Muscle Groups */
+            secondary_muscle_groups: string[];
+            /** Set Order */
+            set_order: number;
+            /** Unit */
+            unit: string;
+        };
+        /** TodaySessionExerciseResponse */
+        TodaySessionExerciseResponse: {
+            planned: components["schemas"]["PlannedExerciseSchema"];
+            previous_mark: components["schemas"]["PreviousExerciseMarkResponse"] | null;
+        };
+        /** TodaySessionResponse */
+        TodaySessionResponse: {
+            active_mesocycle: components["schemas"]["MesocycleResponse"] | null;
+            /** Completed Sessions In Mesocycle */
+            completed_sessions_in_mesocycle: number;
+            /** Exercises */
+            exercises: components["schemas"]["TodaySessionExerciseResponse"][];
+            planned_session: components["schemas"]["PlannedSessionResponse"] | null;
+        };
+        /**
          * TrainingApproach
          * @description Training approach preference; defaults to natural (Coach never prescribes PEDs).
          * @enum {string}
          */
         TrainingApproach: "natural" | "enhanced_context_only";
+        /** TrainingSessionResponse */
+        TrainingSessionResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Fatigue Notes */
+            fatigue_notes: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Mesocycle Id */
+            mesocycle_id: string | null;
+            /** Name */
+            name: string;
+            /** Origin */
+            origin: string;
+            /** Planned Session Id */
+            planned_session_id: string | null;
+            /**
+             * Session Date
+             * Format: date
+             */
+            session_date: string;
+            /** Sets */
+            sets: components["schemas"]["SessionSetResponse"][];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** TransitionMesocycleStatusRequest */
+        TransitionMesocycleStatusRequest: {
+            status: components["schemas"]["MesocycleStatus"];
+        };
         /** TrendingTopicListResponse */
         TrendingTopicListResponse: {
             /** Items */
@@ -1444,6 +1955,41 @@ export interface components {
             severity?: components["schemas"]["InjurySeverity"] | null;
             status?: components["schemas"]["InjuryStatus"] | null;
         };
+        /** UpdateMesocycleRequest */
+        UpdateMesocycleRequest: {
+            /** Deload Criteria */
+            deload_criteria?: string | null;
+            /** Duration Weeks */
+            duration_weeks?: number | null;
+            /** Goal */
+            goal?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Planned Sessions */
+            planned_sessions?: components["schemas"]["PlannedSessionInput"][] | null;
+            /** Progression Criteria */
+            progression_criteria?: string | null;
+        };
+        /** UpdateTrainingSessionRequest */
+        UpdateTrainingSessionRequest: {
+            /** Fatigue Notes */
+            fatigue_notes?: string | null;
+            /** Mesocycle Id */
+            mesocycle_id?: string | null;
+            /** Name */
+            name: string;
+            /** Planned Session Id */
+            planned_session_id?: string | null;
+            /**
+             * Session Date
+             * Format: date
+             */
+            session_date: string;
+            /** Sets */
+            sets: components["schemas"]["SessionSetInput"][];
+        };
         /** UpsertLivingProfileRequest */
         UpsertLivingProfileRequest: {
             /** Age */
@@ -1488,6 +2034,32 @@ export interface components {
          * @enum {string}
          */
         ValidityStatus: "active" | "nuanced" | "superseded" | "archived";
+        /** WeeklyVolumeSummaryResponse */
+        WeeklyVolumeSummaryResponse: {
+            /** Active Mesocycle Id */
+            active_mesocycle_id: string | null;
+            /** Active Mesocycle Name */
+            active_mesocycle_name: string | null;
+            /** By Muscle Group */
+            by_muscle_group: components["schemas"]["MuscleGroupVolumeResponse"][];
+            deload_assessment: components["schemas"]["DeloadAssessmentResponse"];
+            /** Exercise Trends */
+            exercise_trends: components["schemas"]["ExerciseTrendResponse"][];
+            /** Total Effective Sets */
+            total_effective_sets: number;
+            /** Total Sessions */
+            total_sessions: number;
+            /**
+             * Week End
+             * Format: date
+             */
+            week_end: string;
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -2668,6 +3240,388 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfileProposalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_mesocycles_api_v1_training_mesocycles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MesocycleResponse"][];
+                };
+            };
+        };
+    };
+    create_mesocycle_api_v1_training_mesocycles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMesocycleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MesocycleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    draft_mesocycle_with_coach_api_v1_training_mesocycles_draft_with_coach_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftMesocycleWithCoachRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachMesocycleDraftResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_mesocycle_api_v1_training_mesocycles__mesocycle_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mesocycle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMesocycleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MesocycleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_mesocycle_api_v1_training_mesocycles__mesocycle_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mesocycle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivateMesocycleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivateMesocycleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transition_mesocycle_status_api_v1_training_mesocycles__mesocycle_id__status_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mesocycle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransitionMesocycleStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MesocycleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_training_sessions_api_v1_training_sessions_get: {
+        parameters: {
+            query?: {
+                mesocycle_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingSessionResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_training_session_api_v1_training_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTrainingSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_training_session_api_v1_training_sessions__session_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTrainingSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_training_session_api_v1_training_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_today_session_api_v1_training_today_get: {
+        parameters: {
+            query?: {
+                planned_session_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodaySessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_weekly_volume_summary_api_v1_training_volume_summary_get: {
+        parameters: {
+            query?: {
+                week_start?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyVolumeSummaryResponse"];
                 };
             };
             /** @description Validation Error */

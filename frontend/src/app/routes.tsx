@@ -4,6 +4,7 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { CoachPage } from "../features/coach/CoachPage";
 import { LivingProfilePage } from "../features/profile/LivingProfilePage";
 import { SciencePage } from "../features/science/SciencePage";
+import { TrainingPage } from "../features/training/TrainingPage";
 import { BottomNav } from "./BottomNav";
 
 function ProtectedLayout() {
@@ -57,17 +58,6 @@ function ProtectedLayout() {
   );
 }
 
-function TrainingPlaceholder() {
-  return (
-    <section className="space-y-2">
-      <h1 className="text-xl font-bold text-white">Entreno</h1>
-      <p className="text-sm text-slate-400">
-        Mesociclo activo, sesión planificada de hoy y registro rápido de Sesiones de Entrenamiento.
-      </p>
-    </section>
-  );
-}
-
 function NutritionPlaceholder() {
   return (
     <section className="space-y-2">
@@ -84,7 +74,7 @@ export function AppRoutes() {
     <Routes>
       <Route element={<ProtectedLayout />}>
         <Route path="/coach" element={<CoachPage />} />
-        <Route path="/training" element={<TrainingPlaceholder />} />
+        <Route path="/training" element={<TrainingPage />} />
         <Route path="/nutrition" element={<NutritionPlaceholder />} />
         <Route path="/science" element={<SciencePage />} />
         <Route path="/profile" element={<LivingProfilePage />} />
