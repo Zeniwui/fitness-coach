@@ -1,8 +1,8 @@
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
-import { CuratorInvitationsPanel } from "../features/auth/CuratorInvitationsPanel";
 import { LivingProfilePage } from "../features/profile/LivingProfilePage";
+import { SciencePage } from "../features/science/SciencePage";
 import { BottomNav } from "./BottomNav";
 
 function ProtectedLayout() {
@@ -86,22 +86,6 @@ function NutritionPlaceholder() {
         Fase Nutricional activa y Check-in semanal guiado.
       </p>
     </section>
-  );
-}
-
-function SciencePage() {
-  const { athlete } = useAuth();
-  return (
-    <div className="space-y-6">
-      <section className="space-y-2">
-        <h1 className="text-xl font-bold text-white">Ciencia — Base de Conocimiento</h1>
-        <p className="text-sm text-slate-400">
-          Explora las Fichas de Evidencia aprobadas mediante búsqueda híbrida.
-        </p>
-      </section>
-
-      {athlete?.is_curator && <CuratorInvitationsPanel />}
-    </div>
   );
 }
 

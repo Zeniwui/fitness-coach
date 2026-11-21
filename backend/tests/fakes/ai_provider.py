@@ -14,6 +14,37 @@ from fitness_coach.application.ports.ai_provider import (
     RateLimitError,
 )
 
+_CONCEPT_GROUPS: tuple[tuple[str, ...], ...] = (
+    (
+        "hipertrofia",
+        "hypertrophy",
+        "crecimiento muscular",
+        "muscle growth",
+        "masa muscular",
+        "lean mass",
+    ),
+    ("volumen", "volume", "series semanales", "weekly sets", "set volume"),
+    ("fuerza", "strength", "1rm", "fuerza maxima", "maximal strength"),
+    ("fallo", "failure", "rir", "rpe", "proximidad al fallo", "proximity to failure"),
+    ("creatina", "creatine", "monohidrato", "monohydrate", "fosfocreatina"),
+    (
+        "proteina",
+        "protein",
+        "sintesis proteica",
+        "mps",
+        "mtor",
+        "aminoacidos",
+        "leucina",
+        "leucine",
+    ),
+    ("suplemento", "supplement", "hmb", "cafeina", "caffeine", "beta-alanina", "issn"),
+    ("descanso", "rest", "intervalo", "inter-set", "recuperacion", "recovery"),
+    ("frecuencia", "frequency", "dias por semana", "training frequency"),
+    ("deficit", "cut", "definicion", "perdida de grasa", "fat loss", "caloric deficit"),
+    ("lesion", "injury", "tendon", "rehabilitacion", "dolor", "pain"),
+    ("sueno", "sleep", "fatiga", "fatigue", "descarga", "deload"),
+)
+
 
 class FakeAIProvider:
     """Deterministic offline fake for AIProviderPort."""
@@ -85,11 +116,15 @@ class FakeAIProvider:
         self.embed_calls.append(list(texts))
         results: list[EmbeddingResult] = []
         for text in texts:
-            digest = hashlib.sha256(text.strip().lower().encode("utf-8")).digest()
+            lowered = text.strip().lower()
+            digest = hashlib.sha256(lowered.encode("utf-8")).digest()
             raw = [
-                ((digest[i % len(digest)] / 255.0) * 2.0) - 1.0
+                (((digest[i % len(digest)] / 255.0) * 2.0) - 1.0) * 0.12
                 for i in range(self.embedding_dim)
             ]
+            for idx, keywords in enumerate(_CONCEPT_GROUPS):
+                if idx < self.embedding_dim and any(kw in lowered for kw in keywords):
+                    raw[idx] += 2.5
             norm = math.sqrt(sum(v * v for v in raw)) or 1.0
             vec = [round(v / norm, 6) for v in raw]
             results.append(EmbeddingResult(vector=vec, model_id=self.embedding_model_id))
