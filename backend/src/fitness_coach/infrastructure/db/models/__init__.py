@@ -4,8 +4,14 @@ Each vertical slice registers its models here additively (one line per slice).
 """
 
 from fitness_coach.infrastructure.db.models.identity import AthleteModel, InvitationModel
+from fitness_coach.infrastructure.db.models.profile import (
+    InjuryRestrictionModel,
+    LivingProfileModel,
+)
 
 __all__ = [
     "AthleteModel",
+    "InjuryRestrictionModel",
     "InvitationModel",
+    "LivingProfileModel",
 ]

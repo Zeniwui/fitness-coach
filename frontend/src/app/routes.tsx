@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { CuratorInvitationsPanel } from "../features/auth/CuratorInvitationsPanel";
+import { LivingProfilePage } from "../features/profile/LivingProfilePage";
 import { BottomNav } from "./BottomNav";
 
 function ProtectedLayout() {
@@ -104,17 +105,6 @@ function SciencePage() {
   );
 }
 
-function ProfilePlaceholder() {
-  return (
-    <section className="space-y-2">
-      <h1 className="text-xl font-bold text-white">Perfil Vivo</h1>
-      <p className="text-sm text-slate-400">
-        Contexto persistente, visible y editable del Atleta para el Coach.
-      </p>
-    </section>
-  );
-}
-
 export function AppRoutes() {
   return (
     <Routes>
@@ -123,7 +113,7 @@ export function AppRoutes() {
         <Route path="/training" element={<TrainingPlaceholder />} />
         <Route path="/nutrition" element={<NutritionPlaceholder />} />
         <Route path="/science" element={<SciencePage />} />
-        <Route path="/profile" element={<ProfilePlaceholder />} />
+        <Route path="/profile" element={<LivingProfilePage />} />
         <Route path="/" element={<Navigate to="/coach" replace />} />
         <Route path="*" element={<Navigate to="/coach" replace />} />
       </Route>
