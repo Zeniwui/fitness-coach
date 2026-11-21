@@ -22,6 +22,12 @@ from fitness_coach.infrastructure.db.models.profile import (
     InjuryRestrictionModel,
     LivingProfileModel,
 )
+from fitness_coach.infrastructure.db.models.training import (
+    MesocycleModel,
+    PlannedSessionModel,
+    SessionSetModel,
+    TrainingSessionModel,
+)
 
 __all__ = [
     "AthleteModel",
@@ -32,8 +38,12 @@ __all__ = [
     "InjuryRestrictionModel",
     "InvitationModel",
     "LivingProfileModel",
+    "MesocycleModel",
     "MessageModel",
     "MonthlyCutRunModel",
+    "PlannedSessionModel",
     "ProfileUpdateProposalModel",
+    "SessionSetModel",
+    "TrainingSessionModel",
     "TrendingTopicModel",
 ]

@@ -24,6 +24,7 @@ from fitness_coach.application.use_cases.coach import (
     PromoteLiveSearchResultUseCase,
     SendCoachMessageStreamUseCase,
 )
+from fitness_coach.application.use_cases.training import TrainingCoachContextProvider
 from fitness_coach.domain.coach import (
     CoachValidationError,
     ConversationNotFoundError,
@@ -55,6 +56,7 @@ from fitness_coach.infrastructure.api.schemas.coach import (
 from fitness_coach.infrastructure.db.repositories.coach import SqlAlchemyCoachRepository
 from fitness_coach.infrastructure.db.repositories.knowledge import SqlAlchemyKnowledgeRepository
 from fitness_coach.infrastructure.db.repositories.profile import SqlAlchemyProfileRepository
+from fitness_coach.infrastructure.db.repositories.training import SqlAlchemyTrainingRepository
 
 router = APIRouter(tags=["coach"])
 
@@ -149,6 +151,9 @@ async def send_message_stream(
         knowledge_repo=SqlAlchemyKnowledgeRepository(session),
         ai_provider=ai_provider,
         scientific_sources=scientific_sources,
+        training_context_provider=TrainingCoachContextProvider(
+            SqlAlchemyTrainingRepository(session)
+        ),
     )
     use_case = SendCoachMessageStreamUseCase(
         coach_repo=coach_repo,
