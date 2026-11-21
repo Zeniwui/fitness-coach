@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint src",
+    "lint": "eslint src --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "api:generate": "openapi-typescript ../backend/openapi.json -o src/api/generated/schema.d.ts"

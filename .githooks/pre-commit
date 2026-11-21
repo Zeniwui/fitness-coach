@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+set -eu
+
+staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if printf '%s\n' "$staged_files" | grep -q '^frontend/'; then
+  echo "[pre-commit] Running frontend lint and typecheck..."
+  (cd frontend && npm run lint && npm run typecheck)
+fi
+
+if printf '%s\n' "$staged_files" | grep -q '^backend/'; then
+  echo "[pre-commit] Running backend ruff check..."
+  if [ -x "backend/.venv/Scripts/ruff.exe" ]; then
+    (cd backend && ./.venv/Scripts/ruff.exe check src tests alembic)
+  elif [ -x "backend/.venv/bin/ruff" ]; then
+    (cd backend && ./.venv/bin/ruff check src tests alembic)
+  elif command -v ruff >/dev/null 2>&1; then
+    (cd backend && ruff check src tests alembic)
+  else
+    echo "[pre-commit] ruff not found; install backend dev dependencies." >&2
+    exit 1
+  fi
+fi
