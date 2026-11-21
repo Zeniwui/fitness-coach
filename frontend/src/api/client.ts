@@ -23,6 +23,13 @@ export class DuplicateSubmissionError extends Error {
   }
 }
 
+export function extractApiErrorDetail(apiError: unknown, fallback: string): string {
+  if (typeof apiError === "object" && apiError && "detail" in apiError) {
+    return String((apiError as { detail: unknown }).detail);
+  }
+  return fallback;
+}
+
 const DEFAULT_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (typeof window !== "undefined" && window.location?.origin
