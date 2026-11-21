@@ -1,4 +1,5 @@
 import { setupServer } from "msw/node";
+import { coachHandlers } from "./handlers/coach";
 import { identityHandlers } from "./handlers/identity";
 import { knowledgeHandlers } from "./handlers/knowledge";
 import { monthlyCutHandlers } from "./handlers/monthlyCut";
@@ -9,4 +10,5 @@ export const server = setupServer(
   ...profileHandlers,
   ...knowledgeHandlers,
   ...monthlyCutHandlers,
+  ...coachHandlers,
 );
