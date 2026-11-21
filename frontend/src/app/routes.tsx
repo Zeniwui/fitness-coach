@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { CoachPage } from "../features/coach/CoachPage";
+import { NutritionPage } from "../features/nutrition/NutritionPage";
 import { LivingProfilePage } from "../features/profile/LivingProfilePage";
 import { SciencePage } from "../features/science/SciencePage";
 import { TrainingPage } from "../features/training/TrainingPage";
@@ -58,24 +59,13 @@ function ProtectedLayout() {
   );
 }
 
-function NutritionPlaceholder() {
-  return (
-    <section className="space-y-2">
-      <h1 className="text-xl font-bold text-white">Nutrición</h1>
-      <p className="text-sm text-slate-400">
-        Fase Nutricional activa y Check-in semanal guiado.
-      </p>
-    </section>
-  );
-}
-
 export function AppRoutes() {
   return (
     <Routes>
       <Route element={<ProtectedLayout />}>
         <Route path="/coach" element={<CoachPage />} />
         <Route path="/training" element={<TrainingPage />} />
-        <Route path="/nutrition" element={<NutritionPlaceholder />} />
+        <Route path="/nutrition" element={<NutritionPage />} />
         <Route path="/science" element={<SciencePage />} />
         <Route path="/profile" element={<LivingProfilePage />} />
         <Route path="/" element={<Navigate to="/coach" replace />} />

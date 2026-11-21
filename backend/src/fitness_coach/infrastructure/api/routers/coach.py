@@ -24,6 +24,7 @@ from fitness_coach.application.use_cases.coach import (
     PromoteLiveSearchResultUseCase,
     SendCoachMessageStreamUseCase,
 )
+from fitness_coach.application.use_cases.nutrition import NutritionCoachContextProvider
 from fitness_coach.application.use_cases.training import TrainingCoachContextProvider
 from fitness_coach.domain.coach import (
     CoachValidationError,
@@ -55,6 +56,7 @@ from fitness_coach.infrastructure.api.schemas.coach import (
 )
 from fitness_coach.infrastructure.db.repositories.coach import SqlAlchemyCoachRepository
 from fitness_coach.infrastructure.db.repositories.knowledge import SqlAlchemyKnowledgeRepository
+from fitness_coach.infrastructure.db.repositories.nutrition import SqlAlchemyNutritionRepository
 from fitness_coach.infrastructure.db.repositories.profile import SqlAlchemyProfileRepository
 from fitness_coach.infrastructure.db.repositories.training import SqlAlchemyTrainingRepository
 
@@ -153,6 +155,9 @@ async def send_message_stream(
         scientific_sources=scientific_sources,
         training_context_provider=TrainingCoachContextProvider(
             SqlAlchemyTrainingRepository(session)
+        ),
+        nutrition_context_provider=NutritionCoachContextProvider(
+            SqlAlchemyNutritionRepository(session)
         ),
     )
     use_case = SendCoachMessageStreamUseCase(

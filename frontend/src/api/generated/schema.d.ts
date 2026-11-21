@@ -453,6 +453,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/nutrition/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Weekly Checkins */
+        get: operations["list_weekly_checkins_api_v1_nutrition_checkins_get"];
+        put?: never;
+        /** Create Weekly Checkin */
+        post: operations["create_weekly_checkin_api_v1_nutrition_checkins_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nutrition/checkins/{checkin_id}/apply-adjustment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Checkin Adjustment */
+        post: operations["apply_checkin_adjustment_api_v1_nutrition_checkins__checkin_id__apply_adjustment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nutrition/checkins/{checkin_id}/dismiss-adjustment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss Checkin Adjustment */
+        post: operations["dismiss_checkin_adjustment_api_v1_nutrition_checkins__checkin_id__dismiss_adjustment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nutrition/phases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Nutrition Phases */
+        get: operations["list_nutrition_phases_api_v1_nutrition_phases_get"];
+        put?: never;
+        /** Create Nutrition Phase */
+        post: operations["create_nutrition_phase_api_v1_nutrition_phases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nutrition/phases/{phase_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Nutrition Phase */
+        patch: operations["update_nutrition_phase_api_v1_nutrition_phases__phase_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/nutrition/phases/{phase_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Nutrition Phase */
+        post: operations["complete_nutrition_phase_api_v1_nutrition_phases__phase_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -732,6 +836,16 @@ export interface components {
             mesocycle: components["schemas"]["MesocycleResponse"];
             previous_mesocycle: components["schemas"]["MesocycleResponse"] | null;
         };
+        /**
+         * AdjustmentProposalStatus
+         * @enum {string}
+         */
+        AdjustmentProposalStatus: "none" | "proposed" | "accepted" | "dismissed";
+        /** ApplyCheckInAdjustmentResponse */
+        ApplyCheckInAdjustmentResponse: {
+            checkin: components["schemas"]["WeeklyCheckInResponse"];
+            phase: components["schemas"]["NutritionPhaseResponse"];
+        };
         /** ApproveCandidateRequest */
         ApproveCandidateRequest: {
             /** Curated Text Es */
@@ -916,6 +1030,29 @@ export interface components {
             /** Validity Status */
             validity_status: string;
         };
+        /** CoachAdjustmentRecommendationResponse */
+        CoachAdjustmentRecommendationResponse: {
+            /** Calorie Delta Kcal */
+            calorie_delta_kcal: number;
+            /** Cited Card Ids */
+            cited_card_ids?: string[];
+            /** Proposed Carbs G */
+            proposed_carbs_g?: number | null;
+            /** Proposed Fat G */
+            proposed_fat_g?: number | null;
+            /** Proposed Protein G */
+            proposed_protein_g?: number | null;
+            /** Proposed Target Calories */
+            proposed_target_calories?: number | null;
+            /** Rationale Es */
+            rationale_es: string;
+            /** Respects Profile Notes */
+            respects_profile_notes?: string | null;
+            /** Summary Es */
+            summary_es: string;
+            /** Training Adjustment Es */
+            training_adjustment_es?: string | null;
+        };
         /** CoachMesocycleDraftResponse */
         CoachMesocycleDraftResponse: {
             /** Cited Card Ids */
@@ -923,6 +1060,11 @@ export interface components {
             /** Coach Rationale Es */
             coach_rationale_es: string;
             mesocycle: components["schemas"]["MesocycleResponse"];
+        };
+        /** CompleteNutritionPhaseRequest */
+        CompleteNutritionPhaseRequest: {
+            /** End Date */
+            end_date?: string | null;
         };
         /** ConversationResponse */
         ConversationResponse: {
@@ -1016,6 +1158,24 @@ export interface components {
             /** Progression Criteria */
             progression_criteria?: string | null;
         };
+        /** CreateNutritionPhaseRequest */
+        CreateNutritionPhaseRequest: {
+            /** Carbs G */
+            carbs_g: number;
+            /** Fat G */
+            fat_g: number;
+            /** Notes */
+            notes?: string | null;
+            phase_type: components["schemas"]["NutritionPhaseType"];
+            /** Protein G */
+            protein_g: number;
+            /** Start Date */
+            start_date?: string | null;
+            /** Target Calories */
+            target_calories: number;
+            /** Target Weekly Weight Change Kg */
+            target_weekly_weight_change_kg: number;
+        };
         /** CreateTrainingSessionRequest */
         CreateTrainingSessionRequest: {
             /** Fatigue Notes */
@@ -1035,6 +1195,35 @@ export interface components {
             session_date: string;
             /** Sets */
             sets: components["schemas"]["SessionSetInput"][];
+        };
+        /** CreateWeeklyCheckInRequest */
+        CreateWeeklyCheckInRequest: {
+            /** Adherence Score */
+            adherence_score: number;
+            /** Average Weight Kg */
+            average_weight_kg?: number | null;
+            /** Body Measurements */
+            body_measurements?: {
+                [key: string]: number;
+            } | null;
+            /** Checkin Date */
+            checkin_date?: string | null;
+            /** Daily Weights */
+            daily_weights?: number[] | null;
+            /** Energy Level */
+            energy_level: number;
+            /** Hunger Level */
+            hunger_level?: number | null;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Perceived Fatigue */
+            perceived_fatigue: number;
+            /** Performance Notes */
+            performance_notes?: string | null;
+            /** Recovery Score */
+            recovery_score?: number | null;
+            /** Sleep Quality */
+            sleep_quality: number;
         };
         /** CriticalSheet6BlocksSchema */
         CriticalSheet6BlocksSchema: {
@@ -1516,6 +1705,54 @@ export interface components {
             /** Secondary Sets */
             secondary_sets: number;
         };
+        /** NutritionPhaseResponse */
+        NutritionPhaseResponse: {
+            /**
+             * Athlete Id
+             * Format: uuid
+             */
+            athlete_id: string;
+            /** Carbs G */
+            carbs_g: number;
+            /** Created At */
+            created_at: string | null;
+            /** End Date */
+            end_date: string | null;
+            /** Fat G */
+            fat_g: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Notes */
+            notes: string | null;
+            phase_type: components["schemas"]["NutritionPhaseType"];
+            /** Protein G */
+            protein_g: number;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            status: components["schemas"]["NutritionPhaseStatus"];
+            /** Target Calories */
+            target_calories: number;
+            /** Target Weekly Weight Change Kg */
+            target_weekly_weight_change_kg: number;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /**
+         * NutritionPhaseStatus
+         * @enum {string}
+         */
+        NutritionPhaseStatus: "active" | "completed";
+        /**
+         * NutritionPhaseType
+         * @enum {string}
+         */
+        NutritionPhaseType: "bulk" | "cut" | "maintenance" | "mini_cut";
         /** PlannedExerciseSchema */
         PlannedExerciseSchema: {
             /** Exercise Name */
@@ -1972,6 +2209,22 @@ export interface components {
             /** Progression Criteria */
             progression_criteria?: string | null;
         };
+        /** UpdateNutritionPhaseRequest */
+        UpdateNutritionPhaseRequest: {
+            /** Carbs G */
+            carbs_g?: number | null;
+            /** Fat G */
+            fat_g?: number | null;
+            /** Notes */
+            notes?: string | null;
+            phase_type?: components["schemas"]["NutritionPhaseType"] | null;
+            /** Protein G */
+            protein_g?: number | null;
+            /** Target Calories */
+            target_calories?: number | null;
+            /** Target Weekly Weight Change Kg */
+            target_weekly_weight_change_kg?: number | null;
+        };
         /** UpdateTrainingSessionRequest */
         UpdateTrainingSessionRequest: {
             /** Fatigue Notes */
@@ -2034,6 +2287,59 @@ export interface components {
          * @enum {string}
          */
         ValidityStatus: "active" | "nuanced" | "superseded" | "archived";
+        /** WeeklyCheckInResponse */
+        WeeklyCheckInResponse: {
+            /** Adherence Score */
+            adherence_score: number;
+            /** Adjustment Resolved At */
+            adjustment_resolved_at: string | null;
+            adjustment_status: components["schemas"]["AdjustmentProposalStatus"];
+            /**
+             * Athlete Id
+             * Format: uuid
+             */
+            athlete_id: string;
+            /** Average Weight Kg */
+            average_weight_kg: number;
+            /** Body Measurements */
+            body_measurements: {
+                [key: string]: number;
+            };
+            /**
+             * Checkin Date
+             * Format: date
+             */
+            checkin_date: string;
+            coach_recommendations: components["schemas"]["CoachAdjustmentRecommendationResponse"];
+            /** Created At */
+            created_at: string | null;
+            /** Daily Weights */
+            daily_weights: number[];
+            /** Energy Level */
+            energy_level: number;
+            /** Estimated Tdee Delta Kcal */
+            estimated_tdee_delta_kcal: number | null;
+            /** Hunger Level */
+            hunger_level: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Nutrition Phase Id */
+            nutrition_phase_id: string | null;
+            /** Perceived Fatigue */
+            perceived_fatigue: number;
+            /** Performance Notes */
+            performance_notes: string | null;
+            /** Recovery Score */
+            recovery_score: number | null;
+            /** Sleep Quality */
+            sleep_quality: number;
+            weight_trend: components["schemas"]["WeightTrendResponse"] | null;
+        };
         /** WeeklyVolumeSummaryResponse */
         WeeklyVolumeSummaryResponse: {
             /** Active Mesocycle Id */
@@ -2059,6 +2365,23 @@ export interface components {
              * Format: date
              */
             week_start: string;
+        };
+        /** WeightTrendResponse */
+        WeightTrendResponse: {
+            /** Actual Weekly Change Kg */
+            actual_weekly_change_kg: number | null;
+            /** Current Weight Kg */
+            current_weight_kg: number;
+            /** Estimated Tdee Delta Kcal */
+            estimated_tdee_delta_kcal: number | null;
+            /** Previous Weight Kg */
+            previous_weight_kg: number | null;
+            /** Target Weekly Change Kg */
+            target_weekly_change_kg: number | null;
+            /** Trend Status */
+            trend_status: string;
+            /** Weekly Deviation Kg */
+            weekly_deviation_kg: number | null;
         };
     };
     responses: never;
@@ -2975,6 +3298,244 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrendingTopicListResponse"];
+                };
+            };
+        };
+    };
+    list_weekly_checkins_api_v1_nutrition_checkins_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyCheckInResponse"][];
+                };
+            };
+        };
+    };
+    create_weekly_checkin_api_v1_nutrition_checkins_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWeeklyCheckInRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyCheckInResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_checkin_adjustment_api_v1_nutrition_checkins__checkin_id__apply_adjustment_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                checkin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyCheckInAdjustmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_checkin_adjustment_api_v1_nutrition_checkins__checkin_id__dismiss_adjustment_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                checkin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyCheckInResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_nutrition_phases_api_v1_nutrition_phases_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionPhaseResponse"][];
+                };
+            };
+        };
+    };
+    create_nutrition_phase_api_v1_nutrition_phases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateNutritionPhaseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionPhaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_nutrition_phase_api_v1_nutrition_phases__phase_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                phase_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNutritionPhaseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionPhaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_nutrition_phase_api_v1_nutrition_phases__phase_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                phase_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteNutritionPhaseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionPhaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
