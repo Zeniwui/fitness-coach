@@ -39,13 +39,14 @@ jobs:
 
       - name: Lint backend (ruff)
         working-directory: backend
-        run: ruff check src tests
+        run: ruff check src tests alembic
 
-      - name: Run Alembic migrations & pytest
+      - name: Verify single Alembic head, migrate, & pytest
         working-directory: backend
         env:
           DATABASE_URL: postgresql+asyncpg://fitness_coach:fitness_coach@localhost:5432/fitness_coach_test
         run: |
+          test "$(alembic heads | wc -l)" -eq 1
           alembic upgrade head
           pytest -v
 
@@ -79,9 +80,10 @@ jobs:
           npx openapi-typescript /tmp/openapi.json -o /tmp/schema.d.ts
           diff -u src/api/generated/schema.d.ts /tmp/schema.d.ts
 
-      - name: Typecheck, test, and build PWA
+      - name: Lint, typecheck, test, and build PWA
         working-directory: frontend
         run: |
+          npm run lint
           npm run typecheck
           npm test -- --run
           npm run build
