@@ -7,6 +7,7 @@ or invalidating stored Knowledge Base embeddings.
 
 from __future__ import annotations
 
+import base64
 import json
 from collections.abc import AsyncIterator
 from typing import Any
@@ -87,18 +88,21 @@ class ConfigurableAIProvider:
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 json_schema=json_schema,
+                images=images,
             )
         if self.provider_name == "anthropic":
             return await self._generate_anthropic(
                 model=model,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
+                images=images,
             )
         return await self._generate_openai_compatible(
             model=model,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             json_schema=json_schema,
+            images=images,
         )
 
     async def stream_text(
@@ -165,7 +169,50 @@ class ConfigurableAIProvider:
         ]
 
     async def transcribe_audio(self, audio_bytes: bytes, mime_type: str) -> str:
-        raise NotImplementedError("Audio transcription is wired in ticket #9.")
+        if not self._api_key:
+            raise RuntimeError(
+                f"Falta la clave API para transcribir audio con '{self.provider_name}'."
+            )
+        if self.provider_name == "google_ai_studio":
+            model = self.resolve_model(ModelTier.FAST)
+            url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{model}:generateContent?key={self._api_key}"
+            )
+            encoded = base64.b64encode(audio_bytes).decode("ascii")
+            body: dict[str, Any] = {
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [
+                            {
+                                "text": (
+                                    "Transcribe fielmente al español el siguiente audio de "
+                                    "entrenamiento o consulta de fitness. Devuelve solo el texto."
+                                )
+                            },
+                            {"inlineData": {"mimeType": mime_type, "data": encoded}},
+                        ],
+                    }
+                ]
+            }
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(url, json=body)
+            self._raise_for_status(resp)
+            data = resp.json()
+            parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+            return "".join(str(p.get("text", "")) for p in parts).strip()
+
+        base = self._base_url or "https://api.openai.com/v1"
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            resp = await client.post(
+                f"{base}/audio/transcriptions",
+                headers={"Authorization": f"Bearer {self._api_key}"},
+                data={"model": "whisper-1", "language": "es"},
+                files={"file": ("audio.webm", audio_bytes, mime_type)},
+            )
+        self._raise_for_status(resp)
+        return str(resp.json().get("text", "")).strip()
 
     def _raise_for_status(self, response: httpx.Response) -> None:
         if response.status_code == 429:
@@ -179,14 +226,25 @@ class ConfigurableAIProvider:
         system_prompt: str,
         user_prompt: str,
         json_schema: dict[str, Any] | None,
+        images: list[tuple[bytes, str]] | None = None,
     ) -> LLMResponse:
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
             f"{model}:generateContent?key={self._api_key}"
         )
+        user_parts: list[dict[str, Any]] = [{"text": user_prompt}]
+        for img_bytes, mime_type in images or []:
+            user_parts.append(
+                {
+                    "inlineData": {
+                        "mimeType": mime_type,
+                        "data": base64.b64encode(img_bytes).decode("ascii"),
+                    }
+                }
+            )
         body: dict[str, Any] = {
             "systemInstruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+            "contents": [{"role": "user", "parts": user_parts}],
         }
         if json_schema is not None:
             body["generationConfig"] = {"responseMimeType": "application/json"}
@@ -206,13 +264,25 @@ class ConfigurableAIProvider:
         system_prompt: str,
         user_prompt: str,
         json_schema: dict[str, Any] | None,
+        images: list[tuple[bytes, str]] | None = None,
     ) -> LLMResponse:
         base = self._base_url or "https://api.openai.com/v1"
+        user_content: Any = user_prompt
+        if images:
+            user_content = [{"type": "text", "text": user_prompt}]
+            for img_bytes, mime_type in images:
+                b64 = base64.b64encode(img_bytes).decode("ascii")
+                user_content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime_type};base64,{b64}"},
+                    }
+                )
         body: dict[str, Any] = {
             "model": model,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": user_content},
             ],
         }
         if json_schema is not None:
@@ -235,8 +305,23 @@ class ConfigurableAIProvider:
         model: str,
         system_prompt: str,
         user_prompt: str,
+        images: list[tuple[bytes, str]] | None = None,
     ) -> LLMResponse:
         base = self._base_url or "https://api.anthropic.com/v1"
+        user_content: Any = user_prompt
+        if images:
+            user_content = [{"type": "text", "text": user_prompt}]
+            for img_bytes, mime_type in images:
+                user_content.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": mime_type,
+                            "data": base64.b64encode(img_bytes).decode("ascii"),
+                        },
+                    }
+                )
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(
                 f"{base}/messages",
@@ -248,7 +333,7 @@ class ConfigurableAIProvider:
                     "model": model,
                     "max_tokens": 2048,
                     "system": system_prompt,
-                    "messages": [{"role": "user", "content": user_prompt}],
+                    "messages": [{"role": "user", "content": user_content}],
                 },
             )
         self._raise_for_status(resp)

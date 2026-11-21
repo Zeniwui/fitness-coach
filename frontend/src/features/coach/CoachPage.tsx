@@ -1,12 +1,18 @@
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ImagePlus, X } from "lucide-react";
 import { apiClient } from "../../api/client";
 import type { components } from "../../api/generated/schema";
+import { SessionDraftCard } from "../multimodal/SessionDraftCard";
+import { VoiceDictationButton } from "../multimodal/VoiceDictationButton";
 import {
+  AttachmentItem,
   ChatMessageItem,
   CitationItem,
   ProfileProposalItem,
   QuarantinedLiveResultItem,
+  SessionDraftItem,
   streamCoachMessage,
+  uploadCoachAttachment,
 } from "./sse";
 
 type ConversationItem = components["schemas"]["ConversationResponse"];
@@ -44,6 +50,13 @@ export function CoachPage() {
   const [promotedUrls, setPromotedUrls] = useState<Record<string, boolean>>({});
   const [promotingUrl, setPromotingUrl] = useState<string | null>(null);
   const [proposalFeedback, setProposalFeedback] = useState<Record<string, string>>({});
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [imageCategory, setImageCategory] = useState<
+    "meal" | "label_supplement" | "scale_tracker" | "general"
+  >("meal");
+  const [pendingSessionDraft, setPendingSessionDraft] = useState<SessionDraftItem | null>(null);
+  const [draftFeedback, setDraftFeedback] = useState<string | null>(null);
 
   async function loadInitialState() {
     setErrorMessage(null);
@@ -107,6 +120,32 @@ export function CoachPage() {
     }
   }
 
+  function handleImageSelect(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (imagePreviewUrl && typeof URL.revokeObjectURL === "function") {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+    setSelectedImage(file);
+    if (file && typeof URL.createObjectURL === "function") {
+      setImagePreviewUrl(URL.createObjectURL(file));
+    } else {
+      setImagePreviewUrl(null);
+    }
+    e.target.value = "";
+  }
+
+  function clearSelectedImage() {
+    if (imagePreviewUrl && typeof URL.revokeObjectURL === "function") {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+    setSelectedImage(null);
+    setImagePreviewUrl(null);
+  }
+
+  function handleVoiceTranscript(transcript: string) {
+    setInputText((prev) => (prev.trim() ? `${prev.trim()} ${transcript}` : transcript));
+  }
+
   async function handleSend(e: FormEvent) {
     e.preventDefault();
     const cleaned = inputText.trim();
@@ -127,7 +166,22 @@ export function CoachPage() {
     }
 
     setErrorMessage(null);
+    setDraftFeedback(null);
+
+    let uploadedAttachment: AttachmentItem | null = null;
+    if (selectedImage) {
+      try {
+        uploadedAttachment = await uploadCoachAttachment(selectedImage, imageCategory);
+      } catch (err) {
+        setErrorMessage(
+          err instanceof Error ? err.message : "No se pudo subir la imagen adjunta.",
+        );
+        return;
+      }
+    }
+
     setInputText("");
+    clearSelectedImage();
     setStreaming(true);
     setStreamingDraft("");
 
@@ -138,6 +192,7 @@ export function CoachPage() {
       content: cleaned,
       citations: [],
       live_search_results: [],
+      attachments: uploadedAttachment ? [uploadedAttachment] : [],
       used_general_knowledge: false,
       boundary_triggered: "none",
       created_at: new Date().toISOString(),
@@ -147,7 +202,11 @@ export function CoachPage() {
     try {
       await streamCoachMessage(
         convId,
-        { content: cleaned, enable_live_search: enableLiveSearch },
+        {
+          content: cleaned,
+          enable_live_search: enableLiveSearch,
+          attachment_ids: uploadedAttachment ? [uploadedAttachment.id] : [],
+        },
         {
           onToken: (delta) => {
             setStreamingDraft((prev) => prev + delta);
@@ -160,6 +219,9 @@ export function CoachPage() {
           },
           onProfileProposal: (proposal) => {
             setProposals((prev) => [proposal, ...prev.filter((p) => p.id !== proposal.id)]);
+          },
+          onSessionDraft: (draft) => {
+            setPendingSessionDraft(draft);
           },
           onDone: (assistantMsg) => {
             setStreamingDraft("");
@@ -347,6 +409,20 @@ export function CoachPage() {
               </p>
               <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
 
+              {/* Attached image badges */}
+              {msg.attachments && msg.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {msg.attachments.map((att) => (
+                    <span
+                      key={att.id}
+                      className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-slate-950/70 px-2 py-0.5 text-[11px] text-emerald-200"
+                    >
+                      Imagen adjunta: {att.original_filename ?? "imagen"}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               {/* General knowledge disclosure badge */}
               {!isUser && msg.used_general_knowledge && (
                 <p className="inline-block rounded-md border border-sky-500/30 bg-sky-950/50 px-2 py-1 text-[11px] text-sky-200">
@@ -468,10 +544,31 @@ export function CoachPage() {
         </aside>
       )}
 
+      {/* Inline editable Training Session draft detected in Coach chat */}
+      {pendingSessionDraft && (
+        <SessionDraftCard
+          draft={pendingSessionDraft}
+          onSaved={() => {
+            setPendingSessionDraft(null);
+            setDraftFeedback("Sesión de Entrenamiento confirmada y guardada en tu historial.");
+          }}
+          onDiscard={() => setPendingSessionDraft(null)}
+        />
+      )}
+
+      {draftFeedback && (
+        <p
+          role="status"
+          className="rounded-lg border border-emerald-500/40 bg-emerald-950/50 px-3 py-2 text-xs text-emerald-200"
+        >
+          {draftFeedback}
+        </p>
+      )}
+
       {/* Composer */}
       <form
         onSubmit={(e) => void handleSend(e)}
-        className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/80 p-3"
+        className="space-y-2.5 rounded-xl border border-slate-800 bg-slate-900/80 p-3"
       >
         <label htmlFor="coach-message-input" className="block text-xs font-medium text-slate-300">
           Mensaje para el Coach
@@ -481,9 +578,69 @@ export function CoachPage() {
           rows={2}
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder="Escribe tu consulta sobre entrenamiento, nutrición o evidencia…"
+          placeholder="Escribe o dicta tu consulta, una Sesión de Entrenamiento o adjunta una foto…"
           className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-emerald-400 focus:outline-none"
         />
+
+        {/* Selected image preview */}
+        {selectedImage && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-500/40 bg-slate-950/80 p-2">
+            <div className="flex items-center gap-2">
+              {imagePreviewUrl && (
+                <img
+                  src={imagePreviewUrl}
+                  alt="Vista previa de imagen adjunta"
+                  className="h-10 w-10 rounded object-cover"
+                />
+              )}
+              <div className="text-xs">
+                <p className="font-medium text-emerald-200">{selectedImage.name}</p>
+                <label className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                  Tipo:
+                  <select
+                    value={imageCategory}
+                    onChange={(e) =>
+                      setImageCategory(
+                        e.target.value as "meal" | "label_supplement" | "scale_tracker" | "general",
+                      )
+                    }
+                    className="rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[11px] text-white"
+                  >
+                    <option value="meal">Comida</option>
+                    <option value="label_supplement">Etiqueta / suplemento</option>
+                    <option value="scale_tracker">Báscula / app</option>
+                    <option value="general">General</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={clearSelectedImage}
+              aria-label="Quitar imagen adjunta"
+              className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
+        {/* Multimodal toolbar: Voice dictation + Image picker */}
+        <div className="flex flex-wrap items-center gap-2">
+          <VoiceDictationButton onTranscript={handleVoiceTranscript} disabled={streaming} />
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-emerald-400 hover:text-emerald-200">
+            <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Adjuntar imagen</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleImageSelect}
+              disabled={streaming}
+              className="sr-only"
+            />
+          </label>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="flex items-center gap-2 text-xs text-slate-300">
             <input

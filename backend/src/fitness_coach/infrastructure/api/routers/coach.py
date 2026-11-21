@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fitness_coach.application.ports.ai_provider import AIProviderPort
+from fitness_coach.application.ports.identity_storage import BinaryStoragePort
 from fitness_coach.application.ports.scientific_sources import ScientificSourcesPort
 from fitness_coach.application.use_cases.coach import (
     AcceptProfileProposalUseCase,
@@ -41,6 +42,7 @@ from fitness_coach.domain.knowledge import (
 from fitness_coach.domain.profile import ProfileValidationError
 from fitness_coach.infrastructure.api.deps import (
     get_ai_provider,
+    get_binary_storage,
     get_current_auth,
     get_db_session,
     get_scientific_sources,
@@ -56,6 +58,7 @@ from fitness_coach.infrastructure.api.schemas.coach import (
 )
 from fitness_coach.infrastructure.db.repositories.coach import SqlAlchemyCoachRepository
 from fitness_coach.infrastructure.db.repositories.knowledge import SqlAlchemyKnowledgeRepository
+from fitness_coach.infrastructure.db.repositories.multimodal import SqlAlchemyMultimodalRepository
 from fitness_coach.infrastructure.db.repositories.nutrition import SqlAlchemyNutritionRepository
 from fitness_coach.infrastructure.db.repositories.profile import SqlAlchemyProfileRepository
 from fitness_coach.infrastructure.db.repositories.training import SqlAlchemyTrainingRepository
@@ -110,7 +113,15 @@ async def list_messages(
         messages = await use_case.execute(auth=auth, conversation_id=conversation_id)
     except ConversationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    return [ChatMessageResponse.from_domain(m) for m in messages]
+    multimodal_repo = SqlAlchemyMultimodalRepository(session)
+    att_by_msg = await multimodal_repo.list_attachments_for_messages(
+        athlete_id=auth.athlete_id,
+        message_ids=[m.id for m in messages],
+    )
+    return [
+        ChatMessageResponse.from_domain(m, attachments=att_by_msg.get(m.id, []))
+        for m in messages
+    ]
 
 
 @router.post(
@@ -131,12 +142,14 @@ async def send_message_stream(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     ai_provider: Annotated[AIProviderPort, Depends(get_ai_provider)],
     scientific_sources: Annotated[ScientificSourcesPort | None, Depends(get_scientific_sources)],
+    binary_storage: Annotated[BinaryStoragePort, Depends(get_binary_storage)],
 ) -> StreamingResponse:
     coach_repo = SqlAlchemyCoachRepository(session)
+    multimodal_repo = SqlAlchemyMultimodalRepository(session)
     # Validate ownership & non-empty content BEFORE opening the SSE stream so 404/422 return cleanly
     if not body.content.strip():
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="El mensaje no puede estar vacío.",
         )
     conv = await coach_repo.get_conversation(
@@ -147,6 +160,17 @@ async def send_message_stream(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No se encontró la conversación solicitada.",
         )
+    if body.attachment_ids:
+        unique_att_ids = list(dict.fromkeys(body.attachment_ids))
+        owned = await multimodal_repo.list_attachments_by_ids(
+            athlete_id=auth.athlete_id,
+            attachment_ids=unique_att_ids,
+        )
+        if len(owned) != len(unique_att_ids):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontró el archivo adjunto solicitado.",
+            )
 
     assembler = CoachContextAssembler(
         profile_repo=SqlAlchemyProfileRepository(session),
@@ -164,6 +188,8 @@ async def send_message_stream(
         coach_repo=coach_repo,
         context_assembler=assembler,
         ai_provider=ai_provider,
+        multimodal_repo=multimodal_repo,
+        binary_storage=binary_storage,
     )
 
     async def event_generator() -> AsyncIterator[str]:
@@ -173,6 +199,7 @@ async def send_message_stream(
                 conversation_id=conversation_id,
                 content=body.content,
                 enable_live_search=body.enable_live_search,
+                attachment_ids=body.attachment_ids,
             ):
                 yield _format_sse(event.event, event.data)
             await session.commit()

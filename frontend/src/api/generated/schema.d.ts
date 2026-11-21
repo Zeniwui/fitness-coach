@@ -453,6 +453,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/multimodal/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Attachment */
+        post: operations["upload_attachment_api_v1_multimodal_attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/multimodal/attachments/{attachment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Attachment Content */
+        get: operations["get_attachment_content_api_v1_multimodal_attachments__attachment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/multimodal/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transcribe Audio */
+        post: operations["transcribe_audio_api_v1_multimodal_transcribe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/nutrition/checkins": {
         parameters: {
             query?: never;
@@ -766,6 +817,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/training/sessions/parse-natural": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parse Natural Training Session */
+        post: operations["parse_natural_training_session_api_v1_training_sessions_parse_natural_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/training/sessions/{session_id}": {
         parameters: {
             query?: never;
@@ -841,6 +909,15 @@ export interface components {
          * @enum {string}
          */
         AdjustmentProposalStatus: "none" | "proposed" | "accepted" | "dismissed";
+        /** AmbiguityFlagResponse */
+        AmbiguityFlagResponse: {
+            /** Field */
+            field: string;
+            /** Message Es */
+            message_es: string;
+            /** Set Index */
+            set_index?: number | null;
+        };
         /** ApplyCheckInAdjustmentResponse */
         ApplyCheckInAdjustmentResponse: {
             checkin: components["schemas"]["WeeklyCheckInResponse"];
@@ -859,6 +936,34 @@ export interface components {
             relations?: components["schemas"]["EvidenceRelationInputSchema"][];
             /** Tags */
             tags?: string[] | null;
+        };
+        /**
+         * AttachmentMediaType
+         * @enum {string}
+         */
+        AttachmentMediaType: "image" | "audio";
+        /** AttachmentResponse */
+        AttachmentResponse: {
+            category?: components["schemas"]["ImageAnalysisCategory"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            media_type: components["schemas"]["AttachmentMediaType"];
+            /** Message Id */
+            message_id?: string | null;
+            /** Mime Type */
+            mime_type: string;
+            /** Original Filename */
+            original_filename?: string | null;
+            /** Size Bytes */
+            size_bytes: number;
         };
         /** AuthMeResponse */
         AuthMeResponse: {
@@ -897,6 +1002,17 @@ export interface components {
             file: string;
             /** Title */
             title?: string | null;
+        };
+        /** Body_transcribe_audio_api_v1_multimodal_transcribe_post */
+        Body_transcribe_audio_api_v1_multimodal_transcribe_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_attachment_api_v1_multimodal_attachments_post */
+        Body_upload_attachment_api_v1_multimodal_attachments_post: {
+            category?: components["schemas"]["ImageAnalysisCategory"] | null;
+            /** File */
+            file: string;
         };
         /** Body_upload_candidate_pdf_api_v1_curator_candidates__candidate_id__upload_pdf_post */
         Body_upload_candidate_pdf_api_v1_curator_candidates__candidate_id__upload_pdf_post: {
@@ -979,6 +1095,8 @@ export interface components {
         };
         /** ChatMessageResponse */
         ChatMessageResponse: {
+            /** Attachments */
+            attachments?: components["schemas"]["AttachmentResponse"][];
             /** @default none */
             boundary_triggered: components["schemas"]["BoundaryKind"];
             /** Citations */
@@ -1269,6 +1387,29 @@ export interface components {
             /** Focus Notes */
             focus_notes?: string | null;
         };
+        /** DraftSetEntryResponse */
+        DraftSetEntryResponse: {
+            /** Exercise Name */
+            exercise_name: string;
+            /** Load */
+            load?: number | null;
+            /** Missing Fields */
+            missing_fields?: string[];
+            /** Muscle Group */
+            muscle_group: string;
+            /** Notes */
+            notes?: string | null;
+            /** Reps */
+            reps?: number | null;
+            /** Rir */
+            rir?: number | null;
+            /** Rpe */
+            rpe?: number | null;
+            /** Set Order */
+            set_order: number;
+            /** @default kg */
+            unit: components["schemas"]["LoadUnit"];
+        };
         /** EvidenceCardDetailResponse */
         EvidenceCardDetailResponse: {
             /**
@@ -1460,6 +1601,11 @@ export interface components {
              */
             status: "ok";
         };
+        /**
+         * ImageAnalysisCategory
+         * @enum {string}
+         */
+        ImageAnalysisCategory: "meal" | "label_supplement" | "scale_tracker" | "general";
         /** InjuryListResponse */
         InjuryListResponse: {
             /** Items */
@@ -1753,6 +1899,15 @@ export interface components {
          * @enum {string}
          */
         NutritionPhaseType: "bulk" | "cut" | "maintenance" | "mini_cut";
+        /** ParseNaturalSessionRequest */
+        ParseNaturalSessionRequest: {
+            /** @default chat_text */
+            origin: components["schemas"]["SessionOrigin"];
+            /** Session Date */
+            session_date?: string | null;
+            /** Text */
+            text: string;
+        };
         /** PlannedExerciseSchema */
         PlannedExerciseSchema: {
             /** Exercise Name */
@@ -1993,6 +2148,8 @@ export interface components {
         };
         /** SendMessageRequest */
         SendMessageRequest: {
+            /** Attachment Ids */
+            attachment_ids?: string[];
             /** Content */
             content: string;
             /**
@@ -2078,6 +2235,30 @@ export interface components {
          * @enum {string}
          */
         TrainingApproach: "natural" | "enhanced_context_only";
+        /** TrainingSessionDraftResponse */
+        TrainingSessionDraftResponse: {
+            /** Ambiguities */
+            ambiguities?: components["schemas"]["AmbiguityFlagResponse"][];
+            /** Fatigue Notes */
+            fatigue_notes?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Needs Confirmation
+             * @default true
+             */
+            needs_confirmation: boolean;
+            origin: components["schemas"]["SessionOrigin"];
+            /** Raw Text */
+            raw_text: string;
+            /**
+             * Session Date
+             * Format: date
+             */
+            session_date: string;
+            /** Sets */
+            sets?: components["schemas"]["DraftSetEntryResponse"][];
+        };
         /** TrainingSessionResponse */
         TrainingSessionResponse: {
             /**
@@ -2112,6 +2293,16 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** TranscribeAudioResponse */
+        TranscribeAudioResponse: {
+            /**
+             * Language
+             * @default es
+             */
+            language: string;
+            /** Transcript */
+            transcript: string;
         };
         /** TransitionMesocycleStatusRequest */
         TransitionMesocycleStatusRequest: {
@@ -3302,6 +3493,104 @@ export interface operations {
             };
         };
     };
+    upload_attachment_api_v1_multimodal_attachments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_attachment_api_v1_multimodal_attachments_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_attachment_content_api_v1_multimodal_attachments__attachment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attachment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcribe_audio_api_v1_multimodal_transcribe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_transcribe_audio_api_v1_multimodal_transcribe_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscribeAudioResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_weekly_checkins_api_v1_nutrition_checkins_get: {
         parameters: {
             query?: never;
@@ -4057,6 +4346,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrainingSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    parse_natural_training_session_api_v1_training_sessions_parse_natural_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParseNaturalSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingSessionDraftResponse"];
                 };
             };
             /** @description Validation Error */

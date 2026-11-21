@@ -5,6 +5,8 @@ export type CitationItem = components["schemas"]["CitationResponse"];
 export type QuarantinedLiveResultItem = components["schemas"]["QuarantinedLiveResultResponse"];
 export type ChatMessageItem = components["schemas"]["ChatMessageResponse"];
 export type ProfileProposalItem = components["schemas"]["ProfileProposalResponse"];
+export type AttachmentItem = components["schemas"]["AttachmentResponse"];
+export type SessionDraftItem = components["schemas"]["TrainingSessionDraftResponse"];
 
 export interface CoachStreamCallbacks {
   onToken: (delta: string) => void;
@@ -18,6 +20,7 @@ export interface CoachStreamCallbacks {
     results: QuarantinedLiveResultItem[];
   }) => void;
   onProfileProposal: (proposal: ProfileProposalItem) => void;
+  onSessionDraft?: (draft: SessionDraftItem) => void;
   onDone: (message: ChatMessageItem) => void;
   onError: (detail: string) => void;
 }
@@ -72,6 +75,8 @@ function dispatchSseBlock(rawBlock: string, callbacks: CoachStreamCallbacks): vo
     });
   } else if (eventName === "profile_proposal" && parsed.proposal) {
     callbacks.onProfileProposal(parsed.proposal as ProfileProposalItem);
+  } else if (eventName === "session_draft" && parsed.draft) {
+    callbacks.onSessionDraft?.(parsed.draft as SessionDraftItem);
   } else if (eventName === "done" && parsed.message) {
     callbacks.onDone(parsed.message as ChatMessageItem);
   } else if (eventName === "error") {
@@ -79,9 +84,41 @@ function dispatchSseBlock(rawBlock: string, callbacks: CoachStreamCallbacks): vo
   }
 }
 
+export async function uploadCoachAttachment(
+  file: File,
+  category: "meal" | "label_supplement" | "scale_tracker" | "general" = "general",
+): Promise<AttachmentItem> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("category", category);
+
+  const response = await fetch(`${getBaseUrl()}/api/v1/multimodal/attachments`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let detail = "No se pudo subir la imagen adjunta.";
+    try {
+      const errJson = (await response.json()) as { detail?: string };
+      if (errJson.detail) detail = errJson.detail;
+    } catch {
+      // keep default
+    }
+    throw new Error(detail);
+  }
+  return (await response.json()) as AttachmentItem;
+}
+
 export async function streamCoachMessage(
   conversationId: string,
-  payload: { content: string; enable_live_search: boolean },
+  payload: { content: string; enable_live_search: boolean; attachment_ids?: string[] },
   callbacks: CoachStreamCallbacks,
 ): Promise<void> {
   const token = getAuthToken();
