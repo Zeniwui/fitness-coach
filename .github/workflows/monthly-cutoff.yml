@@ -1,0 +1,93 @@
+name: Corte Mensual
+
+on:
+  schedule:
+    # Run on the 1st day of every month at 06:00 UTC (off free-tier web server per ADR-0003)
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Execution mode: run, resume, or seed"
+        required: true
+        default: "run"
+        type: choice
+        options:
+          - run
+          - resume
+          - seed
+      date_from:
+        description: "Optional start date (YYYY-MM-DD)"
+        required: false
+        default: ""
+        type: string
+      date_to:
+        description: "Optional end date (YYYY-MM-DD)"
+        required: false
+        default: ""
+        type: string
+      query_override:
+        description: "Optional scientific query override"
+        required: false
+        default: ""
+        type: string
+      max_candidates:
+        description: "Max CandidateStudies to analyze (default 12)"
+        required: false
+        default: "12"
+        type: string
+      run_id:
+        description: "MonthlyCutRun UUID (required when mode=resume)"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  monthly-cutoff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install backend
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Run Alembic migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: alembic upgrade head
+
+      - name: Execute Corte Mensual CLI
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER || 'google_ai_studio' }}
+          AI_FAST_MODEL: ${{ vars.AI_FAST_MODEL || 'gemini-2.0-flash' }}
+          AI_REASONING_MODEL: ${{ vars.AI_REASONING_MODEL || 'gemini-2.5-pro' }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODE: ${{ github.event.inputs.mode || 'run' }}
+          DATE_FROM: ${{ github.event.inputs.date_from || '' }}
+          DATE_TO: ${{ github.event.inputs.date_to || '' }}
+          QUERY_OVERRIDE: ${{ github.event.inputs.query_override || '' }}
+          MAX_CANDIDATES: ${{ github.event.inputs.max_candidates || '12' }}
+          RUN_ID: ${{ github.event.inputs.run_id || '' }}
+        run: |
+          if [ "$MODE" = "seed" ]; then
+            python -m fitness_coach.infrastructure.cli.monthly_cut seed
+          elif [ "$MODE" = "resume" ]; then
+            python -m fitness_coach.infrastructure.cli.monthly_cut resume "$RUN_ID"
+          else
+            ARGS=(--max-candidates "$MAX_CANDIDATES")
+            if [ -n "$DATE_FROM" ]; then ARGS+=(--date-from "$DATE_FROM"); fi
+            if [ -n "$DATE_TO" ]; then ARGS+=(--date-to "$DATE_TO"); fi
+            if [ -n "$QUERY_OVERRIDE" ]; then ARGS+=(--query "$QUERY_OVERRIDE"); fi
+            python -m fitness_coach.infrastructure.cli.monthly_cut run "${ARGS[@]}"
+          fi

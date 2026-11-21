@@ -9,6 +9,10 @@ from fitness_coach.infrastructure.db.models.knowledge import (
     EvidenceCardModel,
     EvidenceRelationModel,
 )
+from fitness_coach.infrastructure.db.models.monthly_cut import (
+    MonthlyCutRunModel,
+    TrendingTopicModel,
+)
 from fitness_coach.infrastructure.db.models.profile import (
     InjuryRestrictionModel,
     LivingProfileModel,
@@ -22,4 +26,6 @@ __all__ = [
     "InjuryRestrictionModel",
     "InvitationModel",
     "LivingProfileModel",
+    "MonthlyCutRunModel",
+    "TrendingTopicModel",
 ]

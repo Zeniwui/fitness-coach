@@ -209,6 +209,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/curator/monthly-cuts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Monthly Cut Runs */
+        get: operations["list_monthly_cut_runs_api_v1_curator_monthly_cuts_get"];
+        put?: never;
+        /** Trigger Monthly Cut */
+        post: operations["trigger_monthly_cut_api_v1_curator_monthly_cuts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/monthly-cuts/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Monthly Cut Run */
+        get: operations["get_monthly_cut_run_api_v1_curator_monthly_cuts__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/monthly-cuts/{run_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Monthly Cut */
+        post: operations["resume_monthly_cut_api_v1_curator_monthly_cuts__run_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/curator/reindex": {
         parameters: {
             query?: never;
@@ -220,6 +272,57 @@ export interface paths {
         put?: never;
         /** Reindex Knowledge Base */
         post: operations["reindex_knowledge_base_api_v1_curator_reindex_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/seed-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Load Seed Batch */
+        post: operations["load_seed_batch_api_v1_curator_seed_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/trending-topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Curator Trending Topics */
+        get: operations["list_curator_trending_topics_api_v1_curator_trending_topics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/curator/trending-topics/{topic_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Trending Topic */
+        post: operations["review_trending_topic_api_v1_curator_trending_topics__topic_id__review_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -269,6 +372,26 @@ export interface paths {
         };
         /** Search Knowledge Base */
         get: operations["search_knowledge_base_api_v1_knowledge_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/trending-topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Approved Trending Topics
+         * @description Shared read of approved Temas de Actualidad — strictly separated from EvidenceCards.
+         */
+        get: operations["list_approved_trending_topics_api_v1_knowledge_trending_topics_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -439,6 +562,8 @@ export interface components {
             id: string;
             /** Journal */
             journal: string | null;
+            /** Monthly Cut Run Id */
+            monthly_cut_run_id?: string | null;
             origin: components["schemas"]["CandidateOrigin"];
             /** Paywall Warning */
             paywall_warning: string | null;
@@ -826,6 +951,62 @@ export interface components {
             /** Updated At */
             updated_at: string | null;
         };
+        /** MonthlyCutRunListResponse */
+        MonthlyCutRunListResponse: {
+            /** Items */
+            items: components["schemas"]["MonthlyCutRunResponse"][];
+        };
+        /** MonthlyCutRunResponse */
+        MonthlyCutRunResponse: {
+            /** Analyzed Count */
+            analyzed_count: number;
+            /** Checkpoint Next Index */
+            checkpoint_next_index: number;
+            /** Checkpoint Queue Size */
+            checkpoint_queue_size: number;
+            /** Collected Count */
+            collected_count: number;
+            /** Date From */
+            date_from: string | null;
+            /** Date To */
+            date_to: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Filtered Count */
+            filtered_count: number;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Max Candidates */
+            max_candidates: number;
+            /** Pause Reason */
+            pause_reason: string | null;
+            /** Query Override */
+            query_override: string | null;
+            run_type: components["schemas"]["MonthlyCutRunType"];
+            /** Sources */
+            sources: string[];
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            status: components["schemas"]["MonthlyCutStatus"];
+        };
+        /**
+         * MonthlyCutRunType
+         * @enum {string}
+         */
+        MonthlyCutRunType: "scheduled" | "manual" | "seed";
+        /**
+         * MonthlyCutStatus
+         * @enum {string}
+         */
+        MonthlyCutStatus: "queued" | "collecting" | "filtering" | "analyzing" | "completed" | "paused_rate_limit" | "failed";
         /**
          * PrimaryGoal
          * @description Athlete's primary physique / performance objective.
@@ -876,18 +1057,84 @@ export interface components {
          * @enum {string}
          */
         RelationType: "confirms" | "nuances" | "supersedes";
+        /** ReviewTrendingTopicRequest */
+        ReviewTrendingTopicRequest: {
+            decision: components["schemas"]["TrendingTopicStatus"];
+        };
         /**
          * Role
          * @description Canonical roles in Fitness Coach (see GLOSSARY.md).
          * @enum {string}
          */
         Role: "athlete" | "curator";
+        /** SeedBatchResponse */
+        SeedBatchResponse: {
+            /** Created Count */
+            created_count: number;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Skipped Count */
+            skipped_count: number;
+            /** Total In Catalog */
+            total_in_catalog: number;
+        };
         /**
          * TrainingApproach
          * @description Training approach preference; defaults to natural (Coach never prescribes PEDs).
          * @enum {string}
          */
         TrainingApproach: "natural" | "enhanced_context_only";
+        /** TrendingTopicListResponse */
+        TrendingTopicListResponse: {
+            /** Items */
+            items: components["schemas"]["TrendingTopicResponse"][];
+        };
+        /** TrendingTopicResponse */
+        TrendingTopicResponse: {
+            /** Cited Card Ids */
+            cited_card_ids: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Critical Evaluation */
+            critical_evaluation: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Monthly Cut Run Id */
+            monthly_cut_run_id: string | null;
+            status: components["schemas"]["TrendingTopicStatus"];
+            /** Summary */
+            summary: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * TrendingTopicStatus
+         * @enum {string}
+         */
+        TrendingTopicStatus: "pending" | "approved_context" | "dismissed";
+        /** TriggerMonthlyCutRequest */
+        TriggerMonthlyCutRequest: {
+            /** Date From */
+            date_from?: string | null;
+            /** Date To */
+            date_to?: string | null;
+            /**
+             * Max Candidates
+             * @default 12
+             */
+            max_candidates: number;
+            /** Query Override */
+            query_override?: string | null;
+        };
         /** UpdateEvidenceCardRequest */
         UpdateEvidenceCardRequest: {
             /** Add Relations */
@@ -1375,6 +1622,132 @@ export interface operations {
             };
         };
     };
+    list_monthly_cut_runs_api_v1_curator_monthly_cuts_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyCutRunListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_monthly_cut_api_v1_curator_monthly_cuts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggerMonthlyCutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyCutRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_monthly_cut_run_api_v1_curator_monthly_cuts__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyCutRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_monthly_cut_api_v1_curator_monthly_cuts__run_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyCutRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reindex_knowledge_base_api_v1_curator_reindex_post: {
         parameters: {
             query?: never;
@@ -1395,6 +1768,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReindexResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    load_seed_batch_api_v1_curator_seed_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeedBatchResponse"];
+                };
+            };
+        };
+    };
+    list_curator_trending_topics_api_v1_curator_trending_topics_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["TrendingTopicStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrendingTopicListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_trending_topic_api_v1_curator_trending_topics__topic_id__review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topic_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewTrendingTopicRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrendingTopicResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1490,6 +1949,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_approved_trending_topics_api_v1_knowledge_trending_topics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrendingTopicListResponse"];
                 };
             };
         };
