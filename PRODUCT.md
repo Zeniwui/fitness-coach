@@ -42,6 +42,7 @@ Unlike generic fitness trackers or ungrounded AI chat wrappers, Fitness Coach en
 ## Evidence on Hand
 
 - Domain glossary: `GLOSSARY.md`.
+- Visual design system specification: `DESIGN.md` and `.impeccable/design.json`.
 - Architectural decisions: `docs/adr/` (ADR-0001, ADR-0002, ADR-0003).
 - Working frontend PWA (`frontend/src/`), FastAPI backend (`backend/src/fitness_coach/`), and design tokens (`frontend/src/theme/tokens.css`).
 - Absence to preserve: no fabricated athlete testimonials, pricing tiers, marketing claims, or unverified scientific citations.

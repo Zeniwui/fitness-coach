@@ -39,6 +39,9 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     expect(passwordInput).toHaveAttribute("autocomplete", "current-password");
     expect(screen.queryByLabelText(/token de sesión/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: /navegación principal/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/restablecimiento de contraseña o asistencia.*curador/i),
+    ).toBeInTheDocument();
   });
 
   it("signs in Athlete with email and password, sends Bearer token to API, and hides Curator actions", async () => {

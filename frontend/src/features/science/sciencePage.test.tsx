@@ -186,4 +186,23 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
     expect(screen.getByRole("button", { name: /^filtros$/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /limpiar filtros/i })).not.toBeInTheDocument();
   });
+
+  it("exposes accessible inline help explaining evidence levels and scientific validity", async () => {
+    seedSupabaseSession("tok-athlete");
+    const user = userEvent.setup();
+    render(<App initialEntries={["/science"]} />);
+
+    const helpBtn = await screen.findByRole("button", {
+      name: /ayuda sobre rigor y actualización científica/i,
+    });
+    expect(helpBtn).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(helpBtn);
+    expect(helpBtn).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/metaanálisis y revisiones sistemáticas/i)).toBeInTheDocument();
+    expect(screen.getByText(/vigente, matizada o superada/i)).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(helpBtn).toHaveAttribute("aria-expanded", "false");
+  });
 });

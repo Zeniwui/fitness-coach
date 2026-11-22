@@ -1,6 +1,6 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { ArrowDown, Plus } from "lucide-react";
 import { apiClient, extractApiErrorDetail } from "../../api/client";
 import type { components } from "../../api/generated/schema";
 import { AlertBanner } from "../../ui/AlertBanner";
@@ -13,6 +13,7 @@ import { ChatMessageCard } from "./ChatMessageCard";
 import { CitationInspector } from "./CitationInspector";
 import { CoachComposer, type ImageCategory } from "./CoachComposer";
 import { ConversationThreadsBar } from "./ConversationThreadsBar";
+import { OnboardingChecklist } from "./OnboardingChecklist";
 import {
   AttachmentItem,
   ChatMessageItem,
@@ -53,6 +54,10 @@ export function CoachPage() {
   const [imageCategory, setImageCategory] = useState<ImageCategory>("meal");
   const [pendingSessionDraft, setPendingSessionDraft] = useState<SessionDraftItem | null>(null);
   const [draftFeedback, setDraftFeedback] = useState<string | null>(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const shouldAutoScrollRef = useRef(true);
 
   async function loadInitialState() {
     setLoadingInitial(true);
@@ -91,6 +96,37 @@ export function CoachPage() {
   }, []);
 
   useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el || !shouldAutoScrollRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages.length, streamingDraft, streaming]);
+
+  function handleMessagesScroll() {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distanceFromBottom <= 48;
+    shouldAutoScrollRef.current = nearBottom;
+    setShowJumpToBottom(!nearBottom);
+  }
+
+  function scrollToLatestMessage() {
+    const el = messagesContainerRef.current;
+    shouldAutoScrollRef.current = true;
+    setShowJumpToBottom(false);
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+
+  function handleFocusComposer() {
+    const composer = document.getElementById("coach-message-input");
+    if (composer instanceof HTMLElement) {
+      composer.focus();
+    }
+  }
+
+  useEffect(() => {
     return () => {
       if (imagePreviewUrl && typeof URL.revokeObjectURL === "function") {
         URL.revokeObjectURL(imagePreviewUrl);
@@ -112,6 +148,8 @@ export function CoachPage() {
   async function handleSelectConversation(convId: string) {
     setActiveConvId(convId);
     setSelectedCitation(null);
+    shouldAutoScrollRef.current = true;
+    setShowJumpToBottom(false);
     const msgRes = await apiClient.GET("/api/v1/coach/conversations/{conversation_id}/messages", {
       params: { path: { conversation_id: convId } },
     });
@@ -130,6 +168,48 @@ export function CoachPage() {
       setActiveConvId(created.data.id);
       setMessages([]);
       setSelectedCitation(null);
+    }
+  }
+
+  async function handleRenameConversation(convId: string, title: string): Promise<boolean> {
+    setErrorMessage(null);
+    const res = await apiClient.PATCH("/api/v1/coach/conversations/{conversation_id}", {
+      params: { path: { conversation_id: convId } },
+      body: { title },
+    });
+    if (res.data) {
+      const updated = res.data;
+      setConversations((prev) => prev.map((c) => (c.id === convId ? updated : c)));
+      return true;
+    }
+    setErrorMessage(
+      extractApiErrorDetail(res.error, "No se pudo renombrar la conversación."),
+    );
+    return false;
+  }
+
+  async function handleDeleteConversation(convId: string): Promise<void> {
+    if (streaming) return;
+    setErrorMessage(null);
+    const res = await apiClient.DELETE("/api/v1/coach/conversations/{conversation_id}", {
+      params: { path: { conversation_id: convId } },
+    });
+    if (res.error) {
+      setErrorMessage(
+        extractApiErrorDetail(res.error, "No se pudo eliminar la conversación."),
+      );
+      return;
+    }
+    const remaining = conversations.filter((c) => c.id !== convId);
+    setConversations(remaining);
+    if (activeConvId === convId) {
+      setSelectedCitation(null);
+      if (remaining.length > 0) {
+        await handleSelectConversation(remaining[0].id);
+      } else {
+        setActiveConvId(null);
+        setMessages([]);
+      }
     }
   }
 
@@ -332,6 +412,11 @@ export function CoachPage() {
         }
       />
 
+      <OnboardingChecklist
+        hasCoachMessages={messages.length > 0}
+        onFocusComposer={handleFocusComposer}
+      />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Main Conversation Column */}
         <div className="space-y-4 lg:col-span-8">
@@ -364,7 +449,13 @@ export function CoachPage() {
             </AlertBanner>
           ))}
 
-          <div className="space-y-3.5">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleMessagesScroll}
+            role="region"
+            aria-label="Mensajes de la conversación"
+            className="max-h-[64vh] space-y-3.5 overflow-y-auto pr-1"
+          >
             {loadingInitial ? (
               <p role="status" className="text-sm text-ink-muted">
                 Cargando conversaciones del Coach…
@@ -435,6 +526,15 @@ export function CoachPage() {
             )}
           </div>
 
+          {showJumpToBottom && (messages.length > 0 || streaming) && (
+            <div className="flex justify-end">
+              <Button variant="secondary" size="sm" onClick={scrollToLatestMessage}>
+                <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Ir al último mensaje</span>
+              </Button>
+            </div>
+          )}
+
           {pendingSessionDraft && (
             <SessionDraftCard
               draft={pendingSessionDraft}
@@ -472,7 +572,10 @@ export function CoachPage() {
           <ConversationThreadsBar
             conversations={conversations}
             activeConvId={activeConvId}
+            busy={streaming}
             onSelect={(id) => void handleSelectConversation(id)}
+            onRename={handleRenameConversation}
+            onDelete={handleDeleteConversation}
           />
 
           <div className="hidden lg:block">

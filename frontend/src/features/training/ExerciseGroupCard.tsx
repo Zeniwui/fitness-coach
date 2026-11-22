@@ -2,6 +2,7 @@ import { Check, Copy, Plus, Trash2 } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Input, Select } from "../../ui/Field";
+import { HelpTip } from "../../ui/HelpTip";
 import { IconButton } from "../../ui/IconButton";
 import { adjustLoadValue, createDefaultExerciseSet } from "./sessionDraft";
 import type { EditableExerciseGroup, EditableExerciseSet } from "./types";
@@ -166,6 +167,11 @@ export function ExerciseGroupCard({
             </span>
           </Badge>
         </div>
+
+        <HelpTip term="RIR" triggerLabel="¿Qué es RIR?" title="Repeticiones en recámara (RIR)">
+          Estima cuántas repeticiones válidas podrías haber completado antes del fallo muscular
+          (RIR 0 = fallo; RIR 1–2 = zona habitual de estímulo efectivo en hipertrofia).
+        </HelpTip>
 
         {(group.targetHint || group.previousMarkHint) && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-accent/25 bg-accent-soft/45 px-3 py-2 text-xs">

@@ -17,21 +17,28 @@ let mockMessagesByConv: Record<string, ChatMessageResponse[]> = {};
 let mockProposals: ProfileProposalResponse[] = [];
 let promotedPayloads: PromoteLiveSearchRequest[] = [];
 
-export function resetMockCoachState(): void {
+export function resetMockCoachState(options?: {
+  conversations?: ConversationResponse[];
+  messagesByConv?: Record<string, ChatMessageResponse[]>;
+}): void {
   convCounter = 1;
   msgCounter = 1;
   propCounter = 1;
-  mockConversations = [
-    {
-      id: "aaaa0000-0000-0000-0000-000000000001",
-      title: "Plan de hipertrofia",
-      created_at: "2026-11-21T10:00:00Z",
-      updated_at: "2026-11-21T10:00:00Z",
-    },
-  ];
-  mockMessagesByConv = {
-    "aaaa0000-0000-0000-0000-000000000001": [],
-  };
+  mockConversations = options?.conversations
+    ? structuredClone(options.conversations)
+    : [
+        {
+          id: "aaaa0000-0000-0000-0000-000000000001",
+          title: "Plan de hipertrofia",
+          created_at: "2026-11-21T10:00:00Z",
+          updated_at: "2026-11-21T10:00:00Z",
+        },
+      ];
+  mockMessagesByConv = options?.messagesByConv
+    ? structuredClone(options.messagesByConv)
+    : {
+        "aaaa0000-0000-0000-0000-000000000001": [],
+      };
   mockProposals = [];
   promotedPayloads = [];
 }
@@ -63,6 +70,40 @@ export const coachHandlers = [
     mockConversations = [conv, ...mockConversations];
     mockMessagesByConv[conv.id] = [];
     return HttpResponse.json(conv, { status: 201 });
+  }),
+
+  http.patch("*/api/v1/coach/conversations/:id", async ({ params, request }) => {
+    const id = String(params.id);
+    const idx = mockConversations.findIndex((c) => c.id === id);
+    if (idx === -1) {
+      return HttpResponse.json({ detail: "Conversación no encontrada." }, { status: 404 });
+    }
+    const body = (await request.json()) as { title?: string };
+    const trimmed = body.title?.trim() ?? "";
+    if (!trimmed || trimmed.length > 200) {
+      return HttpResponse.json(
+        { detail: "El título de la conversación debe tener entre 1 y 200 caracteres." },
+        { status: 422 },
+      );
+    }
+    const updated: ConversationResponse = {
+      ...mockConversations[idx],
+      title: trimmed,
+      updated_at: "2026-11-21T12:30:00Z",
+    };
+    mockConversations[idx] = updated;
+    return HttpResponse.json(updated);
+  }),
+
+  http.delete("*/api/v1/coach/conversations/:id", ({ params }) => {
+    const id = String(params.id);
+    const before = mockConversations.length;
+    mockConversations = mockConversations.filter((c) => c.id !== id);
+    if (mockConversations.length === before) {
+      return HttpResponse.json({ detail: "Conversación no encontrada." }, { status: 404 });
+    }
+    delete mockMessagesByConv[id];
+    return new HttpResponse(null, { status: 204 });
   }),
 
   http.get("*/api/v1/coach/conversations/:id/messages", ({ params }) => {

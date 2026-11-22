@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Field";
+import { HelpTip } from "../../ui/HelpTip";
 import { IconButton } from "../../ui/IconButton";
 import { Surface } from "../../ui/Surface";
 import type { EditablePlannedSession, PlannedExerciseSchema } from "./types";
@@ -151,6 +152,14 @@ export function MesocycleEditor({
               <span>Añadir día</span>
             </Button>
           </div>
+          <HelpTip
+            term="RIR"
+            triggerLabel="¿Qué es RIR objetivo?"
+            title="Repeticiones en recámara (RIR)"
+          >
+            Marca la proximidad al fallo objetivo de cada ejercicio del Mesociclo: RIR 1–2 suele
+            equilibrar estímulo de hipertrofia y fatiga acumulable antes de la descarga.
+          </HelpTip>
 
           {plannedSessions.map((day, dayIdx) => {
             const dayGroupLabel = `Día ${day.day_order}: ${day.name.trim() || "Sin nombre"}`;

@@ -3,6 +3,7 @@ import { apiClient } from "../../api/client";
 import { AlertBanner } from "../../ui/AlertBanner";
 import { Button } from "../../ui/Button";
 import { Input, Select, Textarea } from "../../ui/Field";
+import { HelpTip } from "../../ui/HelpTip";
 import { PageHeader } from "../../ui/PageHeader";
 import { Surface } from "../../ui/Surface";
 import { ActiveCoachContextBanner } from "./ActiveCoachContextBanner";
@@ -426,9 +427,26 @@ export function LivingProfilePage() {
 
             <fieldset className="space-y-3 border-t border-line pt-5">
               <legend className="text-xs font-semibold text-accent-text">Enfoque y notas</legend>
-              <label className="block space-y-1 text-xs font-medium text-ink-muted">
-                <span>Enfoque de entrenamiento (Natural / PEDs)</span>
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label
+                    htmlFor="profile-training-approach"
+                    className="block text-xs font-medium text-ink-muted"
+                  >
+                    Enfoque de entrenamiento (Natural / PEDs)
+                  </label>
+                  <HelpTip
+                    term="Enfoque natural y PEDs"
+                    triggerLabel="¿Cómo influye?"
+                    title="Enfoque natural frente a PEDs"
+                  >
+                    Este dato solo ajusta el contexto de recuperación y volumen tolerable que el
+                    Coach contempla en tu Perfil Vivo. El Coach asume entrenamiento natural por
+                    defecto y nunca prescribe farmacología ni protocolos de sustancias.
+                  </HelpTip>
+                </div>
                 <Select
+                  id="profile-training-approach"
                   value={form.training_approach}
                   onChange={(e) =>
                     setForm({ ...form, training_approach: e.target.value as TrainingApproach })
@@ -440,11 +458,11 @@ export function LivingProfilePage() {
                     </option>
                   ))}
                 </Select>
-                <span className="block text-xs font-normal text-ink-subtle">
+                <p className="text-xs text-ink-subtle">
                   El Coach asume entrenamiento natural por defecto y nunca prescribe farmacología ni
                   ciclos.
-                </span>
-              </label>
+                </p>
+              </div>
 
               <label className="block space-y-1 text-xs font-medium text-ink-muted">
                 <span>Notas adicionales para el Coach</span>
