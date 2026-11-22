@@ -23,6 +23,7 @@ from fitness_coach.application.use_cases.multimodal import ParseNaturalTrainingS
 from fitness_coach.application.use_cases.profile import LivingProfileSnapshot
 from fitness_coach.domain.coach import (
     CLINICAL_BOUNDARY_NOTICE_ES,
+    CONVERSATION_TITLE_MAX_LENGTH,
     GENERAL_KNOWLEDGE_DISCLOSURE_ES,
     LIVE_SEARCH_QUARANTINE_LABEL,
     PEDS_BOUNDARY_NOTICE_ES,
@@ -39,6 +40,7 @@ from fitness_coach.domain.coach import (
     ProposalNotFoundError,
     ProposalStatus,
     QuarantinedLiveResult,
+    validate_conversation_title,
 )
 from fitness_coach.domain.identity import AuthContext
 from fitness_coach.domain.knowledge import (
@@ -394,9 +396,40 @@ class CreateConversationUseCase:
 
     async def execute(self, *, auth: AuthContext, title: str | None = None) -> Conversation:
         cleaned = (title or "").strip() or "Nueva conversación"
-        if len(cleaned) > 200:
-            cleaned = cleaned[:200]
+        if len(cleaned) > CONVERSATION_TITLE_MAX_LENGTH:
+            cleaned = cleaned[:CONVERSATION_TITLE_MAX_LENGTH]
         return await self._repo.create_conversation(athlete_id=auth.athlete_id, title=cleaned)
+
+
+class RenameConversationUseCase:
+    def __init__(self, repo: CoachRepositoryPort) -> None:
+        self._repo = repo
+
+    async def execute(
+        self, *, auth: AuthContext, conversation_id: UUID, title: str
+    ) -> Conversation:
+        cleaned = validate_conversation_title(title)
+        updated = await self._repo.update_conversation_title(
+            athlete_id=auth.athlete_id,
+            conversation_id=conversation_id,
+            title=cleaned,
+        )
+        if updated is None:
+            raise ConversationNotFoundError("No se encontró la conversación solicitada.")
+        return updated
+
+
+class DeleteConversationUseCase:
+    def __init__(self, repo: CoachRepositoryPort) -> None:
+        self._repo = repo
+
+    async def execute(self, *, auth: AuthContext, conversation_id: UUID) -> None:
+        deleted = await self._repo.delete_conversation(
+            athlete_id=auth.athlete_id,
+            conversation_id=conversation_id,
+        )
+        if not deleted:
+            raise ConversationNotFoundError("No se encontró la conversación solicitada.")
 
 
 class ListMessagesUseCase:

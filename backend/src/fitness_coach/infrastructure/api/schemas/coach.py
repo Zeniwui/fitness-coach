@@ -9,6 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from fitness_coach.domain.coach import (
+    CONVERSATION_TITLE_MAX_LENGTH,
     BoundaryKind,
     ChatMessage,
     Citation,
@@ -23,7 +24,11 @@ from fitness_coach.infrastructure.api.schemas.multimodal import AttachmentRespon
 
 
 class CreateConversationRequest(BaseModel):
-    title: str | None = Field(default=None, max_length=200)
+    title: str | None = Field(default=None, max_length=CONVERSATION_TITLE_MAX_LENGTH)
+
+
+class UpdateConversationRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=CONVERSATION_TITLE_MAX_LENGTH)
 
 
 class ConversationResponse(BaseModel):

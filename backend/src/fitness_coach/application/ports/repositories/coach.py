@@ -33,6 +33,14 @@ class CoachRepositoryPort(Protocol):
         self, *, athlete_id: UUID, conversation_id: UUID, title: str | None = None
     ) -> None: ...
 
+    async def update_conversation_title(
+        self, *, athlete_id: UUID, conversation_id: UUID, title: str
+    ) -> Conversation | None: ...
+
+    async def delete_conversation(
+        self, *, athlete_id: UUID, conversation_id: UUID
+    ) -> bool: ...
+
     async def create_message(
         self,
         *,

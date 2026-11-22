@@ -18,6 +18,7 @@ from uuid import UUID
 from fitness_coach.domain.profile import LivingProfile
 
 LIVE_SEARCH_QUARANTINE_LABEL = "fuente externa aún no verificada en Base de Conocimiento"
+CONVERSATION_TITLE_MAX_LENGTH = 200
 
 GENERAL_KNOWLEDGE_DISCLOSURE_ES = (
     "Nota: No existen Fichas de Evidencia aprobadas aplicables en la Base de Conocimiento "
@@ -72,6 +73,19 @@ class ProposalNotFoundError(CoachError):
 
 class InvalidProposalStateError(CoachError):
     """Raised when attempting to accept or dismiss an already resolved proposal."""
+
+
+def validate_conversation_title(title: str) -> str:
+    """Trim and validate a non-empty Coach conversation title within max length."""
+    cleaned = title.strip()
+    if not cleaned:
+        raise CoachValidationError("El título de la conversación no puede estar vacío.")
+    if len(cleaned) > CONVERSATION_TITLE_MAX_LENGTH:
+        raise CoachValidationError(
+            "El título de la conversación no puede superar los "
+            f"{CONVERSATION_TITLE_MAX_LENGTH} caracteres."
+        )
+    return cleaned
 
 
 @dataclass(frozen=True, slots=True)

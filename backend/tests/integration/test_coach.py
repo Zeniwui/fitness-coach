@@ -6,9 +6,12 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fitness_coach.application.ports.ai_provider import LLMResponse, ModelTier
 from fitness_coach.application.ports.scientific_sources import (
@@ -18,6 +21,7 @@ from fitness_coach.application.ports.scientific_sources import (
 from fitness_coach.domain.coach import LIVE_SEARCH_QUARANTINE_LABEL
 from fitness_coach.infrastructure.ai.provider import build_ai_provider
 from fitness_coach.infrastructure.config import Settings
+from fitness_coach.infrastructure.db.models.coach import MessageModel
 from tests.fakes.ai_provider import FakeAIProvider
 from tests.fakes.scientific_sources import FakeScientificSources
 
@@ -700,3 +704,181 @@ async def test_live_search_filters_out_previously_rejected_studies(
     dois = [r["doi"] for r in live_ev["results"]]
     assert "10.1000/rejected-live" not in dois
     assert dois == ["10.1000/fresh-live"]
+
+
+class TestConversationManagementAndIsolation:
+    """Issue #14: PATCH/DELETE Coach conversations with validation, cascade, and ADR-0002."""
+
+    async def test_rename_conversation_persists_trimmed_title_validates_and_isolates(
+        self,
+        client: AsyncClient,
+        seed_accounts,
+    ) -> None:
+        _, tok_a = seed_accounts["athlete_a"]
+        _, tok_b = seed_accounts["athlete_b"]
+
+        # Unauthenticated PATCH rejected
+        unauth = await client.patch(
+            f"/api/v1/coach/conversations/{uuid4()}",
+            json={"title": "Sin sesión"},
+        )
+        assert unauth.status_code == 401
+
+        # Athlete A creates a conversation
+        created = await client.post(
+            "/api/v1/coach/conversations",
+            headers=_auth_headers(tok_a),
+            json={"title": "Conversación inicial"},
+        )
+        assert created.status_code == 201
+        conv_id = created.json()["id"]
+
+        # Valid rename trims surrounding whitespace and persists
+        renamed = await client.patch(
+            f"/api/v1/coach/conversations/{conv_id}",
+            headers=_auth_headers(tok_a),
+            json={"title": "  Mesociclo de hipertrofia  "},
+        )
+        assert renamed.status_code == 200
+        body = renamed.json()
+        assert body["id"] == conv_id
+        assert body["title"] == "Mesociclo de hipertrofia"
+        assert body["created_at"] == created.json()["created_at"]
+        assert body["updated_at"] >= created.json()["updated_at"]
+
+        listed = await client.get("/api/v1/coach/conversations", headers=_auth_headers(tok_a))
+        assert listed.status_code == 200
+        assert listed.json()[0]["title"] == "Mesociclo de hipertrofia"
+
+        # Invalid titles (empty, whitespace-only, >200 chars) return 422
+        for invalid_title in ("", "   \t\n  ", "x" * 201):
+            bad_resp = await client.patch(
+                f"/api/v1/coach/conversations/{conv_id}",
+                headers=_auth_headers(tok_a),
+                json={"title": invalid_title},
+            )
+            assert bad_resp.status_code == 422
+
+        # Unknown conversation returns 404
+        missing = await client.patch(
+            f"/api/v1/coach/conversations/{uuid4()}",
+            headers=_auth_headers(tok_a),
+            json={"title": "Título válido"},
+        )
+        assert missing.status_code == 404
+
+        # Strict multi-Athlete isolation (ADR-0002): Athlete B receives 404
+        cross_patch = await client.patch(
+            f"/api/v1/coach/conversations/{conv_id}",
+            headers=_auth_headers(tok_b),
+            json={"title": "Intento de secuestro"},
+        )
+        assert cross_patch.status_code == 404
+
+        # Athlete A's title was untouched by invalid or cross-Athlete requests
+        after = await client.get("/api/v1/coach/conversations", headers=_auth_headers(tok_a))
+        assert after.status_code == 200
+        assert after.json()[0]["title"] == "Mesociclo de hipertrofia"
+
+    async def test_delete_conversation_cascades_messages_and_enforces_athlete_isolation(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        seed_accounts,
+        fake_ai: FakeAIProvider,
+    ) -> None:
+        _, tok_a = seed_accounts["athlete_a"]
+        _, tok_b = seed_accounts["athlete_b"]
+
+        # Unauthenticated DELETE rejected
+        unauth = await client.delete(f"/api/v1/coach/conversations/{uuid4()}")
+        assert unauth.status_code == 401
+
+        # Athlete A creates conversation and sends a message (generating messages + a proposal)
+        created = await client.post(
+            "/api/v1/coach/conversations",
+            headers=_auth_headers(tok_a),
+            json={"title": "Conversación a eliminar"},
+        )
+        assert created.status_code == 201
+        conv_id = created.json()["id"]
+
+        fake_ai.canned_responses.append(
+            LLMResponse(text="Adaptaremos el volumen a 3 días por semana.")
+        )
+        stream_resp = await client.post(
+            f"/api/v1/coach/conversations/{conv_id}/messages",
+            headers=_auth_headers(tok_a),
+            json={"content": "Ahora solo puedo entrenar 3 días a la semana"},
+        )
+        assert stream_resp.status_code == 200
+        events = _parse_sse(stream_resp.text)
+        proposal_id = next(
+            p["proposal"]["id"] for name, p in events if name == "profile_proposal"
+        )
+
+        # Non-existent conversation returns 404
+        missing = await client.delete(
+            f"/api/v1/coach/conversations/{uuid4()}",
+            headers=_auth_headers(tok_a),
+        )
+        assert missing.status_code == 404
+
+        # Strict multi-Athlete isolation (ADR-0002): Athlete B receives 404
+        cross_delete = await client.delete(
+            f"/api/v1/coach/conversations/{conv_id}",
+            headers=_auth_headers(tok_b),
+        )
+        assert cross_delete.status_code == 404
+
+        # Conversation and messages still exist for Athlete A after cross-Athlete attempt
+        msgs_before = await client.get(
+            f"/api/v1/coach/conversations/{conv_id}/messages",
+            headers=_auth_headers(tok_a),
+        )
+        assert msgs_before.status_code == 200
+        assert len(msgs_before.json()) == 2
+
+        # Athlete A deletes the conversation -> 204 No Content
+        deleted = await client.delete(
+            f"/api/v1/coach/conversations/{conv_id}",
+            headers=_auth_headers(tok_a),
+        )
+        assert deleted.status_code == 204
+        assert deleted.content == b""
+
+        # Conversation is gone from listing, messages endpoint, and repeat delete
+        listed = await client.get("/api/v1/coach/conversations", headers=_auth_headers(tok_a))
+        assert listed.status_code == 200
+        assert listed.json() == []
+
+        msgs_after = await client.get(
+            f"/api/v1/coach/conversations/{conv_id}/messages",
+            headers=_auth_headers(tok_a),
+        )
+        assert msgs_after.status_code == 404
+
+        repeat_delete = await client.delete(
+            f"/api/v1/coach/conversations/{conv_id}",
+            headers=_auth_headers(tok_a),
+        )
+        assert repeat_delete.status_code == 404
+
+        # Cascade check: zero MessageModel rows remain in PostgreSQL for the deleted conversation
+        db_session.expire_all()
+        remaining_messages = (
+            await db_session.execute(
+                select(MessageModel).where(MessageModel.conversation_id == UUID(conv_id))
+            )
+        ).scalars().all()
+        assert remaining_messages == []
+
+        # Living Profile proposal remains intact with message_id set to NULL (ON DELETE SET NULL)
+        proposals = await client.get(
+            "/api/v1/profile/proposals",
+            headers=_auth_headers(tok_a),
+        )
+        assert proposals.status_code == 200
+        matching = [p for p in proposals.json() if p["id"] == proposal_id]
+        assert len(matching) == 1
+        assert matching[0]["message_id"] is None

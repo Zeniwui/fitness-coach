@@ -14,6 +14,7 @@ from fitness_coach.application.ports.identity_storage import (
 )
 from fitness_coach.application.ports.scientific_sources import ScientificSourcesPort
 from fitness_coach.infrastructure.ai.provider import build_ai_provider
+from fitness_coach.infrastructure.api.exception_handlers import register_exception_handlers
 from fitness_coach.infrastructure.api.routers.coach import router as coach_router
 from fitness_coach.infrastructure.api.routers.curation import router as curation_router
 from fitness_coach.infrastructure.api.routers.identity import router as identity_router
@@ -78,6 +79,8 @@ def create_app(
     @app.get("/api/v1/health", response_model=HealthResponse, tags=["system"])
     async def health() -> HealthResponse:
         return HealthResponse(status="ok", service="fitness-coach-api")
+
+    register_exception_handlers(app)
 
     app.include_router(identity_router)
     app.include_router(profile_router)
