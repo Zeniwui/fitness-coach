@@ -66,9 +66,9 @@ export function ExerciseE1rmChart({ sessions }: ExerciseE1rmChartProps) {
       fullLabel: pt.sessionDate,
       value: pt.bestLoadKg,
       formattedValue:
-        pt.displayUnit === "lb"
-          ? `${formatKg(pt.bestLoadKg)} (${pt.displayLoad} lb × ${pt.displayReps})`
-          : `${formatKg(pt.bestLoadKg)} (${pt.displayReps} reps)`,
+        pt.bestLoadUnit === "lb"
+          ? `${formatKg(pt.bestLoadKg)} (${pt.bestLoadDisplay} lb × ${pt.bestLoadReps})`
+          : `${formatKg(pt.bestLoadKg)} (${pt.bestLoadReps} reps)`,
     })),
   };
 
@@ -84,7 +84,14 @@ export function ExerciseE1rmChart({ sessions }: ExerciseE1rmChartProps) {
             label: formatCompactDateLabel(pt.sessionDate),
             fullLabel: pt.sessionDate,
             value: pt.bestE1rmKg,
-            formattedValue: pt.bestE1rmKg !== null ? formatKg(pt.bestE1rmKg) : "— (>12 reps)",
+            formattedValue:
+              pt.bestE1rmKg !== null &&
+              pt.bestE1rmReps !== null &&
+              pt.bestE1rmDisplay !== null
+                ? pt.bestE1rmUnit === "lb"
+                  ? `${formatKg(pt.bestE1rmKg)} (${pt.bestE1rmDisplay} lb × ${pt.bestE1rmReps})`
+                  : `${formatKg(pt.bestE1rmKg)} (${pt.bestE1rmLoadKg} kg × ${pt.bestE1rmReps})`
+                : "— (>12 reps)",
           })),
         },
         bestLoadSeries,

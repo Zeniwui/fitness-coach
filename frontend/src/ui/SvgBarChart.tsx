@@ -1,6 +1,12 @@
 import { useId } from "react";
 import { computeNiceDomain, scaleYValue, type ChartDimensions } from "./chartMath";
-import type { ChartSummaryItem } from "./SvgLineChart";
+import {
+  ChartEmptyState,
+  ChartSummaryStrip,
+  ChartYAxisGrid,
+  defaultFormatNumber,
+  type ChartSummaryItem,
+} from "./SvgChartShared";
 
 export interface BarChartPoint {
   id: string;
@@ -40,18 +46,6 @@ const TONE_FILL: Record<NonNullable<SvgBarChartProps["tone"]>, string> = {
   secondary: "rgb(var(--c-secondary))",
 };
 
-const SUMMARY_TONE_CLASS: Record<NonNullable<ChartSummaryItem["tone"]>, string> = {
-  default: "text-ink",
-  accent: "text-accent-text",
-  secondary: "text-secondary-text",
-  success: "text-success-text",
-  warning: "text-warning-text",
-};
-
-function defaultFormatNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
 export function SvgBarChart({
   ariaLabel,
   points,
@@ -70,14 +64,7 @@ export function SvgBarChart({
   const titleId = useId();
 
   if (points.length < minPoints) {
-    return (
-      <div
-        role="status"
-        className="rounded-control border border-line bg-surface-muted/50 px-4 py-3.5 text-sm leading-relaxed text-ink-muted"
-      >
-        {emptyMessage}
-      </div>
-    );
+    return <ChartEmptyState message={emptyMessage} />;
   }
 
   const domainValues = points.map((p) => p.value);
@@ -100,22 +87,7 @@ export function SvgBarChart({
 
   return (
     <div className="space-y-3">
-      {summaryItems && summaryItems.length > 0 && (
-        <dl className="flex flex-wrap gap-x-6 gap-y-2 border-b border-line pb-3 text-xs">
-          {summaryItems.map((item) => (
-            <div key={item.label} className="min-w-0">
-              <dt className="text-ink-muted">{item.label}</dt>
-              <dd
-                className={`mt-0.5 text-sm font-semibold tabular-nums ${
-                  SUMMARY_TONE_CLASS[item.tone ?? "default"]
-                }`}
-              >
-                {item.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      <ChartSummaryStrip items={summaryItems} />
 
       {referenceValue !== null && referenceLabel && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
@@ -153,33 +125,7 @@ export function SvgBarChart({
         >
           <title id={titleId}>{ariaLabel}</title>
 
-          {/* Horizontal gridlines and Y-axis labels */}
-          {domain.ticks.map((tick) => {
-            const y = scaleYValue(tick, domain, DEFAULT_DIMS);
-            const isBaseline = tick === domain.min;
-            return (
-              <g key={tick}>
-                <line
-                  x1={DEFAULT_DIMS.padLeft}
-                  y1={y}
-                  x2={DEFAULT_DIMS.width - DEFAULT_DIMS.padRight}
-                  y2={y}
-                  stroke={isBaseline ? "rgb(var(--c-line-strong))" : "rgb(var(--c-line))"}
-                  strokeWidth={1}
-                />
-                <text
-                  x={DEFAULT_DIMS.padLeft - 8}
-                  y={y + 4}
-                  textAnchor="end"
-                  fontSize="11"
-                  fill="rgb(var(--c-ink-muted))"
-                  style={{ fontVariantNumeric: "tabular-nums" }}
-                >
-                  {formatTick(tick)}
-                </text>
-              </g>
-            );
-          })}
+          <ChartYAxisGrid domain={domain} dims={DEFAULT_DIMS} formatTick={formatTick} />
 
           {/* Optional horizontal reference line */}
           {referenceValue !== null && Number.isFinite(referenceValue) && (

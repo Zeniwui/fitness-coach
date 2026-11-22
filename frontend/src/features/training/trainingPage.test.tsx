@@ -7,7 +7,7 @@ import { resetMockTrainingState } from "../../test/msw/handlers/training";
 
 describe("Training (Entrenamiento) UI (#7)", () => {
   beforeEach(() => {
-    window.localStorage.removeItem("fc-training-session-draft-v1");
+    window.localStorage.clear();
     resetMockTrainingState();
     seedSupabaseSession("tok-athlete");
   });
@@ -257,13 +257,15 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     expect(screen.getAllByLabelText(/carga \(kg\)/i)).toHaveLength(2);
     expect(screen.getByLabelText(/nombre de la sesión/i)).toHaveValue("Borrador antiguo");
 
-    // Debounced autosave persists upgraded v2 grouped format to localStorage
+    // Debounced autosave persists upgraded v2 grouped format under Athlete-scoped key & cleans legacy key
+    const scopedKey = "fc-training-session-draft-v1:11111111-1111-1111-1111-111111111111";
     await waitFor(() => {
       const saved = JSON.parse(
-        window.localStorage.getItem("fc-training-session-draft-v1") ?? "{}",
+        window.localStorage.getItem(scopedKey) ?? "{}",
       ) as { version?: number; exerciseGroups?: unknown[] };
       expect(saved.version).toBe(2);
       expect(saved.exerciseGroups).toHaveLength(1);
+      expect(window.localStorage.getItem("fc-training-session-draft-v1")).toBeNull();
     });
 
     // Discard draft with inline confirmation
@@ -272,7 +274,7 @@ describe("Training (Entrenamiento) UI (#7)", () => {
 
     expect(screen.getByLabelText(/^Ejercicio$/i)).toHaveValue("");
     expect(screen.getByLabelText(/nombre de la sesión/i)).toHaveValue("Sesión de Entrenamiento");
-    expect(window.localStorage.getItem("fc-training-session-draft-v1")).toBeNull();
+    expect(window.localStorage.getItem(scopedKey)).toBeNull();
   });
 
   it("edits planned sessions and exercises inside a Mesociclo and persists via PATCH", async () => {
@@ -502,5 +504,130 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     expect(remoChart).toBeInTheDocument();
     // 150 lb x 8 = 68.04 kg load, 86.18 kg e1RM
     expect(remoChart).toHaveAttribute("aria-label", expect.stringMatching(/86\.2 kg|86\.18 kg/i));
+  });
+
+  it("lets Athlete type comma-separated secondary muscles and clear/replace numeric fields cleanly in MesocycleEditor", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Mesociclos$/i }));
+
+    const editButtons = screen.getAllByRole("button", { name: /^editar$/i });
+    await user.click(editButtons[0]);
+
+    const day1Group = screen.getByRole("group", { name: /día 1: torso a/i });
+
+    // Type comma-separated secondary muscles with spaces -> commas/spaces preserved while editing
+    const secondaryInputs = within(day1Group).getAllByLabelText(/músculos secundarios/i);
+    await user.clear(secondaryInputs[0]);
+    await user.type(secondaryInputs[0], "tríceps, deltoides anterior");
+    expect(secondaryInputs[0]).toHaveValue("tríceps, deltoides anterior");
+
+    // Clear target_sets and rep ranges without snapping immediately to 1
+    const setsInputs = within(day1Group).getAllByLabelText(/series objetivo/i);
+    await user.clear(setsInputs[0]);
+    expect(setsInputs[0]).toHaveValue(null);
+    await user.type(setsInputs[0], "5");
+    expect(setsInputs[0]).toHaveValue(5);
+
+    const minRepsInputs = within(day1Group).getAllByLabelText(/reps mín\./i);
+    await user.clear(minRepsInputs[0]);
+    expect(minRepsInputs[0]).toHaveValue(null);
+    await user.type(minRepsInputs[0], "6");
+    expect(minRepsInputs[0]).toHaveValue(6);
+
+    const maxRepsInputs = within(day1Group).getAllByLabelText(/reps máx\./i);
+    await user.clear(maxRepsInputs[0]);
+    expect(maxRepsInputs[0]).toHaveValue(null);
+    await user.type(maxRepsInputs[0], "10");
+    expect(maxRepsInputs[0]).toHaveValue(10);
+
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    expect(await screen.findByText(/Mesociclo actualizado correctamente/i)).toBeInTheDocument();
+
+    // Verify saved prescription on Hoy tab reflects exact 5 series · 6–10 reps (not 15 or 16)
+    await user.click(screen.getByRole("tab", { name: /^Hoy$/i }));
+    expect(await screen.findByText(/5 series · 6–10 reps/i)).toBeInTheDocument();
+  });
+
+  it("rejects saving when an added exercise block has no name instead of silently dropping it", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    // Fill first exercise cleanly
+    await user.type(screen.getByLabelText(/^Ejercicio$/i), "Press banca");
+    await user.type(screen.getByLabelText(/carga \(kg\)/i), "80");
+
+    // Add a second block with load entered but empty exercise name
+    await user.click(screen.getByRole("button", { name: /añadir ejercicio/i }));
+    const loadInputs = screen.getAllByLabelText(/carga \(kg\)/i);
+    await user.type(loadInputs[1], "50");
+
+    await user.click(screen.getByRole("button", { name: /guardar sesión/i }));
+
+    // Must surface explicit Spanish validation error instead of silently dropping block 2
+    expect(await screen.findByRole("alert")).toHaveTextContent(/bloque 2/i);
+  });
+
+  it("displays SessionAchievementBanner with PRs when saving a voice/natural-language session", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    const nlInput = screen.getByLabelText(/describe tu sesión de entrenamiento/i);
+    await user.type(nlInput, "Hice 3 series de press inclinado mancuernas a 8 repes");
+    await user.click(screen.getByRole("button", { name: /generar borrador/i }));
+
+    expect(await screen.findByText(/borrador de sesión de entrenamiento/i)).toBeInTheDocument();
+
+    // Fill load 36 kg (beats seeded 32 kg PR on Press inclinado mancuernas)
+    const loadInputs = screen.getAllByLabelText(/carga serie/i);
+    for (const input of loadInputs) {
+      await user.clear(input);
+      await user.type(input, "36");
+    }
+
+    await user.click(screen.getByRole("button", { name: /confirmar y guardar sesión/i }));
+
+    const achievementRegion = await screen.findByRole("status", {
+      name: /resumen de la sesión guardada/i,
+    });
+    expect(achievementRegion).toHaveTextContent(/3 series efectivas/i);
+    expect(achievementRegion).toHaveTextContent(/récord personal/i);
+    expect(achievementRegion).toHaveTextContent(/Press inclinado mancuernas/i);
+  });
+
+  it("isolates persisted training session drafts in localStorage per Athlete", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    await user.type(screen.getByLabelText(/^Ejercicio$/i), "Sentadilla exclusiva Atleta A");
+
+    // Wait for debounced autosave under Athlete A's scoped key
+    await waitFor(() => {
+      const scopedKey = "fc-training-session-draft-v1:11111111-1111-1111-1111-111111111111";
+      expect(window.localStorage.getItem(scopedKey)).toContain("Sentadilla exclusiva Atleta A");
+    });
+
+    unmount();
+
+    // Switch session to Athlete B ("tok-dual") -> must NOT see Athlete A's draft
+    seedSupabaseSession("tok-dual");
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    expect(screen.getByLabelText(/^Ejercicio$/i)).toHaveValue("");
+    expect(screen.queryByDisplayValue(/Sentadilla exclusiva Atleta A/i)).not.toBeInTheDocument();
   });
 });

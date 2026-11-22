@@ -397,4 +397,61 @@ describe("Coach Chat SSE, Citations, Live Search Quarantine & Profile Proposals 
     ).toBeInTheDocument();
     expect(currentScrollTop).toBe(120);
   });
+
+  it("resumes auto-scroll and clears jump-to-bottom when Athlete submits a new prompt while scrolled up", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/coach"]} />);
+
+    const container = await screen.findByLabelText(/mensajes de la conversación/i);
+    let currentScrollTop = 500;
+    Object.defineProperty(container, "scrollHeight", {
+      configurable: true,
+      get: () => 1000,
+    });
+    Object.defineProperty(container, "clientHeight", {
+      configurable: true,
+      get: () => 500,
+    });
+    Object.defineProperty(container, "scrollTop", {
+      configurable: true,
+      get: () => currentScrollTop,
+      set: (val: number) => {
+        currentScrollTop = val;
+      },
+    });
+
+    const input = screen.getByLabelText(/mensaje para el coach/i);
+    await user.type(input, "¿Qué dosis de creatina recomiendas?");
+    await user.click(screen.getByRole("button", { name: /enviar/i }));
+    expect(
+      await screen.findByText(/la creatina monohidrato a 3-5 g\/día mejora fuerza/i),
+    ).toBeInTheDocument();
+
+    // Athlete scrolls up to inspect older messages -> jump-to-bottom button appears
+    currentScrollTop = 100;
+    fireEvent.scroll(container);
+    expect(screen.getByRole("button", { name: /ir al último mensaje/i })).toBeInTheDocument();
+
+    // Athlete sends a new prompt WITHOUT manually clicking jump-to-bottom -> auto-scroll resumes
+    server.use(
+      http.post("*/api/v1/coach/conversations/:conversationId/messages", () => {
+        const sseBody =
+          'event: token\ndata: {"delta":"Respuesta visible al enviar nuevo mensaje."}\n\n' +
+          'event: done\ndata: {"message":{"id":"m-scroll-resume","conversation_id":"aaaa0000-0000-0000-0000-000000000001","role":"assistant","content":"Respuesta visible al enviar nuevo mensaje.","citations":[],"live_search_results":[],"used_general_knowledge":false,"boundary_triggered":"none","created_at":"2026-11-21T18:30:00Z"}}\n\n';
+        return new HttpResponse(sseBody, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      }),
+    );
+
+    await user.type(input, "Siguiente pregunta");
+    await user.click(screen.getByRole("button", { name: /enviar/i }));
+
+    expect(
+      await screen.findByText(/respuesta visible al enviar nuevo mensaje/i),
+    ).toBeInTheDocument();
+    expect(currentScrollTop).toBe(1000);
+    expect(screen.queryByRole("button", { name: /ir al último mensaje/i })).not.toBeInTheDocument();
+  });
 });

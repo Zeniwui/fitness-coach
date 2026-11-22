@@ -7,6 +7,7 @@ import { Input } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
 
 export type TrainingSessionDraftItem = components["schemas"]["TrainingSessionDraftResponse"];
+export type SavedTrainingSession = components["schemas"]["TrainingSessionResponse"];
 type SessionSetInput = components["schemas"]["SessionSetInput"];
 
 interface EditableDraftSet {
@@ -24,7 +25,7 @@ interface EditableDraftSet {
 interface SessionDraftCardProps {
   draft: TrainingSessionDraftItem;
   activeMesocycleId?: string | null;
-  onSaved?: () => void | Promise<void>;
+  onSaved?: (savedSession: SavedTrainingSession) => void | Promise<void>;
   onDiscard: () => void;
 }
 
@@ -109,11 +110,11 @@ export function SessionDraftCard({
           sets: payloadSets,
         },
       });
-      if (res.error) {
+      if (res.error || !res.data) {
         setErrorMsg("No se pudo guardar la Sesión de Entrenamiento. Revisa los datos.");
         return;
       }
-      await onSaved?.();
+      await onSaved?.(res.data);
     } finally {
       setSaving(false);
     }

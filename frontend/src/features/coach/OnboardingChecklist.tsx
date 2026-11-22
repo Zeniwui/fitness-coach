@@ -106,7 +106,7 @@ export function OnboardingChecklist({
 
   return (
     <section aria-label="Primeros pasos">
-      <Surface variant="focal" padded="md" className="space-y-4">
+      <Surface variant="accent" padded="md" className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <h2 className="heading-section text-lg text-ink">Primeros pasos</h2>

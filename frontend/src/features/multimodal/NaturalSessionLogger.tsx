@@ -5,13 +5,17 @@ import { AlertBanner } from "../../ui/AlertBanner";
 import { Button } from "../../ui/Button";
 import { Textarea } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
-import { SessionDraftCard, TrainingSessionDraftItem } from "./SessionDraftCard";
+import {
+  SessionDraftCard,
+  type SavedTrainingSession,
+  type TrainingSessionDraftItem,
+} from "./SessionDraftCard";
 import { VoiceDictationButton } from "./VoiceDictationButton";
 
 interface NaturalSessionLoggerProps {
   activeMesocycleId?: string | null;
   defaultCollapsed?: boolean;
-  onSessionSaved: () => void | Promise<void>;
+  onSessionSaved: (savedSession: SavedTrainingSession) => void | Promise<void>;
 }
 
 export function NaturalSessionLogger({
@@ -58,12 +62,12 @@ export function NaturalSessionLogger({
     }
   }
 
-  async function handleDraftSaved() {
+  async function handleDraftSaved(savedSession: SavedTrainingSession) {
     setDraft(null);
     setText("");
     setOrigin("chat_text");
     setSavedNotice("Sesión de Entrenamiento confirmada y guardada en tu historial.");
-    await onSessionSaved();
+    await onSessionSaved(savedSession);
   }
 
   return (

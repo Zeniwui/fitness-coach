@@ -6,7 +6,8 @@ import { Input } from "../../ui/Field";
 import { HelpTip } from "../../ui/HelpTip";
 import { IconButton } from "../../ui/IconButton";
 import { Surface } from "../../ui/Surface";
-import type { EditablePlannedSession, PlannedExerciseSchema } from "./types";
+import { createDefaultPlannedDay, createDefaultPlannedExercise } from "./mesocycleValidation";
+import type { EditablePlannedExercise, EditablePlannedSession } from "./types";
 
 interface MesocycleEditorProps {
   name: string;
@@ -19,20 +20,6 @@ interface MesocycleEditorProps {
   onPlannedSessionsChange: (sessions: EditablePlannedSession[]) => void;
   onSave: (e: FormEvent) => void;
   onCancel: () => void;
-}
-
-function createDefaultPlannedExercise(): PlannedExerciseSchema {
-  return {
-    exercise_name: "",
-    primary_muscle_group: "hombros",
-    secondary_muscle_groups: [],
-    target_sets: 3,
-    rep_range_min: 8,
-    rep_range_max: 12,
-    target_rir: 2,
-    target_rpe: null,
-    notes: null,
-  };
 }
 
 export function MesocycleEditor({
@@ -54,14 +41,9 @@ export function MesocycleEditor({
   }
 
   function addDay() {
-    const nextOrder = plannedSessions.length + 1;
     onPlannedSessionsChange([
       ...plannedSessions,
-      {
-        day_order: nextOrder,
-        name: `Día ${nextOrder}`,
-        exercises: [createDefaultPlannedExercise()],
-      },
+      createDefaultPlannedDay(plannedSessions.length + 1),
     ]);
   }
 
@@ -76,7 +58,7 @@ export function MesocycleEditor({
   function updateExercise(
     dayIdx: number,
     exIdx: number,
-    patch: Partial<PlannedExerciseSchema>,
+    patch: Partial<EditablePlannedExercise>,
   ) {
     updateDay(dayIdx, (day) => ({
       ...day,
@@ -165,7 +147,7 @@ export function MesocycleEditor({
             const dayGroupLabel = `Día ${day.day_order}: ${day.name.trim() || "Sin nombre"}`;
             return (
               <section
-                key={`day-${day.day_order}-${dayIdx}`}
+                key={day.id}
                 role="group"
                 aria-label={dayGroupLabel}
                 className="rounded-panel border border-line bg-surface"
@@ -201,7 +183,7 @@ export function MesocycleEditor({
 
                 <div className="divide-y divide-line">
                   {day.exercises.map((ex, exIdx) => (
-                    <div key={`ex-${dayIdx}-${exIdx}`} className="space-y-2.5 px-3.5 py-3">
+                    <div key={ex.id} className="space-y-2.5 px-3.5 py-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-12">
                           <label className="block space-y-1 text-xs font-medium text-ink-muted sm:col-span-5">
@@ -236,16 +218,13 @@ export function MesocycleEditor({
                             <Input
                               compact
                               type="text"
-                              value={(ex.secondary_muscle_groups ?? []).join(", ")}
+                              value={ex.secondary_muscle_groups_raw}
                               onChange={(e) =>
                                 updateExercise(dayIdx, exIdx, {
-                                  secondary_muscle_groups: e.target.value
-                                    .split(",")
-                                    .map((s) => s.trim())
-                                    .filter(Boolean),
+                                  secondary_muscle_groups_raw: e.target.value,
                                 })
                               }
-                              placeholder="Ej. hombros, triceps"
+                              placeholder="Ej. hombros, tríceps"
                             />
                           </label>
                         </div>
@@ -271,10 +250,10 @@ export function MesocycleEditor({
                             type="number"
                             min={1}
                             max={20}
-                            value={ex.target_sets ?? 3}
+                            value={ex.target_sets}
                             onChange={(e) =>
                               updateExercise(dayIdx, exIdx, {
-                                target_sets: Math.max(1, Number(e.target.value) || 1),
+                                target_sets: e.target.value,
                               })
                             }
                             className="tabular-nums"
@@ -287,10 +266,10 @@ export function MesocycleEditor({
                             type="number"
                             min={1}
                             max={100}
-                            value={ex.rep_range_min ?? 8}
+                            value={ex.rep_range_min}
                             onChange={(e) =>
                               updateExercise(dayIdx, exIdx, {
-                                rep_range_min: Math.max(1, Number(e.target.value) || 1),
+                                rep_range_min: e.target.value,
                               })
                             }
                             className="tabular-nums"
@@ -303,10 +282,10 @@ export function MesocycleEditor({
                             type="number"
                             min={1}
                             max={100}
-                            value={ex.rep_range_max ?? 12}
+                            value={ex.rep_range_max}
                             onChange={(e) =>
                               updateExercise(dayIdx, exIdx, {
-                                rep_range_max: Math.max(1, Number(e.target.value) || 1),
+                                rep_range_max: e.target.value,
                               })
                             }
                             className="tabular-nums"
@@ -320,11 +299,10 @@ export function MesocycleEditor({
                             step="0.5"
                             min={0}
                             max={10}
-                            value={ex.target_rir ?? ""}
+                            value={ex.target_rir}
                             onChange={(e) =>
                               updateExercise(dayIdx, exIdx, {
-                                target_rir:
-                                  e.target.value.trim() === "" ? null : Number(e.target.value),
+                                target_rir: e.target.value,
                               })
                             }
                             className="tabular-nums"

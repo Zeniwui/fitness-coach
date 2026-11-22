@@ -4,7 +4,6 @@ import {
   buildSvgPolylinePoints,
   computeNiceDomain,
   formatCompactDateLabel,
-  mapSeriesToPoints,
   projectWeeklyTargetLine,
   scaleXIndex,
   scaleYValue,
@@ -27,10 +26,8 @@ describe("chartMath pure SVG coordinate and scaling helpers", () => {
     expect(domain.max).toBe(1);
     expect(domain.ticks).toEqual([0, 0.5, 1]);
 
-    const mapped = mapSeriesToPoints([], domain, DIMS);
-    expect(mapped).toEqual([]);
-    expect(buildSvgPolylinePoints(mapped)).toBe("");
-    expect(buildSvgAreaPath(mapped, 170)).toBe("");
+    expect(buildSvgPolylinePoints([])).toBe("");
+    expect(buildSvgAreaPath([], 170)).toBe("");
   });
 
   it("handles 1-point series and flat identical constant values without division-by-zero or NaN", () => {
@@ -51,18 +48,11 @@ describe("chartMath pure SVG coordinate and scaling helpers", () => {
     expect(zeroFlatDomain.max).toBeGreaterThan(0);
 
     // Center single point horizontally and map flat y without NaN
-    const singleMapped = mapSeriesToPoints(
-      [{ id: "p1", label: "14 nov", value: 82 }],
-      singleDomain,
-      DIMS,
-    );
-    expect(singleMapped).toHaveLength(1);
-    expect(singleMapped[0].x).toBe(255); // padLeft (50) + plotWidth (410) / 2
-    expect(Number.isFinite(singleMapped[0].y)).toBe(true);
+    expect(scaleXIndex(0, 1, DIMS)).toBe(255); // padLeft (50) + plotWidth (410) / 2
+    expect(Number.isFinite(scaleYValue(82, singleDomain, DIMS))).toBe(true);
 
     // Degenerate zero-span domain passed directly to scaleYValue stays finite
     expect(scaleYValue(82, { min: 82, max: 82 }, DIMS)).toBe(95); // padTop (20) + plotHeight (150) / 2
-    expect(scaleXIndex(0, 1, DIMS)).toBe(255);
   });
 
   it("computes nice domains for positive, negative, and includeZero ranges", () => {
@@ -83,19 +73,15 @@ describe("chartMath pure SVG coordinate and scaling helpers", () => {
 
   it("maps multi-point series linearly and builds valid SVG polyline and area paths", () => {
     const domain = { min: 0, max: 100 };
-    const mapped = mapSeriesToPoints(
-      [
-        { id: "a", label: "S1", value: 0 },
-        { id: "b", label: "S2", value: 50 },
-        { id: "c", label: "S3", value: 100 },
-      ],
-      domain,
-      DIMS,
-    );
+    const values = [0, 50, 100];
+    const mapped = values.map((v, idx) => ({
+      x: scaleXIndex(idx, values.length, DIMS),
+      y: scaleYValue(v, domain, DIMS),
+    }));
 
-    expect(mapped[0]).toMatchObject({ x: 50, y: 170 }); // bottom-left
-    expect(mapped[1]).toMatchObject({ x: 255, y: 95 }); // center
-    expect(mapped[2]).toMatchObject({ x: 460, y: 20 }); // top-right
+    expect(mapped[0]).toEqual({ x: 50, y: 170 }); // bottom-left
+    expect(mapped[1]).toEqual({ x: 255, y: 95 }); // center
+    expect(mapped[2]).toEqual({ x: 460, y: 20 }); // top-right
 
     expect(buildSvgPolylinePoints(mapped)).toBe("50,170 255,95 460,20");
     expect(buildSvgAreaPath(mapped, 170)).toBe("M 50 170 L 50 170 L 255 95 L 460 20 L 460 170 Z");

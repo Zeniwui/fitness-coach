@@ -1,4 +1,3 @@
-import type { FormEvent } from "react";
 import { Sparkles } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
@@ -6,56 +5,16 @@ import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
 import { Input } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
 import { MesocycleEditor } from "./MesocycleEditor";
-import {
-  statusBadgeLabel,
-  statusBadgeTone,
-  type EditablePlannedSession,
-  type MesocycleResponse,
-} from "./types";
+import { statusBadgeLabel, statusBadgeTone, type MesocycleResponse } from "./types";
+import type { MesocycleEditorActions, MesocycleEditorState } from "./useMesocycleEditorState";
 
 interface MesocyclesTabProps {
   mesocycles: MesocycleResponse[];
-  coachFocus: string;
-  draftingWithCoach: boolean;
-  editingMesoId: string | null;
-  editMesoName: string;
-  editMesoGoal: string;
-  editMesoWeeks: string;
-  editMesoSessions: EditablePlannedSession[];
-  onCoachFocusChange: (v: string) => void;
-  onDraftWithCoach: () => void;
-  onStartEdit: (meso: MesocycleResponse) => void;
-  onCancelEdit: () => void;
-  onEditNameChange: (v: string) => void;
-  onEditGoalChange: (v: string) => void;
-  onEditWeeksChange: (v: string) => void;
-  onEditSessionsChange: (sessions: EditablePlannedSession[]) => void;
-  onSaveEdit: (e: FormEvent) => void;
-  onActivate: (meso: MesocycleResponse) => void;
-  onTransitionStatus: (mesoId: string, status: "deload" | "completed" | "archived") => void;
+  editor: MesocycleEditorState;
+  actions: MesocycleEditorActions;
 }
 
-export function MesocyclesTab({
-  mesocycles,
-  coachFocus,
-  draftingWithCoach,
-  editingMesoId,
-  editMesoName,
-  editMesoGoal,
-  editMesoWeeks,
-  editMesoSessions,
-  onCoachFocusChange,
-  onDraftWithCoach,
-  onStartEdit,
-  onCancelEdit,
-  onEditNameChange,
-  onEditGoalChange,
-  onEditWeeksChange,
-  onEditSessionsChange,
-  onSaveEdit,
-  onActivate,
-  onTransitionStatus,
-}: MesocyclesTabProps) {
+export function MesocyclesTab({ mesocycles, editor, actions }: MesocyclesTabProps) {
   return (
     <div className="space-y-5">
       <Surface variant="focal" padded="md" className="space-y-3">
@@ -77,30 +36,30 @@ export function MesocyclesTab({
             <Input
               id="meso-coach-focus"
               type="text"
-              value={coachFocus}
-              onChange={(e) => onCoachFocusChange(e.target.value)}
+              value={editor.coachFocus}
+              onChange={(e) => actions.setCoachFocus(e.target.value)}
               placeholder="Ej. priorizar espalda y brazos"
             />
           </div>
-          <Button disabled={draftingWithCoach} onClick={onDraftWithCoach}>
+          <Button disabled={editor.draftingWithCoach} onClick={() => void actions.draftWithCoach()}>
             <Sparkles className="h-4 w-4" aria-hidden="true" />
-            <span>{draftingWithCoach ? "Generando…" : "Generar borrador con Coach"}</span>
+            <span>{editor.draftingWithCoach ? "Generando…" : "Generar borrador con Coach"}</span>
           </Button>
         </div>
       </Surface>
 
-      {editingMesoId && (
+      {editor.editingMesoId && (
         <MesocycleEditor
-          name={editMesoName}
-          goal={editMesoGoal}
-          weeks={editMesoWeeks}
-          plannedSessions={editMesoSessions}
-          onNameChange={onEditNameChange}
-          onGoalChange={onEditGoalChange}
-          onWeeksChange={onEditWeeksChange}
-          onPlannedSessionsChange={onEditSessionsChange}
-          onSave={onSaveEdit}
-          onCancel={onCancelEdit}
+          name={editor.editMesoName}
+          goal={editor.editMesoGoal}
+          weeks={editor.editMesoWeeks}
+          plannedSessions={editor.editMesoSessions}
+          onNameChange={actions.setEditName}
+          onGoalChange={actions.setEditGoal}
+          onWeeksChange={actions.setEditWeeks}
+          onPlannedSessionsChange={actions.setEditSessions}
+          onSave={(e) => void actions.saveEdit(e)}
+          onCancel={actions.cancelEdit}
         />
       )}
 
@@ -119,11 +78,11 @@ export function MesocyclesTab({
             </div>
 
             <div className="flex flex-wrap gap-2 border-t border-line pt-3">
-              <Button variant="secondary" size="sm" onClick={() => onStartEdit(m)}>
+              <Button variant="secondary" size="sm" onClick={() => actions.startEdit(m)}>
                 Editar
               </Button>
               {m.status === "draft" && (
-                <Button size="sm" onClick={() => onActivate(m)}>
+                <Button size="sm" onClick={() => void actions.activate(m)}>
                   Activar Mesociclo
                 </Button>
               )}
@@ -134,7 +93,7 @@ export function MesocyclesTab({
                   variant="soft"
                   confirmVariant="warning"
                   size="sm"
-                  onConfirm={() => onTransitionStatus(m.id, "deload")}
+                  onConfirm={() => void actions.transitionStatus(m.id, "deload")}
                 />
               )}
             </div>

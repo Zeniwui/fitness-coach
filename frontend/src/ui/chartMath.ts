@@ -13,18 +13,6 @@ export interface ChartDomain {
   ticks: number[];
 }
 
-export interface NumericPoint {
-  id: string;
-  label: string;
-  value: number;
-  secondaryLabel?: string;
-}
-
-export interface MappedPoint extends NumericPoint {
-  x: number;
-  y: number;
-}
-
 export interface NiceDomainOptions {
   includeZero?: boolean;
   tickCount?: number;
@@ -169,18 +157,6 @@ export function scaleYValue(
   }
   const ratio = (value - domain.min) / span;
   return roundCoord(dims.padTop + (1 - ratio) * plotHeight);
-}
-
-export function mapSeriesToPoints(
-  points: NumericPoint[],
-  domain: Pick<ChartDomain, "min" | "max">,
-  dims: ChartDimensions,
-): MappedPoint[] {
-  return points.map((pt, idx) => ({
-    ...pt,
-    x: scaleXIndex(idx, points.length, dims),
-    y: scaleYValue(pt.value, domain, dims),
-  }));
 }
 
 export function buildSvgPolylinePoints(points: ReadonlyArray<{ x: number; y: number }>): string {

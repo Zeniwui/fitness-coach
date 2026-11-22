@@ -1,4 +1,3 @@
-import type { FormEvent } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "../../ui/Button";
 import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
@@ -6,70 +5,48 @@ import { Input, Textarea } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
 import { NaturalSessionLogger } from "../multimodal/NaturalSessionLogger";
 import { ExerciseGroupCard } from "./ExerciseGroupCard";
-import type { SessionAchievementSummary } from "./progression";
 import { SessionAchievementBanner } from "./SessionAchievementBanner";
 import { createDefaultExerciseGroup, hasSessionDraftContent } from "./sessionDraft";
 import type { EditableExerciseGroup, TrainingSessionResponse } from "./types";
+import type { SessionDraftActions, SessionDraftState } from "./useTrainingSessionDraft";
 
 interface SessionsTabProps {
   activeMesocycleId: string | null;
-  startedFromToday?: boolean;
   sessions: TrainingSessionResponse[];
-  editingSessionId: string | null;
-  sessionName: string;
-  sessionDate: string;
-  fatigueNotes: string;
-  exerciseGroups: EditableExerciseGroup[];
-  achievementSummary: SessionAchievementSummary | null;
-  onDismissAchievement: () => void;
-  onSessionNameChange: (v: string) => void;
-  onSessionDateChange: (v: string) => void;
-  onFatigueNotesChange: (v: string) => void;
-  onExerciseGroupsChange: (groups: EditableExerciseGroup[]) => void;
-  onDiscardDraft: () => void;
-  onCancelEdit: () => void;
-  onSaveSession: (e: FormEvent) => void;
-  onEditSession: (session: TrainingSessionResponse) => void;
-  onDeleteSession: (sessionId: string) => void;
-  onNaturalSessionSaved: () => Promise<void>;
+  draft: SessionDraftState;
+  actions: SessionDraftActions;
 }
 
 export function SessionsTab({
   activeMesocycleId,
-  startedFromToday = false,
   sessions,
-  editingSessionId,
-  sessionName,
-  sessionDate,
-  fatigueNotes,
-  exerciseGroups,
-  achievementSummary,
-  onDismissAchievement,
-  onSessionNameChange,
-  onSessionDateChange,
-  onFatigueNotesChange,
-  onExerciseGroupsChange,
-  onDiscardDraft,
-  onCancelEdit,
-  onSaveSession,
-  onEditSession,
-  onDeleteSession,
-  onNaturalSessionSaved,
+  draft,
+  actions,
 }: SessionsTabProps) {
+  const {
+    editingSessionId,
+    sessionName,
+    sessionDate,
+    fatigueNotes,
+    exerciseGroups,
+    startedFromToday,
+    achievementSummary,
+  } = draft;
+
   const showDiscardDraft =
     !editingSessionId && hasSessionDraftContent(exerciseGroups, fatigueNotes);
 
   function updateGroup(idx: number, updated: EditableExerciseGroup) {
-    onExerciseGroupsChange(exerciseGroups.map((g, i) => (i === idx ? updated : g)));
+    actions.setExerciseGroups(exerciseGroups.map((g, i) => (i === idx ? updated : g)));
   }
 
   function removeGroup(idx: number) {
     if (exerciseGroups.length <= 1) return;
-    onExerciseGroupsChange(exerciseGroups.filter((_, i) => i !== idx));
+    actions.setExerciseGroups(exerciseGroups.filter((_, i) => i !== idx));
   }
 
   function addExerciseGroup() {
-    onExerciseGroupsChange([...exerciseGroups, createDefaultExerciseGroup()]);
+    actions.setExerciseGroups([...exerciseGroups, createDefaultExerciseGroup()]);
   }
 
   return (
@@ -79,7 +56,7 @@ export function SessionsTab({
         {achievementSummary && (
           <SessionAchievementBanner
             summary={achievementSummary}
-            onDismiss={onDismissAchievement}
+            onDismiss={actions.dismissAchievement}
           />
         )}
 
@@ -87,11 +64,11 @@ export function SessionsTab({
           key={startedFromToday ? "nl-collapsed" : "nl-default"}
           activeMesocycleId={activeMesocycleId}
           defaultCollapsed={startedFromToday}
-          onSessionSaved={onNaturalSessionSaved}
+          onSessionSaved={actions.handleNaturalSessionSaved}
         />
 
         <Surface variant="focal" padded="md">
-          <form onSubmit={onSaveSession} className="space-y-4">
+          <form onSubmit={(e) => void actions.saveSession(e)} className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="space-y-0.5">
                 <h2 className="heading-section text-lg text-ink">
@@ -105,7 +82,7 @@ export function SessionsTab({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {editingSessionId && (
-                  <Button variant="ghost" size="sm" onClick={onCancelEdit}>
+                  <Button variant="ghost" size="sm" onClick={actions.cancelEdit}>
                     Cancelar edición
                   </Button>
                 )}
@@ -116,7 +93,7 @@ export function SessionsTab({
                     variant="secondary"
                     confirmVariant="danger"
                     size="sm"
-                    onConfirm={onDiscardDraft}
+                    onConfirm={actions.discardDraft}
                   />
                 )}
               </div>
@@ -128,7 +105,7 @@ export function SessionsTab({
                 <Input
                   type="text"
                   value={sessionName}
-                  onChange={(e) => onSessionNameChange(e.target.value)}
+                  onChange={(e) => actions.setSessionName(e.target.value)}
                   required
                 />
               </label>
@@ -137,7 +114,7 @@ export function SessionsTab({
                 <Input
                   type="date"
                   value={sessionDate}
-                  onChange={(e) => onSessionDateChange(e.target.value)}
+                  onChange={(e) => actions.setSessionDate(e.target.value)}
                   required
                 />
               </label>
@@ -166,7 +143,7 @@ export function SessionsTab({
               <Textarea
                 rows={2}
                 value={fatigueNotes}
-                onChange={(e) => onFatigueNotesChange(e.target.value)}
+                onChange={(e) => actions.setFatigueNotes(e.target.value)}
                 placeholder="Sensación de fatiga, molestias articulares, calidad del sueño…"
               />
             </label>
@@ -206,7 +183,7 @@ export function SessionsTab({
                     )}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
-                    <Button variant="secondary" size="sm" onClick={() => onEditSession(s)}>
+                    <Button variant="secondary" size="sm" onClick={() => actions.editSession(s)}>
                       Editar
                     </Button>
                     <ConfirmActionButton
@@ -214,7 +191,7 @@ export function SessionsTab({
                       confirmLabel="Confirmar eliminación"
                       variant="danger"
                       size="sm"
-                      onConfirm={() => onDeleteSession(s.id)}
+                      onConfirm={() => void actions.deleteSession(s.id)}
                     />
                   </div>
                 </div>

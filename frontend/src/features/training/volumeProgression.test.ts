@@ -285,8 +285,50 @@ describe("volumeProgression pure training aggregation helpers", () => {
     // 220 lb x 5 -> 99.79 kg load, 116.42 kg e1RM
     expect(squat.points[1].bestLoadKg).toBe(99.79);
     expect(squat.points[1].bestE1rmKg).toBe(116.42);
-    expect(squat.points[1].displayUnit).toBe("lb");
-    expect(squat.points[1].displayLoad).toBe(220);
+    expect(squat.points[1].bestLoadUnit).toBe("lb");
+    expect(squat.points[1].bestLoadDisplay).toBe(220);
+    expect(squat.points[1].bestLoadReps).toBe(5);
     expect(squat.e1rmDeltaKg).toBe(8.42);
+  });
+
+  it("tracks bestLoadReps separately from bestE1rmLoadKg and bestE1rmReps when different sets win load vs e1RM", () => {
+    const sessions: TrainingSessionResponse[] = [
+      makeSession("s-prev", "2026-11-10", [
+        {
+          exercise_name: "Press banca",
+          muscle_group: "pecho",
+          reps: 5,
+          load: 95,
+          unit: "kg",
+        },
+      ]),
+      makeSession("s-split", "2026-11-17", [
+        // Heavy low-rep top set: best load = 100 kg x 3 (e1RM = 110 kg)
+        {
+          exercise_name: "Press banca",
+          muscle_group: "pecho",
+          reps: 3,
+          load: 100,
+          unit: "kg",
+        },
+        // Higher-rep back-off set: best e1RM = 90 kg x 10 (e1RM = 120 kg)
+        {
+          exercise_name: "Press banca",
+          muscle_group: "pecho",
+          reps: 10,
+          load: 90,
+          unit: "kg",
+        },
+      ]),
+    ];
+
+    const series = aggregateExerciseProgression(sessions);
+    expect(series).toHaveLength(1);
+    const splitPoint = series[0].points[1];
+    expect(splitPoint.bestLoadKg).toBe(100);
+    expect(splitPoint.bestLoadReps).toBe(3);
+    expect(splitPoint.bestE1rmKg).toBe(120);
+    expect(splitPoint.bestE1rmLoadKg).toBe(90);
+    expect(splitPoint.bestE1rmReps).toBe(10);
   });
 });

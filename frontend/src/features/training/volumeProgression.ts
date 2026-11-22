@@ -1,8 +1,8 @@
 import {
-  calculateEpleyE1rmKg,
-  convertLoadToKg,
+  extractSessionExerciseBests,
   isEffectiveSet,
   normalizeExerciseKey,
+  round2,
   type LoadUnit,
 } from "./progression";
 import type { TrainingSessionResponse } from "./types";
@@ -30,10 +30,14 @@ export interface ExerciseSessionPoint {
   sessionDate: string;
   sessionName: string;
   bestLoadKg: number;
+  bestLoadDisplay: number;
+  bestLoadUnit: LoadUnit;
+  bestLoadReps: number;
   bestE1rmKg: number | null;
-  displayLoad: number;
-  displayUnit: LoadUnit;
-  displayReps: number;
+  bestE1rmLoadKg: number | null;
+  bestE1rmDisplay: number | null;
+  bestE1rmUnit: LoadUnit | null;
+  bestE1rmReps: number | null;
 }
 
 export interface ExerciseProgressionSeries {
@@ -49,11 +53,6 @@ export interface ExerciseProgressionSeries {
 }
 
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-function round2(value: number): number {
-  const rounded = Math.round(value * 100) / 100;
-  return Object.is(rounded, -0) ? 0 : rounded;
-}
 
 function normalizeMuscleGroup(name: string): string {
   const normalized = normalizeExerciseKey(name);
@@ -196,60 +195,22 @@ export function aggregateExerciseProgression(
   >();
 
   for (const session of ordered) {
-    const perSessionExercise = new Map<
-      string,
-      {
-        exerciseName: string;
-        muscleGroup: string;
-        bestLoadKg: number;
-        bestLoadSet: { load: number; unit: LoadUnit; reps: number };
-        bestE1rmKg: number | null;
-        bestE1rmSet: { load: number; unit: LoadUnit; reps: number } | null;
-      }
-    >();
-
-    for (const set of session.sets) {
-      if (!Number.isFinite(set.load) || set.load <= 0) continue;
-      const key = normalizeExerciseKey(set.exercise_name);
-      if (!key) continue;
-
-      const unit: LoadUnit = set.unit === "lb" ? "lb" : "kg";
-      const loadKg = round2(convertLoadToKg(set.load, unit));
-      const e1rmKg = calculateEpleyE1rmKg(set.load, set.reps, unit);
-
-      const current = perSessionExercise.get(key);
-      if (!current) {
-        perSessionExercise.set(key, {
-          exerciseName: set.exercise_name.trim(),
-          muscleGroup: normalizeMuscleGroup(set.muscle_group),
-          bestLoadKg: loadKg,
-          bestLoadSet: { load: set.load, unit, reps: set.reps },
-          bestE1rmKg: e1rmKg,
-          bestE1rmSet: e1rmKg !== null ? { load: set.load, unit, reps: set.reps } : null,
-        });
-      } else {
-        if (loadKg > current.bestLoadKg) {
-          current.bestLoadKg = loadKg;
-          current.bestLoadSet = { load: set.load, unit, reps: set.reps };
-        }
-        if (e1rmKg !== null && (current.bestE1rmKg === null || e1rmKg > current.bestE1rmKg)) {
-          current.bestE1rmKg = e1rmKg;
-          current.bestE1rmSet = { load: set.load, unit, reps: set.reps };
-        }
-      }
-    }
+    const perSessionExercise = extractSessionExerciseBests(session.sets);
 
     for (const [key, entry] of perSessionExercise.entries()) {
-      const highlight = entry.bestE1rmSet ?? entry.bestLoadSet;
       const point: ExerciseSessionPoint = {
         sessionId: session.id,
         sessionDate: session.session_date,
         sessionName: session.name,
-        bestLoadKg: entry.bestLoadKg,
+        bestLoadKg: round2(entry.bestLoadKg),
+        bestLoadDisplay: entry.bestLoadSet.load,
+        bestLoadUnit: entry.bestLoadSet.unit,
+        bestLoadReps: entry.bestLoadSet.reps,
         bestE1rmKg: entry.bestE1rmKg,
-        displayLoad: highlight.load,
-        displayUnit: highlight.unit,
-        displayReps: highlight.reps,
+        bestE1rmLoadKg: entry.bestE1rmSet ? entry.bestE1rmSet.loadKg : null,
+        bestE1rmDisplay: entry.bestE1rmSet ? entry.bestE1rmSet.load : null,
+        bestE1rmUnit: entry.bestE1rmSet ? entry.bestE1rmSet.unit : null,
+        bestE1rmReps: entry.bestE1rmSet ? entry.bestE1rmSet.reps : null,
       };
 
       const existing = byExercise.get(key);

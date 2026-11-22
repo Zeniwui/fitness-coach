@@ -5,6 +5,7 @@ export type TodaySessionResponse = components["schemas"]["TodaySessionResponse"]
 export type TrainingSessionResponse = components["schemas"]["TrainingSessionResponse"];
 export type WeeklyVolumeSummaryResponse = components["schemas"]["WeeklyVolumeSummaryResponse"];
 export type PlannedExerciseSchema = components["schemas"]["PlannedExerciseSchema"];
+export type PlannedSessionInput = components["schemas"]["PlannedSessionInput"];
 export type SessionSetInput = components["schemas"]["SessionSetInput"];
 
 export type TrainingTabKey = "today" | "sessions" | "mesocycles" | "volume";
@@ -52,23 +53,24 @@ export interface EditableExerciseGroup {
   sets: EditableExerciseSet[];
 }
 
-export interface EditablePlannedSession {
-  day_order: number;
-  name: string;
-  exercises: PlannedExerciseSchema[];
+export interface EditablePlannedExercise {
+  id: string;
+  exercise_name: string;
+  primary_muscle_group: string;
+  secondary_muscle_groups_raw: string;
+  target_sets: string;
+  rep_range_min: string;
+  rep_range_max: string;
+  target_rir: string;
+  target_rpe: number | null;
+  notes: string | null;
 }
 
-export function defaultSetRow(): EditableSetRow {
-  return {
-    exercise_name: "",
-    muscle_group: "pecho",
-    secondary_muscle_groups: "",
-    reps: "8",
-    load: "",
-    unit: "kg",
-    rir: "2",
-    rpe: "",
-  };
+export interface EditablePlannedSession {
+  id: string;
+  day_order: number;
+  name: string;
+  exercises: EditablePlannedExercise[];
 }
 
 export function statusBadgeLabel(status: string): string {

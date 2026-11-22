@@ -80,17 +80,19 @@ describe("HelpTip contextual inline help primitive & domain integrations (#18)",
           weeks="5"
           plannedSessions={[
             {
+              id: "day-1",
               day_order: 1,
               name: "Torso A",
               exercises: [
                 {
+                  id: "ex-1",
                   exercise_name: "Remo en polea",
                   primary_muscle_group: "espalda",
-                  secondary_muscle_groups: [],
-                  target_sets: 3,
-                  rep_range_min: 8,
-                  rep_range_max: 12,
-                  target_rir: 2,
+                  secondary_muscle_groups_raw: "",
+                  target_sets: "3",
+                  rep_range_min: "8",
+                  rep_range_max: "12",
+                  target_rir: "2",
                   target_rpe: null,
                   notes: null,
                 },

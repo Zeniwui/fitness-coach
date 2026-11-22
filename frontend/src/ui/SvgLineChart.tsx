@@ -7,6 +7,15 @@ import {
   scaleYValue,
   type ChartDimensions,
 } from "./chartMath";
+import {
+  ChartEmptyState,
+  ChartSummaryStrip,
+  ChartYAxisGrid,
+  defaultFormatNumber,
+  type ChartSummaryItem,
+} from "./SvgChartShared";
+
+export type { ChartSummaryItem };
 
 export interface LineSeriesPoint {
   id: string;
@@ -23,12 +32,6 @@ export interface LineChartSeries {
   dashed?: boolean;
   showArea?: boolean;
   points: LineSeriesPoint[];
-}
-
-export interface ChartSummaryItem {
-  label: string;
-  value: string;
-  tone?: "default" | "accent" | "secondary" | "success" | "warning";
 }
 
 export interface SvgLineChartProps {
@@ -62,14 +65,6 @@ const TONE_AREA_FILL: Record<LineChartSeries["tone"], string> = {
   secondary: "rgb(var(--c-secondary) / 0.12)",
 };
 
-const SUMMARY_TONE_CLASS: Record<NonNullable<ChartSummaryItem["tone"]>, string> = {
-  default: "text-ink",
-  accent: "text-accent-text",
-  secondary: "text-secondary-text",
-  success: "text-success-text",
-  warning: "text-warning-text",
-};
-
 function pickVisibleTickIndices(count: number, maxLabels = 6): Set<number> {
   const visible = new Set<number>();
   if (count <= 0) return visible;
@@ -84,10 +79,6 @@ function pickVisibleTickIndices(count: number, maxLabels = 6): Set<number> {
     visible.add(i);
   }
   return visible;
-}
-
-function defaultFormatNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 export function SvgLineChart({
@@ -109,14 +100,7 @@ export function SvgLineChart({
     0;
 
   if (!primarySeries || primaryFiniteCount < minPoints) {
-    return (
-      <div
-        role="status"
-        className="rounded-control border border-line bg-surface-muted/50 px-4 py-3.5 text-sm leading-relaxed text-ink-muted"
-      >
-        {emptyMessage}
-      </div>
-    );
+    return <ChartEmptyState message={emptyMessage} />;
   }
 
   const allValues = series.flatMap((s) =>
@@ -130,22 +114,7 @@ export function SvgLineChart({
 
   return (
     <div className="space-y-3">
-      {summaryItems && summaryItems.length > 0 && (
-        <dl className="flex flex-wrap gap-x-6 gap-y-2 border-b border-line pb-3 text-xs">
-          {summaryItems.map((item) => (
-            <div key={item.label} className="min-w-0">
-              <dt className="text-ink-muted">{item.label}</dt>
-              <dd
-                className={`mt-0.5 text-sm font-semibold tabular-nums ${
-                  SUMMARY_TONE_CLASS[item.tone ?? "default"]
-                }`}
-              >
-                {item.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      <ChartSummaryStrip items={summaryItems} />
 
       {series.length > 1 && (
         <ul
@@ -193,33 +162,7 @@ export function SvgLineChart({
         >
           <title id={titleId}>{ariaLabel}</title>
 
-          {/* Horizontal gridlines and Y-axis tick labels */}
-          {domain.ticks.map((tick) => {
-            const y = scaleYValue(tick, domain, DEFAULT_DIMS);
-            const isBaseline = tick === domain.min;
-            return (
-              <g key={tick}>
-                <line
-                  x1={DEFAULT_DIMS.padLeft}
-                  y1={y}
-                  x2={DEFAULT_DIMS.width - DEFAULT_DIMS.padRight}
-                  y2={y}
-                  stroke={isBaseline ? "rgb(var(--c-line-strong))" : "rgb(var(--c-line))"}
-                  strokeWidth={1}
-                />
-                <text
-                  x={DEFAULT_DIMS.padLeft - 8}
-                  y={y + 4}
-                  textAnchor="end"
-                  fontSize="11"
-                  fill="rgb(var(--c-ink-muted))"
-                  style={{ fontVariantNumeric: "tabular-nums" }}
-                >
-                  {formatTick(tick)}
-                </text>
-              </g>
-            );
-          })}
+          <ChartYAxisGrid domain={domain} dims={DEFAULT_DIMS} formatTick={formatTick} />
 
           {/* Series paths and markers (render secondary/dashed behind primary) */}
           {[...series].reverse().map((s) => {

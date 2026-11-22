@@ -7,6 +7,22 @@ const COMPARISON_EPSILON_KG = 0.005;
 
 export type LoadUnit = "kg" | "lb";
 
+export interface SetPerformance {
+  load: number;
+  loadKg: number;
+  unit: LoadUnit;
+  reps: number;
+}
+
+export interface SessionExerciseBests {
+  exerciseName: string;
+  muscleGroup: string;
+  bestLoadKg: number;
+  bestLoadSet: SetPerformance;
+  bestE1rmKg: number | null;
+  bestE1rmSet: SetPerformance | null;
+}
+
 export interface PersonalRecordHit {
   exerciseName: string;
   kind: "e1rm" | "load" | "both";
@@ -26,8 +42,9 @@ export interface SessionAchievementSummary {
   personalRecords: PersonalRecordHit[];
 }
 
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
+export function round2(value: number): number {
+  const rounded = Math.round(value * 100) / 100;
+  return Object.is(rounded, -0) ? 0 : rounded;
 }
 
 /**
@@ -87,6 +104,66 @@ export function isEffectiveSet(set: Pick<SessionSetInput, "rir" | "rpe">): boole
   return true;
 }
 
+export interface PerformanceSetLike {
+  exercise_name: string;
+  muscle_group: string;
+  load: number;
+  reps: number;
+  unit?: string | null;
+  rir?: number | null;
+  rpe?: number | null;
+}
+
+/**
+ * Extracts per-exercise best load and best Epley e1RM sets from a session's sets.
+ * Keeps `bestLoadSet` and `bestE1rmSet` completely separate so load & reps never cross-contaminate.
+ */
+export function extractSessionExerciseBests(
+  sets: ReadonlyArray<PerformanceSetLike>,
+): Map<string, SessionExerciseBests> {
+  const bests = new Map<string, SessionExerciseBests>();
+
+  for (const set of sets) {
+    if (!Number.isFinite(set.load) || set.load <= 0) continue;
+    const key = normalizeExerciseKey(set.exercise_name);
+    if (!key) continue;
+
+    const unit: LoadUnit = set.unit === "lb" ? "lb" : "kg";
+    const loadKgExact = convertLoadToKg(set.load, unit);
+    const loadKgRounded = round2(loadKgExact);
+    const e1rmKg = calculateEpleyE1rmKg(set.load, set.reps, unit);
+    const perf: SetPerformance = {
+      load: set.load,
+      loadKg: loadKgRounded,
+      unit,
+      reps: set.reps,
+    };
+
+    const existing = bests.get(key);
+    if (!existing) {
+      bests.set(key, {
+        exerciseName: set.exercise_name.trim(),
+        muscleGroup: normalizeExerciseKey(set.muscle_group) || "general",
+        bestLoadKg: loadKgExact,
+        bestLoadSet: perf,
+        bestE1rmKg: e1rmKg,
+        bestE1rmSet: e1rmKg !== null ? perf : null,
+      });
+    } else {
+      if (loadKgExact > existing.bestLoadKg) {
+        existing.bestLoadKg = loadKgExact;
+        existing.bestLoadSet = perf;
+      }
+      if (e1rmKg !== null && (existing.bestE1rmKg === null || e1rmKg > existing.bestE1rmKg)) {
+        existing.bestE1rmKg = e1rmKg;
+        existing.bestE1rmSet = perf;
+      }
+    }
+  }
+
+  return bests;
+}
+
 interface ExerciseHistoryBest {
   bestLoadKg: number;
   bestE1rmKg: number | null;
@@ -102,23 +179,20 @@ function buildPriorExerciseBests(
     if (excludeSessionId && session.id === excludeSessionId) {
       continue;
     }
-    for (const set of session.sets) {
-      if (set.load <= 0) continue;
-      const key = normalizeExerciseKey(set.exercise_name);
-      if (!key) continue;
-      const unit: LoadUnit = set.unit === "lb" ? "lb" : "kg";
-      const loadKg = convertLoadToKg(set.load, unit);
-      const e1rmKg = calculateEpleyE1rmKg(set.load, set.reps, unit);
-
+    const perSession = extractSessionExerciseBests(session.sets);
+    for (const [key, entry] of perSession.entries()) {
       const current = bests.get(key);
       if (!current) {
-        bests.set(key, { bestLoadKg: loadKg, bestE1rmKg: e1rmKg });
+        bests.set(key, { bestLoadKg: entry.bestLoadKg, bestE1rmKg: entry.bestE1rmKg });
       } else {
-        if (loadKg > current.bestLoadKg) {
-          current.bestLoadKg = loadKg;
+        if (entry.bestLoadKg > current.bestLoadKg) {
+          current.bestLoadKg = entry.bestLoadKg;
         }
-        if (e1rmKg !== null && (current.bestE1rmKg === null || e1rmKg > current.bestE1rmKg)) {
-          current.bestE1rmKg = e1rmKg;
+        if (
+          entry.bestE1rmKg !== null &&
+          (current.bestE1rmKg === null || entry.bestE1rmKg > current.bestE1rmKg)
+        ) {
+          current.bestE1rmKg = entry.bestE1rmKg;
         }
       }
     }
@@ -132,7 +206,7 @@ function buildPriorExerciseBests(
  * against the Athlete's prior Training Sessions.
  */
 export function evaluateSessionAchievements(
-  savedSets: SessionSetInput[],
+  savedSets: ReadonlyArray<PerformanceSetLike>,
   priorSessions: TrainingSessionResponse[],
   sessionName: string,
   excludeSessionId?: string | null,
@@ -140,46 +214,7 @@ export function evaluateSessionAchievements(
   const totalSets = savedSets.length;
   const effectiveSets = savedSets.filter(isEffectiveSet).length;
   const priorBests = buildPriorExerciseBests(priorSessions, excludeSessionId);
-
-  const groupedNew = new Map<
-    string,
-    {
-      exerciseName: string;
-      bestLoadKg: number;
-      bestLoadSet: { load: number; unit: LoadUnit; reps: number };
-      bestE1rmKg: number | null;
-      bestE1rmSet: { load: number; unit: LoadUnit; reps: number } | null;
-    }
-  >();
-
-  for (const set of savedSets) {
-    if (set.load <= 0) continue;
-    const key = normalizeExerciseKey(set.exercise_name);
-    if (!key) continue;
-    const unit: LoadUnit = set.unit === "lb" ? "lb" : "kg";
-    const loadKg = convertLoadToKg(set.load, unit);
-    const e1rmKg = calculateEpleyE1rmKg(set.load, set.reps, unit);
-
-    const existing = groupedNew.get(key);
-    if (!existing) {
-      groupedNew.set(key, {
-        exerciseName: set.exercise_name.trim(),
-        bestLoadKg: loadKg,
-        bestLoadSet: { load: set.load, unit, reps: set.reps },
-        bestE1rmKg: e1rmKg,
-        bestE1rmSet: e1rmKg !== null ? { load: set.load, unit, reps: set.reps } : null,
-      });
-    } else {
-      if (loadKg > existing.bestLoadKg) {
-        existing.bestLoadKg = loadKg;
-        existing.bestLoadSet = { load: set.load, unit, reps: set.reps };
-      }
-      if (e1rmKg !== null && (existing.bestE1rmKg === null || e1rmKg > existing.bestE1rmKg)) {
-        existing.bestE1rmKg = e1rmKg;
-        existing.bestE1rmSet = { load: set.load, unit, reps: set.reps };
-      }
-    }
-  }
+  const groupedNew = extractSessionExerciseBests(savedSets);
 
   const personalRecords: PersonalRecordHit[] = [];
 

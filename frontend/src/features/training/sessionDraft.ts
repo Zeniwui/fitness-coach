@@ -9,6 +9,14 @@ import type {
 } from "./types";
 
 export const SESSION_DRAFT_KEY = "fc-training-session-draft-v1";
+const SESSION_DRAFT_PREFIX = `${SESSION_DRAFT_KEY}:`;
+
+export function getSessionDraftStorageKey(
+  athleteKey: string | null | undefined,
+): string | null {
+  const id = athleteKey?.trim();
+  return id ? `${SESSION_DRAFT_PREFIX}${id}` : null;
+}
 
 export interface PersistedSessionDraft {
   version: 2;
@@ -225,8 +233,7 @@ export function validateAndFlattenGroups(groups: EditableExerciseGroup[]): {
   sets: SessionSetInput[];
   error: string | null;
 } {
-  const namedGroups = groups.filter((g) => g.exercise_name.trim().length > 0);
-  if (namedGroups.length === 0) {
+  if (groups.length === 0 || !groups.some((g) => g.exercise_name.trim().length > 0)) {
     return {
       sets: [],
       error: "Añade al menos un ejercicio con nombre y al menos una serie.",
@@ -236,8 +243,15 @@ export function validateAndFlattenGroups(groups: EditableExerciseGroup[]): {
   const flattened: SessionSetInput[] = [];
   let setOrder = 1;
 
-  for (const group of namedGroups) {
+  for (let gIdx = 0; gIdx < groups.length; gIdx += 1) {
+    const group = groups[gIdx];
     const exerciseName = group.exercise_name.trim();
+    if (!exerciseName) {
+      return {
+        sets: [],
+        error: `Falta el nombre del ejercicio en el bloque ${gIdx + 1}. Escribe un nombre o quita el bloque antes de guardar.`,
+      };
+    }
     const muscleGroup = group.muscle_group.trim() || "pecho";
     const secondary = group.secondary_muscle_groups
       .split(",")
@@ -325,76 +339,108 @@ export function hasSessionDraftContent(
   );
 }
 
-export function readPersistedSessionDraft(): PersistedSessionDraft | null {
+function parseRawSessionDraft(raw: string): PersistedSessionDraft | null {
+  const parsed = JSON.parse(raw) as Partial<PersistedSessionDraft> & LegacyPersistedSessionDraft;
+
+  // New v2 grouped draft format
+  if (Array.isArray(parsed.exerciseGroups) && parsed.exerciseGroups.length > 0) {
+    const normalizedGroups: EditableExerciseGroup[] = parsed.exerciseGroups.map((g) => ({
+      id: g.id || nextLocalId("ex"),
+      exercise_name: typeof g.exercise_name === "string" ? g.exercise_name : "",
+      muscle_group: typeof g.muscle_group === "string" && g.muscle_group ? g.muscle_group : "pecho",
+      secondary_muscle_groups:
+        typeof g.secondary_muscle_groups === "string" ? g.secondary_muscle_groups : "",
+      unit: g.unit === "lb" ? "lb" : "kg",
+      isBodyweight: Boolean(g.isBodyweight),
+      targetHint: g.targetHint,
+      previousMarkHint: g.previousMarkHint,
+      sets:
+        Array.isArray(g.sets) && g.sets.length > 0
+          ? g.sets.map((s) => ({
+              id: s.id || nextLocalId("set"),
+              reps: typeof s.reps === "string" ? s.reps : "8",
+              load: typeof s.load === "string" ? s.load : "",
+              rir: typeof s.rir === "string" ? s.rir : "",
+              rpe: typeof s.rpe === "string" ? s.rpe : "",
+              completed: Boolean(s.completed),
+            }))
+          : [createDefaultExerciseSet()],
+    }));
+    return {
+      version: 2,
+      sessionDate: parsed.sessionDate ?? new Date().toISOString().slice(0, 10),
+      sessionName: parsed.sessionName ?? "Sesión de Entrenamiento",
+      sessionPlannedId: parsed.sessionPlannedId ?? null,
+      fatigueNotes: parsed.fatigueNotes ?? "",
+      exerciseGroups: normalizedGroups,
+      startedFromToday: Boolean(parsed.startedFromToday),
+    };
+  }
+
+  // Legacy v1 flat setRows draft migration
+  if (Array.isArray(parsed.setRows) && parsed.setRows.length > 0) {
+    return {
+      version: 2,
+      sessionDate: parsed.sessionDate ?? new Date().toISOString().slice(0, 10),
+      sessionName: parsed.sessionName ?? "Sesión de Entrenamiento",
+      sessionPlannedId: parsed.sessionPlannedId ?? null,
+      fatigueNotes: parsed.fatigueNotes ?? "",
+      exerciseGroups: groupFlatSetsIntoExercises(parsed.setRows),
+      startedFromToday: Boolean(parsed.startedFromToday),
+    };
+  }
+
+  return null;
+}
+
+export function readPersistedSessionDraft(
+  athleteKey: string | null | undefined,
+): PersistedSessionDraft | null {
+  const scopedKey = getSessionDraftStorageKey(athleteKey);
+  if (!scopedKey) return null;
+
   try {
-    const raw = window.localStorage.getItem(SESSION_DRAFT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<PersistedSessionDraft> & LegacyPersistedSessionDraft;
-
-    // New v2 grouped draft format
-    if (Array.isArray(parsed.exerciseGroups) && parsed.exerciseGroups.length > 0) {
-      const normalizedGroups: EditableExerciseGroup[] = parsed.exerciseGroups.map((g) => ({
-        id: g.id || nextLocalId("ex"),
-        exercise_name: typeof g.exercise_name === "string" ? g.exercise_name : "",
-        muscle_group: typeof g.muscle_group === "string" && g.muscle_group ? g.muscle_group : "pecho",
-        secondary_muscle_groups:
-          typeof g.secondary_muscle_groups === "string" ? g.secondary_muscle_groups : "",
-        unit: g.unit === "lb" ? "lb" : "kg",
-        isBodyweight: Boolean(g.isBodyweight),
-        targetHint: g.targetHint,
-        previousMarkHint: g.previousMarkHint,
-        sets:
-          Array.isArray(g.sets) && g.sets.length > 0
-            ? g.sets.map((s) => ({
-                id: s.id || nextLocalId("set"),
-                reps: typeof s.reps === "string" ? s.reps : "8",
-                load: typeof s.load === "string" ? s.load : "",
-                rir: typeof s.rir === "string" ? s.rir : "",
-                rpe: typeof s.rpe === "string" ? s.rpe : "",
-                completed: Boolean(s.completed),
-              }))
-            : [createDefaultExerciseSet()],
-      }));
-      return {
-        version: 2,
-        sessionDate: parsed.sessionDate ?? new Date().toISOString().slice(0, 10),
-        sessionName: parsed.sessionName ?? "Sesión de Entrenamiento",
-        sessionPlannedId: parsed.sessionPlannedId ?? null,
-        fatigueNotes: parsed.fatigueNotes ?? "",
-        exerciseGroups: normalizedGroups,
-        startedFromToday: Boolean(parsed.startedFromToday),
-      };
+    const scopedRaw = window.localStorage.getItem(scopedKey);
+    if (scopedRaw) {
+      return parseRawSessionDraft(scopedRaw);
     }
 
-    // Legacy v1 flat setRows draft migration
-    if (Array.isArray(parsed.setRows) && parsed.setRows.length > 0) {
-      return {
-        version: 2,
-        sessionDate: parsed.sessionDate ?? new Date().toISOString().slice(0, 10),
-        sessionName: parsed.sessionName ?? "Sesión de Entrenamiento",
-        sessionPlannedId: parsed.sessionPlannedId ?? null,
-        fatigueNotes: parsed.fatigueNotes ?? "",
-        exerciseGroups: groupFlatSetsIntoExercises(parsed.setRows),
-        startedFromToday: Boolean(parsed.startedFromToday),
-      };
-    }
+    // One-shot safe migration from legacy unscoped key -> scoped Athlete key, then clear legacy key
+    // so a second Athlete sharing the same browser never inherits the draft.
+    const legacyRaw = window.localStorage.getItem(SESSION_DRAFT_KEY);
+    if (!legacyRaw) return null;
 
-    return null;
+    const migrated = parseRawSessionDraft(legacyRaw);
+    window.localStorage.removeItem(SESSION_DRAFT_KEY);
+    if (migrated) {
+      window.localStorage.setItem(scopedKey, JSON.stringify(migrated));
+    }
+    return migrated;
   } catch {
     return null;
   }
 }
 
-export function writePersistedSessionDraft(draft: PersistedSessionDraft): void {
+export function writePersistedSessionDraft(
+  draft: PersistedSessionDraft,
+  athleteKey: string | null | undefined,
+): void {
+  const scopedKey = getSessionDraftStorageKey(athleteKey);
+  if (!scopedKey) return;
   try {
-    window.localStorage.setItem(SESSION_DRAFT_KEY, JSON.stringify(draft));
+    window.localStorage.setItem(scopedKey, JSON.stringify(draft));
+    window.localStorage.removeItem(SESSION_DRAFT_KEY);
   } catch {
     // Ignore storage quota/availability errors
   }
 }
 
-export function clearPersistedSessionDraft(): void {
+export function clearPersistedSessionDraft(athleteKey: string | null | undefined): void {
+  const scopedKey = getSessionDraftStorageKey(athleteKey);
   try {
+    if (scopedKey) {
+      window.localStorage.removeItem(scopedKey);
+    }
     window.localStorage.removeItem(SESSION_DRAFT_KEY);
   } catch {
     // Ignore storage unavailability

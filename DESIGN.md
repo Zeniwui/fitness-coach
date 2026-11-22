@@ -254,6 +254,12 @@ Touch-friendly inline contextual help disclosure (`≥44×44px` on mobile, `≥3
 ### ConfirmActionButton
 Two-step inline confirmation control that replaces disruptive browser `window.confirm` popups for destructive operations (deleting sessions, conversations, injuries, or completing phases). Clicking once reveals a grouped `Confirmar` + `Cancelar` pair inline, protecting against accidental gym-floor taps without forcing a modal.
 
+### SvgLineChart
+Zero-dependency responsive SVG line chart (`viewBox="0 0 560 224"`, `role="img"`, `<title>`, `aria-label`) backed by pure coordinate scaling (`chartMath.ts`) and shared chrome (`SvgChartShared.tsx`). Renders Calibrated Brass primary trajectories (with soft 12% area fill and surface-ringed data points) alongside dashed Glacier Science comparison series (such as Fase Nutricional target weight projections or best-load reference lines), tabular summary strips, truthful empty states below `minPoints`, and a collapsible accessible HTML `<table>` breakdown.
+
+### SvgBarChart
+Zero-dependency responsive SVG vertical bar chart (`viewBox="0 0 560 224"`, `role="img"`, `<title>`, `aria-label`) for multi-week effective hypertrophy set volume (`direct = 1.0`, `secondary = 0.5`). Pairs rounded (`3px`) Calibrated Brass or Glacier Science bars with an optional dashed planned-volume target rule, tabular-numeral bar annotations, shared `ChartSummaryStrip` and `ChartYAxisGrid` primitives, truthful insufficient-data states, and an expandable accessible data table.
+
 ## Do's and Don'ts
 
 ### Do:
