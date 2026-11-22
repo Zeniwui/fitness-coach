@@ -73,6 +73,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/coach/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Conversation */
+        delete: operations["delete_conversation_api_v1_coach_conversations__conversation_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Conversation */
+        patch: operations["rename_conversation_api_v1_coach_conversations__conversation_id__patch"];
+        trace?: never;
+    };
     "/api/v1/coach/conversations/{conversation_id}/messages": {
         parameters: {
             query?: never;
@@ -2356,6 +2374,11 @@ export interface components {
             /** Query Override */
             query_override?: string | null;
         };
+        /** UpdateConversationRequest */
+        UpdateConversationRequest: {
+            /** Title */
+            title: string;
+        };
         /** UpdateEvidenceCardRequest */
         UpdateEvidenceCardRequest: {
             /** Add Relations */
@@ -2704,6 +2727,70 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_conversation_api_v1_coach_conversations__conversation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_conversation_api_v1_coach_conversations__conversation_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

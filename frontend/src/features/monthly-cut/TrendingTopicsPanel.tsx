@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "../../api/client";
 import type { components } from "../../api/generated/schema";
+import { AlertBanner } from "../../ui/AlertBanner";
+import { Badge } from "../../ui/Badge";
+import { Button } from "../../ui/Button";
+import { Surface } from "../../ui/Surface";
 
 type TrendingTopic = components["schemas"]["TrendingTopicResponse"];
 
@@ -65,85 +69,74 @@ export function TrendingTopicsPanel({ isCurator }: TrendingTopicsPanelProps) {
 
   return (
     <section className="space-y-4">
-      <div className="rounded-xl border border-amber-700/40 bg-amber-950/30 p-3.5 text-xs text-amber-100">
-        <p className="font-semibold">Temas de Actualidad — Bloque independiente</p>
-        <p className="mt-1 text-amber-200/80">
-          Tendencias, debates y afirmaciones recientes del fitness contrastados frente a la Base
-          de Conocimiento. Se mantienen estrictamente separados de la evidencia científica primaria
+      <Surface variant="warning" padded="sm" className="text-xs">
+        <h2 className="font-semibold text-warning-text">
+          Temas de Actualidad — Bloque independiente
+        </h2>
+        <p className="mt-1 leading-relaxed text-ink-muted">
+          Tendencias, debates y afirmaciones recientes del fitness contrastados frente a la Base de
+          Conocimiento. Se mantienen estrictamente separados de la evidencia científica primaria
           (Fichas de Evidencia).
         </p>
-      </div>
+      </Surface>
 
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-lg border border-emerald-700/60 bg-emerald-950/60 px-3 py-2 text-xs text-emerald-200"
-        >
-          {feedback}
-        </p>
-      )}
-      {error && (
-        <p
-          role="alert"
-          className="rounded-lg border border-rose-700/60 bg-rose-950/60 px-3 py-2 text-xs text-rose-200"
-        >
-          {error}
-        </p>
-      )}
+      {feedback && <AlertBanner tone="success">{feedback}</AlertBanner>}
+      {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
       {loading ? (
-        <p className="text-xs text-slate-400">Cargando Temas de Actualidad…</p>
-      ) : topics.length === 0 ? (
-        <p className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-xs text-slate-400">
-          No hay Temas de Actualidad disponibles todavía.
+        <p role="status" className="text-sm text-ink-muted">
+          Cargando Temas de Actualidad…
         </p>
+      ) : topics.length === 0 ? (
+        <Surface variant="inset" padded="md" className="text-xs text-ink-muted">
+          No hay Temas de Actualidad disponibles todavía.
+        </Surface>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-4">
           {topics.map((topic) => (
             <li
               key={topic.id}
-              className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-2.5"
+              className="space-y-3 rounded-panel border border-line bg-surface p-5 shadow-panel"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <h3 className="text-sm font-semibold text-white">{topic.title}</h3>
-                <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[11px] font-medium text-slate-300">
+                <h3 className="heading-section text-lg text-ink">{topic.title}</h3>
+                <Badge tone={topic.status === "approved_context" ? "success" : "neutral"}>
                   {TOPIC_STATUS_LABELS[topic.status]}
-                </span>
+                </Badge>
               </div>
 
-              <p className="text-xs text-slate-300">{topic.summary}</p>
+              <p className="max-w-[68ch] text-sm leading-relaxed text-ink-muted">{topic.summary}</p>
 
-              <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs text-slate-200">
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
+              <div className="max-w-[68ch] rounded-control border border-line bg-surface-muted/60 p-3.5 text-xs">
+                <p className="mb-1 font-semibold text-accent-text">
                   Contraste crítico frente a la Base de Conocimiento
                 </p>
-                <p>{topic.critical_evaluation}</p>
+                <p className="leading-relaxed text-ink">{topic.critical_evaluation}</p>
               </div>
 
               {topic.cited_card_ids.length > 0 && (
-                <p className="text-[11px] text-slate-400">
+                <p className="text-xs text-ink-muted tabular-nums">
                   Fichas de Evidencia contrastadas: {topic.cited_card_ids.length}
                 </p>
               )}
 
               {isCurator && topic.status === "pending" && (
                 <div className="flex flex-wrap gap-2 pt-1">
-                  <button
-                    type="button"
+                  <Button
+                    size="sm"
                     disabled={busyId === topic.id}
                     onClick={() => void handleReview(topic.id, "approved_context")}
-                    className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
                   >
                     Aprobar como contexto
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
                     disabled={busyId === topic.id}
                     onClick={() => void handleReview(topic.id, "dismissed")}
-                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-rose-500 hover:text-rose-200 disabled:opacity-50"
                   >
                     Descartar
-                  </button>
+                  </Button>
                 </div>
               )}
             </li>

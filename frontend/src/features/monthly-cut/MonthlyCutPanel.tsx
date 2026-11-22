@@ -1,27 +1,33 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "../../api/client";
 import type { components } from "../../api/generated/schema";
+import { AlertBanner } from "../../ui/AlertBanner";
+import { Badge, type BadgeTone } from "../../ui/Badge";
+import { Button } from "../../ui/Button";
+import { Input } from "../../ui/Field";
+import { Surface } from "../../ui/Surface";
+import { MONTHLY_CUT_RUN_TYPE_LABELS } from "../science/labels";
 
 type MonthlyCutRun = components["schemas"]["MonthlyCutRunResponse"];
 
 const STATUS_LABELS: Record<MonthlyCutRun["status"], string> = {
   queued: "En cola",
   collecting: "Recolectando",
-  filtering: "Pre-filtrando",
+  filtering: "Filtrando",
   analyzing: "Analizando",
   completed: "Completado",
-  paused_rate_limit: "Pausado por cuota (HTTP 429)",
+  paused_rate_limit: "Pausado por cuota",
   failed: "Fallido",
 };
 
-const STATUS_BADGE_CLASS: Record<MonthlyCutRun["status"], string> = {
-  queued: "bg-slate-800 text-slate-300",
-  collecting: "bg-sky-900/60 text-sky-300",
-  filtering: "bg-sky-900/60 text-sky-300",
-  analyzing: "bg-indigo-900/60 text-indigo-300",
-  completed: "bg-emerald-900/60 text-emerald-300",
-  paused_rate_limit: "bg-amber-900/70 text-amber-200",
-  failed: "bg-rose-900/70 text-rose-200",
+const STATUS_TONES: Record<MonthlyCutRun["status"], BadgeTone> = {
+  queued: "neutral",
+  collecting: "secondary",
+  filtering: "secondary",
+  analyzing: "accent",
+  completed: "success",
+  paused_rate_limit: "warning",
+  failed: "danger",
 };
 
 export function MonthlyCutPanel() {
@@ -72,7 +78,7 @@ export function MonthlyCutPanel() {
     }
     setFeedback(
       data.status === "paused_rate_limit"
-        ? `Corte Mensual pausado por cuota en checkpoint ${data.checkpoint_next_index}/${data.checkpoint_queue_size}.`
+        ? `Corte Mensual pausado por cuota en el punto ${data.checkpoint_next_index}/${data.checkpoint_queue_size}.`
         : `Corte Mensual ejecutado (${data.analyzed_count} Estudios Candidatos analizados).`,
     );
     await loadRuns();
@@ -88,7 +94,7 @@ export function MonthlyCutPanel() {
     );
     setBusy(false);
     if (apiErr || !data) {
-      setError("No se pudo reanudar el Corte Mensual desde el checkpoint.");
+      setError("No se pudo reanudar el Corte Mensual desde el último punto guardado.");
       return;
     }
     setFeedback(
@@ -119,180 +125,165 @@ export function MonthlyCutPanel() {
 
   return (
     <section className="space-y-5">
-      <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-white">Ejecutar Corte Mensual</h2>
-            <p className="text-xs text-slate-400">
-              Recolecta literatura de PubMed, Europe PMC, Crossref y SportRxiv con pre-filtrado
-              determinista, tope configurable y checkpointing de cuota.
+      <Surface variant="focal" padded="md" className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <h2 className="heading-section text-xl text-ink">Ejecutar Corte Mensual</h2>
+            <p className="max-w-2xl text-xs leading-relaxed text-ink-muted">
+              Recolecta literatura de PubMed, Europe PMC, Crossref y SportRxiv con filtrado
+              automático, tope configurable y guardado de progreso si se alcanza el límite de cuota.
             </p>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="soft"
+            size="sm"
             disabled={busy}
             onClick={() => void handleLoadSeedBatch()}
-            className="shrink-0 rounded-lg border border-emerald-500/40 bg-emerald-950/50 px-3.5 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-900/50 disabled:opacity-50"
+            className="shrink-0"
           >
             Cargar Lote Semilla
-          </button>
+          </Button>
         </div>
 
-        <form onSubmit={(e) => void handleTriggerRun(e)} className="space-y-3">
+        <form onSubmit={(e) => void handleTriggerRun(e)} className="space-y-3.5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label htmlFor="mc-date-from" className="mb-1 block text-xs text-slate-300">
+              <label htmlFor="mc-date-from" className="mb-1 block text-xs text-ink-muted">
                 Fecha inicio
               </label>
-              <input
+              <Input
+                compact
                 id="mc-date-from"
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white"
               />
             </div>
             <div>
-              <label htmlFor="mc-date-to" className="mb-1 block text-xs text-slate-300">
+              <label htmlFor="mc-date-to" className="mb-1 block text-xs text-ink-muted">
                 Fecha fin
               </label>
-              <input
+              <Input
+                compact
                 id="mc-date-to"
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white"
               />
             </div>
             <div>
-              <label htmlFor="mc-max-candidates" className="mb-1 block text-xs text-slate-300">
+              <label htmlFor="mc-max-candidates" className="mb-1 block text-xs text-ink-muted">
                 Tope de Estudios Candidatos
               </label>
-              <input
+              <Input
+                compact
                 id="mc-max-candidates"
                 type="number"
                 min={1}
                 max={50}
                 value={maxCandidates}
                 onChange={(e) => setMaxCandidates(Number(e.target.value) || 12)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white"
+                className="tabular-nums"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="mc-query-override" className="mb-1 block text-xs text-slate-300">
+            <label htmlFor="mc-query-override" className="mb-1 block text-xs text-ink-muted">
               Consulta científica opcional
             </label>
-            <input
+            <Input
               id="mc-query-override"
               type="text"
               value={queryOverride}
               onChange={(e) => setQueryOverride(e.target.value)}
               placeholder="Ej.: hypertrophy proximity to failure creatine..."
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white placeholder:text-slate-500"
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={busy}>
             Ejecutar Corte Mensual
-          </button>
+          </Button>
         </form>
 
-        {feedback && (
-          <p
-            role="status"
-            className="rounded-lg border border-emerald-700/60 bg-emerald-950/60 px-3 py-2 text-xs text-emerald-200"
-          >
-            {feedback}
-          </p>
-        )}
-        {error && (
-          <p
-            role="alert"
-            className="rounded-lg border border-rose-700/60 bg-rose-950/60 px-3 py-2 text-xs text-rose-200"
-          >
-            {error}
-          </p>
-        )}
-      </div>
+        {feedback && <AlertBanner tone="success">{feedback}</AlertBanner>}
+        {error && <AlertBanner tone="error">{error}</AlertBanner>}
+      </Surface>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-white">Historial de ejecuciones</h3>
+        <h3 className="heading-section text-lg text-ink">Historial de ejecuciones</h3>
         {loading ? (
-          <p className="text-xs text-slate-400">Cargando historial del Corte Mensual…</p>
-        ) : runs.length === 0 ? (
-          <p className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-xs text-slate-400">
-            Aún no hay ejecuciones registradas del Corte Mensual.
+          <p role="status" className="text-sm text-ink-muted">
+            Cargando historial del Corte Mensual…
           </p>
+        ) : runs.length === 0 ? (
+          <Surface variant="inset" padded="md" className="text-xs text-ink-muted">
+            Aún no hay ejecuciones registradas del Corte Mensual.
+          </Surface>
         ) : (
           <ul className="space-y-3">
             {runs.map((run) => (
               <li
                 key={run.id}
-                className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-2"
+                className="space-y-3 rounded-panel border border-line bg-surface p-4 shadow-panel"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_BADGE_CLASS[run.status]}`}
-                    >
-                      {STATUS_LABELS[run.status]}
+                    <Badge tone={STATUS_TONES[run.status]}>{STATUS_LABELS[run.status]}</Badge>
+                    <span className="text-xs font-medium text-ink-muted">
+                      {MONTHLY_CUT_RUN_TYPE_LABELS[run.run_type] ?? run.run_type}
                     </span>
-                    <span className="text-xs text-slate-400 uppercase">{run.run_type}</span>
                   </div>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-xs text-ink-muted tabular-nums">
                     {run.date_from || run.date_to
-                      ? `${run.date_from ?? "…"} → ${run.date_to ?? "…"}`
+                      ? `${run.date_from ?? "…"} a ${run.date_to ?? "…"}`
                       : new Date(run.started_at).toLocaleDateString("es-ES")}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-xs text-slate-300">
+                <div className="grid grid-cols-1 gap-2 rounded-control border border-line bg-surface-muted/50 p-3 text-xs tabular-nums sm:grid-cols-3">
                   <div>
-                    <span className="text-slate-500">Recolectados:</span> {run.collected_count}
+                    <span className="text-ink-muted">Recolectados:</span>{" "}
+                    <strong className="text-ink">{run.collected_count}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">Filtrados:</span> {run.filtered_count}
+                    <span className="text-ink-muted">Filtrados:</span>{" "}
+                    <strong className="text-ink">{run.filtered_count}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500">Analizados:</span> {run.analyzed_count} /{" "}
-                    {run.max_candidates}
+                    <span className="text-ink-muted">Analizados:</span>{" "}
+                    <strong className="text-ink">
+                      {run.analyzed_count} / {run.max_candidates}
+                    </strong>
                   </div>
                 </div>
 
                 {run.sources.length > 0 && (
-                  <p className="text-[11px] text-slate-400">
-                    Fuentes: {run.sources.join(", ")}
-                  </p>
+                  <p className="text-xs text-ink-muted">Fuentes: {run.sources.join(", ")}</p>
                 )}
 
                 {run.pause_reason && (
-                  <p className="rounded-lg border border-amber-700/50 bg-amber-950/50 px-3 py-1.5 text-xs text-amber-200">
-                    Motivo de pausa: {run.pause_reason} (Checkpoint:{" "}
-                    {run.checkpoint_next_index}/{run.checkpoint_queue_size})
+                  <p className="rounded-control border border-warning/35 bg-warning-soft px-3 py-2 text-xs text-warning-text">
+                    Motivo de pausa: {run.pause_reason} (Progreso: {run.checkpoint_next_index}/
+                    {run.checkpoint_queue_size})
                   </p>
                 )}
 
                 {run.error_message && (
-                  <p className="rounded-lg border border-rose-700/50 bg-rose-950/50 px-3 py-1.5 text-xs text-rose-200">
+                  <p className="rounded-control border border-danger/35 bg-danger-soft px-3 py-2 text-xs text-danger-text">
                     Error: {run.error_message}
                   </p>
                 )}
 
                 {(run.status === "paused_rate_limit" || run.status === "failed") && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="warning"
+                    size="sm"
                     disabled={busy}
                     onClick={() => void handleResumeRun(run.id)}
-                    className="rounded-lg bg-amber-500 px-3.5 py-1.5 text-xs font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
                   >
-                    Reanudar desde checkpoint
-                  </button>
+                    Reanudar desde último punto
+                  </Button>
                 )}
               </li>
             ))}

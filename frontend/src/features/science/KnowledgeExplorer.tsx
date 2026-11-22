@@ -1,35 +1,18 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { apiClient } from "../../api/client";
-import type { components } from "../../api/generated/schema";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { apiClient, extractApiErrorDetail } from "../../api/client";
+import { AlertBanner } from "../../ui/AlertBanner";
+import { Button } from "../../ui/Button";
+import { Surface } from "../../ui/Surface";
+import { EvidenceCardItem, type EvidenceSearchHit } from "./EvidenceCardItem";
+import { KnowledgeFiltersPanel } from "./KnowledgeFiltersPanel";
+import type { EvidenceLevel, ValidityStatus } from "./labels";
 
-type EvidenceSearchHit = components["schemas"]["EvidenceSearchHitResponse"];
-type EvidenceLevel = components["schemas"]["EvidenceLevel"];
-type ValidityStatus = components["schemas"]["ValidityStatus"];
-
-const EVIDENCE_LEVEL_LABELS: Record<EvidenceLevel, string> = {
-  meta_analysis: "Meta-análisis",
-  systematic_review: "Revisión sistemática",
-  position_stand: "Posicionamiento (ISSN/Consenso)",
-  rct: "ECA (RCT)",
-  controlled_trial: "Ensayo controlado",
-  observational: "Observacional",
-  mechanistic: "Mecanístico",
-  preprint: "Preprint",
-};
-
-const VALIDITY_LABELS: Record<ValidityStatus, string> = {
-  active: "Vigente",
-  nuanced: "Matizada",
-  superseded: "Superada",
-  archived: "Archivada",
-};
-
-const VALIDITY_STYLES: Record<ValidityStatus, string> = {
-  active: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  nuanced: "bg-amber-500/20 text-amber-200 border-amber-500/30",
-  superseded: "bg-rose-500/20 text-rose-200 border-rose-500/30",
-  archived: "bg-slate-700/60 text-slate-300 border-slate-600",
-};
+interface SearchCriteria {
+  query: string;
+  tagFilter: string;
+  evidenceLevel: EvidenceLevel | "";
+  validityStatus: ValidityStatus | "";
+}
 
 interface KnowledgeExplorerProps {
   isCurator: boolean;
@@ -40,6 +23,7 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
   const [tagFilter, setTagFilter] = useState("");
   const [evidenceLevel, setEvidenceLevel] = useState<EvidenceLevel | "">("");
   const [validityStatus, setValidityStatus] = useState<ValidityStatus | "">("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [hits, setHits] = useState<EvidenceSearchHit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,13 +31,23 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
   const [editNotes, setEditNotes] = useState("");
   const [editValidity, setEditValidity] = useState<ValidityStatus>("active");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const activeFilterCount =
+    (tagFilter.trim() ? 1 : 0) + (evidenceLevel ? 1 : 0) + (validityStatus ? 1 : 0);
 
   const runSearch = useCallback(
-    async (overrideQuery?: string) => {
+    async (overrides?: Partial<SearchCriteria>) => {
       setLoading(true);
       setError(null);
-      const qValue = (overrideQuery !== undefined ? overrideQuery : query).trim();
-      const parsedTags = tagFilter
+      const qValue = (overrides?.query !== undefined ? overrides.query : query).trim();
+      const rawTags = overrides?.tagFilter !== undefined ? overrides.tagFilter : tagFilter;
+      const nextEvidenceLevel =
+        overrides?.evidenceLevel !== undefined ? overrides.evidenceLevel : evidenceLevel;
+      const nextValidityStatus =
+        overrides?.validityStatus !== undefined ? overrides.validityStatus : validityStatus;
+
+      const parsedTags = rawTags
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
@@ -64,8 +58,8 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
             query: {
               q: qValue || undefined,
               tags: parsedTags.length > 0 ? parsedTags : undefined,
-              evidence_level: evidenceLevel || undefined,
-              validity_status: validityStatus || undefined,
+              evidence_level: nextEvidenceLevel || undefined,
+              validity_status: nextValidityStatus || undefined,
               limit: 20,
             },
           },
@@ -74,9 +68,7 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
           setHits(data.items);
         } else {
           setError(
-            typeof apiError === "object" && apiError && "detail" in apiError
-              ? String((apiError as { detail: unknown }).detail)
-              : "No se pudo consultar la Base de Conocimiento.",
+            extractApiErrorDetail(apiError, "No se pudo consultar la Base de Conocimiento."),
           );
         }
       } catch (err) {
@@ -91,14 +83,41 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
   );
 
   useEffect(() => {
-    void runSearch("");
-    // Initial load of approved EvidenceCards
+    void runSearch({ query: "", tagFilter: "", evidenceLevel: "", validityStatus: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    function handleSlashShortcut(event: KeyboardEvent) {
+      if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable) {
+        return;
+      }
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    }
+    window.addEventListener("keydown", handleSlashShortcut);
+    return () => window.removeEventListener("keydown", handleSlashShortcut);
   }, []);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     void runSearch();
+  };
+
+  const handleQuickQuery = (term: string) => {
+    setQuery(term);
+    void runSearch({ query: term });
+  };
+
+  const handleResetFilters = () => {
+    setQuery("");
+    setTagFilter("");
+    setEvidenceLevel("");
+    setValidityStatus("");
+    void runSearch({ query: "", tagFilter: "", evidenceLevel: "", validityStatus: "" });
   };
 
   const handleStartEdit = (hit: EvidenceSearchHit) => {
@@ -122,255 +141,73 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
       setActionMessage("Ficha de Evidencia actualizada.");
       await runSearch();
     } else {
-      setError(
-        typeof apiError === "object" && apiError && "detail" in apiError
-          ? String((apiError as { detail: unknown }).detail)
-          : "No se pudo actualizar la Ficha de Evidencia.",
-      );
+      setError(extractApiErrorDetail(apiError, "No se pudo actualizar la Ficha de Evidencia."));
     }
   };
 
   return (
-    <section className="space-y-4">
-      <form
+    <section className="space-y-5">
+      <KnowledgeFiltersPanel
+        searchInputRef={searchInputRef}
+        query={query}
+        tagFilter={tagFilter}
+        evidenceLevel={evidenceLevel}
+        validityStatus={validityStatus}
+        filtersOpen={filtersOpen}
+        activeFilterCount={activeFilterCount}
+        onQueryChange={setQuery}
+        onTagFilterChange={setTagFilter}
+        onEvidenceLevelChange={(nextLevel) => {
+          setEvidenceLevel(nextLevel);
+          void runSearch({ evidenceLevel: nextLevel });
+        }}
+        onValidityStatusChange={(nextValidity) => {
+          setValidityStatus(nextValidity);
+          void runSearch({ validityStatus: nextValidity });
+        }}
+        onToggleFilters={() => setFiltersOpen((prev) => !prev)}
+        onQuickQuery={handleQuickQuery}
+        onResetFilters={handleResetFilters}
         onSubmit={handleSubmit}
-        className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4"
-      >
-        <div>
-          <label
-            htmlFor="kb-search-input"
-            className="mb-1 block text-xs font-medium text-slate-300"
-          >
-            Buscar Fichas de Evidencia (español, inglés o siglas como RIR, 1RM, HMB, ISSN, mTOR)
-          </label>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              id="kb-search-input"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ej.: volumen semanal hipertrofia, RIR, creatina, mTOR…"
-              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
-            >
-              Buscar
-            </button>
-          </div>
-        </div>
+      />
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <div>
-            <label htmlFor="kb-tag-filter" className="mb-1 block text-[11px] text-slate-400">
-              Etiquetas (separadas por coma)
-            </label>
-            <input
-              id="kb-tag-filter"
-              type="text"
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              placeholder="hipertrofia, volumen"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="kb-level-filter" className="mb-1 block text-[11px] text-slate-400">
-              Nivel de evidencia
-            </label>
-            <select
-              id="kb-level-filter"
-              value={evidenceLevel}
-              onChange={(e) => setEvidenceLevel(e.target.value as EvidenceLevel | "")}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
-            >
-              <option value="">Todos los niveles</option>
-              {(Object.keys(EVIDENCE_LEVEL_LABELS) as EvidenceLevel[]).map((lvl) => (
-                <option key={lvl} value={lvl}>
-                  {EVIDENCE_LEVEL_LABELS[lvl]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="kb-validity-filter" className="mb-1 block text-[11px] text-slate-400">
-              Vigencia
-            </label>
-            <select
-              id="kb-validity-filter"
-              value={validityStatus}
-              onChange={(e) => setValidityStatus(e.target.value as ValidityStatus | "")}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
-            >
-              <option value="">Cualquier vigencia</option>
-              {(Object.keys(VALIDITY_LABELS) as ValidityStatus[]).map((st) => (
-                <option key={st} value={st}>
-                  {VALIDITY_LABELS[st]}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </form>
-
-      {error && (
-        <div
-          role="alert"
-          className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-3 py-2 text-xs text-rose-200"
-        >
-          {error}
-        </div>
-      )}
-
-      {actionMessage && (
-        <div
-          role="status"
-          className="rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-200"
-        >
-          {actionMessage}
-        </div>
-      )}
+      {error && <AlertBanner tone="error">{error}</AlertBanner>}
+      {actionMessage && <AlertBanner tone="success">{actionMessage}</AlertBanner>}
 
       {loading ? (
-        <p className="text-xs text-slate-400">Buscando Fichas de Evidencia…</p>
+        <p role="status" className="text-sm text-ink-muted">
+          Buscando Fichas de Evidencia…
+        </p>
       ) : hits.length === 0 ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-center text-sm text-slate-400">
-          No se encontraron Fichas de Evidencia para los criterios seleccionados.
-        </div>
+        <Surface variant="inset" padded="lg" className="space-y-3 text-center">
+          <p className="text-sm text-ink-muted">
+            No se encontraron Fichas de Evidencia para los criterios seleccionados.
+          </p>
+          {activeFilterCount === 0 && (
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="secondary" size="sm" onClick={handleResetFilters}>
+                Limpiar filtros
+              </Button>
+            </div>
+          )}
+        </Surface>
       ) : (
-        <ul className="space-y-3">
-          {hits.map((hit) => {
-            const { card } = hit;
-            return (
-              <li
-                key={card.id}
-                className="space-y-2.5 rounded-xl border border-slate-800 bg-slate-900/70 p-4"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${VALIDITY_STYLES[card.validity_status]}`}
-                  >
-                    {VALIDITY_LABELS[card.validity_status]}
-                  </span>
-                  <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-medium text-sky-300">
-                    {EVIDENCE_LEVEL_LABELS[card.evidence_level]}
-                  </span>
-                  <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
-                    {card.coverage === "full_text" ? "Texto completo" : "Solo abstract"}
-                  </span>
-                </div>
-
-                <h2 className="text-base font-semibold text-white">{card.title}</h2>
-                <p className="text-sm leading-relaxed text-slate-200">{card.curated_text_es}</p>
-
-                {hit.updated_by_cards.length > 0 && (
-                  <div className="rounded-lg border border-amber-500/30 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-                    <span className="font-semibold">Actualizada por: </span>
-                    {hit.updated_by_cards.map((u) => u.title).join(" · ")}
-                  </div>
-                )}
-
-                {card.curator_notes && (
-                  <p className="text-xs text-slate-400">
-                    <span className="font-semibold text-slate-300">Notas del Curador:</span>{" "}
-                    {card.curator_notes}
-                  </p>
-                )}
-
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  {card.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded bg-slate-800 px-2 py-0.5 text-[11px] text-emerald-300"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                  {card.key_terms_en.map((term) => (
-                    <span
-                      key={term}
-                      className="rounded border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300"
-                    >
-                      {term}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2 text-xs">
-                  <div className="flex items-center gap-3 text-slate-400">
-                    {card.doi && <span>DOI: {card.doi}</span>}
-                    {card.source_url && (
-                      <a
-                        href={card.source_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-medium text-emerald-400 hover:underline"
-                      >
-                        Abrir DOI / PubMed
-                      </a>
-                    )}
-                  </div>
-
-                  {isCurator && editingCardId !== card.id && (
-                    <button
-                      type="button"
-                      onClick={() => handleStartEdit(hit)}
-                      className="rounded-md border border-slate-700 px-2.5 py-1 text-[11px] font-medium text-slate-200 hover:border-emerald-500"
-                    >
-                      Editar notas / vigencia
-                    </button>
-                  )}
-                </div>
-
-                {isCurator && editingCardId === card.id && (
-                  <div className="space-y-2 rounded-lg border border-slate-700 bg-slate-950 p-3">
-                    <label className="block text-xs text-slate-300">
-                      Notas del Curador
-                      <textarea
-                        value={editNotes}
-                        onChange={(e) => setEditNotes(e.target.value)}
-                        rows={2}
-                        className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white"
-                      />
-                    </label>
-                    <label className="block text-xs text-slate-300">
-                      Vigencia
-                      <select
-                        value={editValidity}
-                        onChange={(e) => setEditValidity(e.target.value as ValidityStatus)}
-                        className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white"
-                      >
-                        {(Object.keys(VALIDITY_LABELS) as ValidityStatus[]).map((st) => (
-                          <option key={st} value={st}>
-                            {VALIDITY_LABELS[st]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void handleSaveCard(card.id)}
-                        className="rounded bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950"
-                      >
-                        Guardar cambios
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingCardId(null)}
-                        className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            );
-          })}
+        <ul className="space-y-5">
+          {hits.map((hit) => (
+            <EvidenceCardItem
+              key={hit.card.id}
+              hit={hit}
+              isCurator={isCurator}
+              isEditing={editingCardId === hit.card.id}
+              editNotes={editNotes}
+              editValidity={editValidity}
+              onStartEdit={handleStartEdit}
+              onEditNotesChange={setEditNotes}
+              onEditValidityChange={setEditValidity}
+              onSaveEdit={(cardId) => void handleSaveCard(cardId)}
+              onCancelEdit={() => setEditingCardId(null)}
+            />
+          ))}
         </ul>
       )}
     </section>

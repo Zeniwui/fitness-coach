@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
 import { seedSupabaseSession } from "../../test/authHelpers";
@@ -7,6 +7,7 @@ import { resetMockTrainingState } from "../../test/msw/handlers/training";
 
 describe("Training (Entrenamiento) UI (#7)", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     resetMockTrainingState();
     seedSupabaseSession("tok-athlete");
   });
@@ -30,7 +31,7 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     render(<App initialEntries={["/training"]} />);
 
     await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
-    await user.click(screen.getByRole("button", { name: /^Mesociclos$/i }));
+    await user.click(screen.getByRole("tab", { name: /^Mesociclos$/i }));
 
     // Generate draft with Coach
     await user.click(screen.getByRole("button", { name: /generar borrador con coach/i }));
@@ -66,7 +67,7 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     render(<App initialEntries={["/training"]} />);
 
     await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
-    await user.click(screen.getByRole("button", { name: /^Sesiones$/i }));
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
 
     // Fill quick session form
     const sessionName = screen.getByLabelText(/nombre de la sesión/i);
@@ -90,9 +91,10 @@ describe("Training (Entrenamiento) UI (#7)", () => {
 
     expect(await screen.findByText(/Pierna A Rápida/i)).toBeInTheDocument();
 
-    // Delete the newly created session
-    const deleteButtons = screen.getAllByRole("button", { name: /eliminar/i });
+    // Delete the newly created session (with explicit inline confirmation)
+    const deleteButtons = screen.getAllByRole("button", { name: /^eliminar$/i });
     await user.click(deleteButtons[0]);
+    await user.click(screen.getByRole("button", { name: /confirmar eliminación/i }));
 
     expect(screen.queryByText(/Pierna A Rápida/i)).not.toBeInTheDocument();
   });
@@ -102,10 +104,530 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     render(<App initialEntries={["/training"]} />);
 
     await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
-    await user.click(screen.getByRole("button", { name: /volumen y descarga/i }));
+    await user.click(screen.getByRole("tab", { name: /volumen y descarga/i }));
 
     expect(await screen.findByText(/descarga recomendada/i)).toBeInTheDocument();
     expect(screen.getByText(/pecho/i)).toBeInTheDocument();
     expect(screen.getByText(/Caída de rendimiento/i)).toBeInTheDocument();
+  });
+
+  it("starts from Hoy into a grouped exercise sheet with steppers, completion toggle, set/exercise actions, and PR achievement summary", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByRole("heading", { name: /sesión planificada: torso a/i });
+
+    // Start logging from Today tab
+    const startButtons = screen.getAllByRole("button", { name: /registrar esta sesión/i });
+    await user.click(startButtons[0]);
+
+    // Grouped by exercise: 2 exercise groups (not 6 separate flat exercise inputs)
+    const exerciseInputs = await screen.findAllByLabelText(/^Ejercicio$/i);
+    expect(exerciseInputs).toHaveLength(2);
+    expect(exerciseInputs[0]).toHaveValue("Press inclinado mancuernas");
+    expect(exerciseInputs[1]).toHaveValue("Remo en polea baja");
+
+    // Prescription and previous mark visible in the exercise header
+    const pressGroup = screen.getByRole("group", { name: /Press inclinado mancuernas/i });
+    expect(within(pressGroup).getByText(/3 series · 8–10 reps · RIR 1/i)).toBeInTheDocument();
+    expect(within(pressGroup).getByText(/Marca previa \(2026-11-18\): 32 kg × 9/i)).toBeInTheDocument();
+
+    // Load stepper +2.5 kg updates set 1 from 32 -> 34.5 (beats prior 32 kg PR)
+    const plusBtn = within(pressGroup).getByRole("button", { name: /sumar 2\.5 kg en serie 1/i });
+    await user.click(plusBtn);
+    const pressLoadInputs = within(pressGroup).getAllByLabelText(/carga \(kg\)/i);
+    expect(pressLoadInputs[0]).toHaveValue(34.5);
+
+    // Completion toggle on set 1
+    const completeBtn = within(pressGroup).getByRole("button", {
+      name: /marcar serie 1 completada/i,
+    });
+    expect(completeBtn).toHaveAttribute("aria-pressed", "false");
+    await user.click(completeBtn);
+    expect(completeBtn).toHaveAttribute("aria-pressed", "true");
+
+    // Duplicate last set -> Press now has 4 sets; then remove the 4th set -> back to 3
+    await user.click(within(pressGroup).getByRole("button", { name: /duplicar última serie/i }));
+    expect(within(pressGroup).getAllByLabelText(/carga \(kg\)/i)).toHaveLength(4);
+    await user.click(within(pressGroup).getByRole("button", { name: /quitar serie 4/i }));
+    expect(within(pressGroup).getAllByLabelText(/carga \(kg\)/i)).toHaveLength(3);
+
+    // Switch second exercise ("Remo en polea baja") to lb -> steppers switch to ±5 lb
+    const remoGroup = screen.getByRole("group", { name: /Remo en polea baja/i });
+    await user.selectOptions(within(remoGroup).getByLabelText(/unidad/i), "lb");
+    const plusLbBtn = within(remoGroup).getByRole("button", { name: /sumar 5 lb en serie 1/i });
+    await user.click(plusLbBtn);
+    const remoLoadInputs = within(remoGroup).getAllByLabelText(/carga \(lb\)/i);
+    expect(remoLoadInputs[0]).toHaveValue(5);
+
+    // Fill loads for Remo sets 2 & 3 so validation passes, or mark Remo sets
+    await user.type(remoLoadInputs[1], "110");
+    await user.type(remoLoadInputs[2], "110");
+
+    // Add an extra exercise block and remove it
+    await user.click(screen.getByRole("button", { name: /añadir ejercicio/i }));
+    expect(screen.getAllByLabelText(/^Ejercicio$/i)).toHaveLength(3);
+    const removeGroupButtons = screen.getAllByRole("button", { name: /quitar ejercicio/i });
+    await user.click(removeGroupButtons[removeGroupButtons.length - 1]);
+    expect(screen.getAllByLabelText(/^Ejercicio$/i)).toHaveLength(2);
+
+    // Save session and verify achievement summary with effective sets & PR on Press inclinado
+    await user.click(screen.getByRole("button", { name: /guardar sesión/i }));
+
+    const achievementRegion = await screen.findByRole("status", {
+      name: /resumen de la sesión guardada/i,
+    });
+    expect(achievementRegion).toHaveTextContent(/6 series efectivas/i);
+    expect(achievementRegion).toHaveTextContent(/récord personal/i);
+    expect(achievementRegion).toHaveTextContent(/Press inclinado mancuernas/i);
+    expect(achievementRegion).toHaveTextContent(/34\.5 kg/i);
+  });
+
+  it("validates missing load honestly unless Peso corporal is toggled explicitly", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    const exInput = screen.getByLabelText(/^Ejercicio$/i);
+    await user.type(exInput, "Dominadas estrictas");
+
+    // Attempt to save with empty load -> clear validation error, NOT saved silently as 0 kg
+    await user.click(screen.getByRole("button", { name: /guardar sesión/i }));
+    expect(
+      await screen.findByRole("alert"),
+    ).toHaveTextContent(/falta la carga.*Dominadas estrictas.*Peso corporal/i);
+
+    // Explicitly toggle Peso corporal -> saves cleanly with 0 kg
+    const bodyweightBtn = screen.getByRole("button", { name: /peso corporal/i });
+    await user.click(bodyweightBtn);
+    expect(bodyweightBtn).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: /guardar sesión/i }));
+    expect(
+      await screen.findByRole("status", { name: /resumen de la sesión guardada/i }),
+    ).toHaveTextContent(/1 series efectivas/i);
+  });
+
+  it("migrates legacy flat v1 localStorage drafts into grouped exercises and allows discarding draft with confirmation", async () => {
+    window.localStorage.setItem(
+      "fc-training-session-draft-v1",
+      JSON.stringify({
+        sessionDate: "2026-11-20",
+        sessionName: "Borrador antiguo",
+        sessionPlannedId: null,
+        fatigueNotes: "Hombro cargado",
+        startedFromToday: false,
+        setRows: [
+          {
+            exercise_name: "Curl bíceps barra",
+            muscle_group: "biceps",
+            secondary_muscle_groups: "",
+            reps: "10",
+            load: "30",
+            unit: "kg",
+            rir: "2",
+            rpe: "",
+          },
+          {
+            exercise_name: "Curl bíceps barra",
+            muscle_group: "biceps",
+            secondary_muscle_groups: "",
+            reps: "9",
+            load: "30",
+            unit: "kg",
+            rir: "1",
+            rpe: "",
+          },
+        ],
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    // Legacy 2 flat rows migrated into 1 grouped exercise with 2 sets
+    const exerciseInputs = screen.getAllByLabelText(/^Ejercicio$/i);
+    expect(exerciseInputs).toHaveLength(1);
+    expect(exerciseInputs[0]).toHaveValue("Curl bíceps barra");
+    expect(screen.getAllByLabelText(/carga \(kg\)/i)).toHaveLength(2);
+    expect(screen.getByLabelText(/nombre de la sesión/i)).toHaveValue("Borrador antiguo");
+
+    // Debounced autosave persists upgraded v2 grouped format under Athlete-scoped key & cleans legacy key
+    const scopedKey = "fc-training-session-draft-v1:11111111-1111-1111-1111-111111111111";
+    await waitFor(() => {
+      const saved = JSON.parse(
+        window.localStorage.getItem(scopedKey) ?? "{}",
+      ) as { version?: number; exerciseGroups?: unknown[] };
+      expect(saved.version).toBe(2);
+      expect(saved.exerciseGroups).toHaveLength(1);
+      expect(window.localStorage.getItem("fc-training-session-draft-v1")).toBeNull();
+    });
+
+    // Discard draft with inline confirmation
+    await user.click(screen.getByRole("button", { name: /descartar borrador/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar descarte/i }));
+
+    expect(screen.getByLabelText(/^Ejercicio$/i)).toHaveValue("");
+    expect(screen.getByLabelText(/nombre de la sesión/i)).toHaveValue("Sesión de Entrenamiento");
+    expect(window.localStorage.getItem(scopedKey)).toBeNull();
+  });
+
+  it("edits planned sessions and exercises inside a Mesociclo and persists via PATCH", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Mesociclos$/i }));
+
+    // Open editor for the active Mesociclo
+    const editButtons = screen.getAllByRole("button", { name: /^editar$/i });
+    await user.click(editButtons[0]);
+
+    // Planned day 1 ("Torso A") shows its exercises
+    const day1Group = screen.getByRole("group", { name: /día 1: torso a/i });
+    const exNameInputs = within(day1Group).getAllByLabelText(/^Ejercicio$/i);
+    expect(exNameInputs).toHaveLength(2);
+    expect(exNameInputs[0]).toHaveValue("Press inclinado mancuernas");
+
+    // Update target sets and rep range on exercise 1
+    const targetSetsInputs = within(day1Group).getAllByLabelText(/series objetivo/i);
+    await user.clear(targetSetsInputs[0]);
+    await user.type(targetSetsInputs[0], "4");
+
+    // Add a new exercise to Day 1
+    await user.click(within(day1Group).getByRole("button", { name: /añadir ejercicio/i }));
+    const updatedExInputs = within(day1Group).getAllByLabelText(/^Ejercicio$/i);
+    expect(updatedExInputs).toHaveLength(3);
+    await user.type(updatedExInputs[2], "Elevaciones laterales");
+
+    // Remove exercise 2 ("Remo en polea baja") -> leaves 2 exercises
+    const removeButtons = within(day1Group).getAllByRole("button", {
+      name: /quitar ejercicio/i,
+    });
+    await user.click(removeButtons[1]);
+    expect(within(day1Group).getAllByLabelText(/^Ejercicio$/i)).toHaveLength(2);
+
+    // Save changes via PATCH
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    expect(await screen.findByText(/Mesociclo actualizado correctamente/i)).toBeInTheDocument();
+
+    // Switch back to Hoy tab and confirm updated prescription & new exercise appear
+    await user.click(screen.getByRole("tab", { name: /^Hoy$/i }));
+    expect(await screen.findByText(/Elevaciones laterales/i)).toBeInTheDocument();
+    expect(screen.getByText(/4 series · 8–10 reps/i)).toBeInTheDocument();
+  });
+
+  it("shows truthful insufficient-data states for multi-week volume and e1RM charts when history has fewer than 2 weeks/sessions", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /volumen y descarga/i }));
+
+    // Default seed has only 1 session (1 week)
+    expect(
+      await screen.findByRole("heading", { name: /evolución multi-semana de volumen efectivo/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 semana más/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: /evolución multi-semana de volumen efectivo/i }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.getByRole("heading", { name: /progresión de fuerza estimada \(e1rm\)/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/al menos 2 sesiones de entrenamiento/i)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /progresión de fuerza/i })).not.toBeInTheDocument();
+  });
+
+  it("renders accessible multi-week volume bar chart with muscle filter and e1RM progression chart with exercise selector", async () => {
+    resetMockTrainingState({
+      sessions: [
+        {
+          id: "70000000-0000-0000-0000-000000000903",
+          mesocycle_id: "70000000-0000-0000-0000-000000000001",
+          planned_session_id: null,
+          session_date: "2026-11-18",
+          name: "Torso A",
+          origin: "manual_form",
+          fatigue_notes: null,
+          sets: [
+            {
+              id: "s903-1",
+              exercise_name: "Press inclinado mancuernas",
+              muscle_group: "pecho",
+              secondary_muscle_groups: ["hombros", "triceps"],
+              set_order: 1,
+              reps: 9,
+              load: 34,
+              unit: "kg",
+              rir: 1,
+              rpe: null,
+              notes: null,
+            },
+            {
+              id: "s903-2",
+              exercise_name: "Remo en polea baja",
+              muscle_group: "espalda",
+              secondary_muscle_groups: ["biceps"],
+              set_order: 2,
+              reps: 8,
+              load: 150,
+              unit: "lb",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+          ],
+          created_at: "2026-11-18T18:00:00Z",
+          updated_at: "2026-11-18T18:00:00Z",
+        },
+        {
+          id: "70000000-0000-0000-0000-000000000902",
+          mesocycle_id: "70000000-0000-0000-0000-000000000001",
+          planned_session_id: null,
+          session_date: "2026-11-11",
+          name: "Torso A",
+          origin: "manual_form",
+          fatigue_notes: null,
+          sets: [
+            {
+              id: "s902-1",
+              exercise_name: "Press inclinado mancuernas",
+              muscle_group: "pecho",
+              secondary_muscle_groups: ["triceps"],
+              set_order: 1,
+              reps: 8,
+              load: 32,
+              unit: "kg",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+            {
+              id: "s902-2",
+              exercise_name: "Press inclinado mancuernas",
+              muscle_group: "pecho",
+              secondary_muscle_groups: ["triceps"],
+              set_order: 2,
+              reps: 8,
+              load: 32,
+              unit: "kg",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+            {
+              id: "s902-3",
+              exercise_name: "Remo en polea baja",
+              muscle_group: "espalda",
+              secondary_muscle_groups: ["biceps"],
+              set_order: 3,
+              reps: 8,
+              load: 60,
+              unit: "kg",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+          ],
+          created_at: "2026-11-11T18:00:00Z",
+          updated_at: "2026-11-11T18:00:00Z",
+        },
+        {
+          id: "70000000-0000-0000-0000-000000000901",
+          mesocycle_id: "70000000-0000-0000-0000-000000000001",
+          planned_session_id: null,
+          session_date: "2026-11-04",
+          name: "Torso A",
+          origin: "manual_form",
+          fatigue_notes: null,
+          sets: [
+            {
+              id: "s901-1",
+              exercise_name: "Press inclinado mancuernas",
+              muscle_group: "pecho",
+              secondary_muscle_groups: ["triceps"],
+              set_order: 1,
+              reps: 8,
+              load: 30,
+              unit: "kg",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+          ],
+          created_at: "2026-11-04T18:00:00Z",
+          updated_at: "2026-11-04T18:00:00Z",
+        },
+      ],
+    });
+
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /volumen y descarga/i }));
+
+    // Multi-week effective volume bar chart defaults to "Todos los grupos" across 3 weeks
+    const volumeChart = await screen.findByRole("img", {
+      name: /evolución multi-semana de volumen efectivo.*todos los grupos/i,
+    });
+    expect(volumeChart).toBeInTheDocument();
+    expect(volumeChart).toHaveAttribute("aria-label", expect.stringMatching(/3 semanas/i));
+
+    // Switch muscle-group selector to "pecho" -> chart aria-label updates
+    const muscleSelect = screen.getByLabelText(/filtrar volumen por grupo muscular/i);
+    await user.selectOptions(muscleSelect, "pecho");
+    expect(
+      screen.getByRole("img", { name: /evolución multi-semana de volumen efectivo.*pecho/i }),
+    ).toBeInTheDocument();
+
+    // e1RM & best-load progression chart defaults to Press inclinado mancuernas (3 sessions)
+    const e1rmChart = screen.getByRole("img", {
+      name: /progresión de fuerza.*press inclinado mancuernas/i,
+    });
+    expect(e1rmChart).toBeInTheDocument();
+    expect(e1rmChart).toHaveAttribute("aria-label", expect.stringMatching(/44\.2 kg/i));
+
+    // Switch exercise selector to "Remo en polea baja" (2 sessions, mixed kg & lb)
+    const exerciseSelect = screen.getByLabelText(/seleccionar ejercicio/i);
+    await user.selectOptions(exerciseSelect, "remo en polea baja");
+    const remoChart = screen.getByRole("img", {
+      name: /progresión de fuerza.*remo en polea baja/i,
+    });
+    expect(remoChart).toBeInTheDocument();
+    // 150 lb x 8 = 68.04 kg load, 86.18 kg e1RM
+    expect(remoChart).toHaveAttribute("aria-label", expect.stringMatching(/86\.2 kg|86\.18 kg/i));
+  });
+
+  it("lets Athlete type comma-separated secondary muscles and clear/replace numeric fields cleanly in MesocycleEditor", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Mesociclos$/i }));
+
+    const editButtons = screen.getAllByRole("button", { name: /^editar$/i });
+    await user.click(editButtons[0]);
+
+    const day1Group = screen.getByRole("group", { name: /día 1: torso a/i });
+
+    // Type comma-separated secondary muscles with spaces -> commas/spaces preserved while editing
+    const secondaryInputs = within(day1Group).getAllByLabelText(/músculos secundarios/i);
+    await user.clear(secondaryInputs[0]);
+    await user.type(secondaryInputs[0], "tríceps, deltoides anterior");
+    expect(secondaryInputs[0]).toHaveValue("tríceps, deltoides anterior");
+
+    // Clear target_sets and rep ranges without snapping immediately to 1
+    const setsInputs = within(day1Group).getAllByLabelText(/series objetivo/i);
+    await user.clear(setsInputs[0]);
+    expect(setsInputs[0]).toHaveValue(null);
+    await user.type(setsInputs[0], "5");
+    expect(setsInputs[0]).toHaveValue(5);
+
+    const minRepsInputs = within(day1Group).getAllByLabelText(/reps mín\./i);
+    await user.clear(minRepsInputs[0]);
+    expect(minRepsInputs[0]).toHaveValue(null);
+    await user.type(minRepsInputs[0], "6");
+    expect(minRepsInputs[0]).toHaveValue(6);
+
+    const maxRepsInputs = within(day1Group).getAllByLabelText(/reps máx\./i);
+    await user.clear(maxRepsInputs[0]);
+    expect(maxRepsInputs[0]).toHaveValue(null);
+    await user.type(maxRepsInputs[0], "10");
+    expect(maxRepsInputs[0]).toHaveValue(10);
+
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    expect(await screen.findByText(/Mesociclo actualizado correctamente/i)).toBeInTheDocument();
+
+    // Verify saved prescription on Hoy tab reflects exact 5 series · 6–10 reps (not 15 or 16)
+    await user.click(screen.getByRole("tab", { name: /^Hoy$/i }));
+    expect(await screen.findByText(/5 series · 6–10 reps/i)).toBeInTheDocument();
+  });
+
+  it("rejects saving when an added exercise block has no name instead of silently dropping it", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    // Fill first exercise cleanly
+    await user.type(screen.getByLabelText(/^Ejercicio$/i), "Press banca");
+    await user.type(screen.getByLabelText(/carga \(kg\)/i), "80");
+
+    // Add a second block with load entered but empty exercise name
+    await user.click(screen.getByRole("button", { name: /añadir ejercicio/i }));
+    const loadInputs = screen.getAllByLabelText(/carga \(kg\)/i);
+    await user.type(loadInputs[1], "50");
+
+    await user.click(screen.getByRole("button", { name: /guardar sesión/i }));
+
+    // Must surface explicit Spanish validation error instead of silently dropping block 2
+    expect(await screen.findByRole("alert")).toHaveTextContent(/bloque 2/i);
+  });
+
+  it("displays SessionAchievementBanner with PRs when saving a voice/natural-language session", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    const nlInput = screen.getByLabelText(/describe tu sesión de entrenamiento/i);
+    await user.type(nlInput, "Hice 3 series de press inclinado mancuernas a 8 repes");
+    await user.click(screen.getByRole("button", { name: /generar borrador/i }));
+
+    expect(await screen.findByText(/borrador de sesión de entrenamiento/i)).toBeInTheDocument();
+
+    // Fill load 36 kg (beats seeded 32 kg PR on Press inclinado mancuernas)
+    const loadInputs = screen.getAllByLabelText(/carga serie/i);
+    for (const input of loadInputs) {
+      await user.clear(input);
+      await user.type(input, "36");
+    }
+
+    await user.click(screen.getByRole("button", { name: /confirmar y guardar sesión/i }));
+
+    const achievementRegion = await screen.findByRole("status", {
+      name: /resumen de la sesión guardada/i,
+    });
+    expect(achievementRegion).toHaveTextContent(/3 series efectivas/i);
+    expect(achievementRegion).toHaveTextContent(/récord personal/i);
+    expect(achievementRegion).toHaveTextContent(/Press inclinado mancuernas/i);
+  });
+
+  it("isolates persisted training session drafts in localStorage per Athlete", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    await user.type(screen.getByLabelText(/^Ejercicio$/i), "Sentadilla exclusiva Atleta A");
+
+    // Wait for debounced autosave under Athlete A's scoped key
+    await waitFor(() => {
+      const scopedKey = "fc-training-session-draft-v1:11111111-1111-1111-1111-111111111111";
+      expect(window.localStorage.getItem(scopedKey)).toContain("Sentadilla exclusiva Atleta A");
+    });
+
+    unmount();
+
+    // Switch session to Athlete B ("tok-dual") -> must NOT see Athlete A's draft
+    seedSupabaseSession("tok-dual");
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    expect(screen.getByLabelText(/^Ejercicio$/i)).toHaveValue("");
+    expect(screen.queryByDisplayValue(/Sentadilla exclusiva Atleta A/i)).not.toBeInTheDocument();
   });
 });

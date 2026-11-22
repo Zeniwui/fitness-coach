@@ -27,8 +27,10 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/actualizada por/i)).toBeInTheDocument();
 
-    // Curator-only controls are hidden for Athlete
+    // Curator-only controls are hidden for Athlete (exact 2 scientific tabs)
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
     expect(screen.queryByRole("tab", { name: /bandeja del curador/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /invitaciones/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /re-indexar/i })).not.toBeInTheDocument();
 
     // Exact acronym search (RIR)
@@ -49,8 +51,10 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
     const user = userEvent.setup();
     render(<App initialEntries={["/science"]} />);
 
-    // Switch to Bandeja del Curador tab
+    // Switch to Bandeja del Curador tab (Curator sees exactly 4 scientific tabs, never Invitaciones)
     const inboxTab = await screen.findByRole("tab", { name: /bandeja del curador/i });
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
+    expect(screen.queryByRole("tab", { name: /invitaciones/i })).not.toBeInTheDocument();
     await user.click(inboxTab);
 
     // Prominent paywall warning label & 6-block critical sheet visible
@@ -97,6 +101,9 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
     expect(lastFromPdfReceived).toBe(true);
 
     // 2. Attach an evolution relation (supersedes) targeting an existing approved EvidenceCard
+    await user.click(
+      await screen.findByRole("button", { name: /vincular con fichas existentes/i }),
+    );
     const relationTypeSelect = await screen.findByLabelText(/tipo de relación de evolución/i);
     await user.selectOptions(relationTypeSelect, "supersedes");
 
@@ -117,5 +124,85 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
         rationale: null,
       },
     ]);
+  });
+
+  it("collapses advanced filters behind Filtros toggle with active count and one-tap clean refetch reset", async () => {
+    seedSupabaseSession("tok-athlete");
+    const user = userEvent.setup();
+    render(<App initialEntries={["/science"]} />);
+
+    // Both cards load initially
+    expect(
+      await screen.findByRole("heading", {
+        name: /weekly resistance training volume and muscle hypertrophy/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /early low-volume resistance training trial/i }),
+    ).toBeInTheDocument();
+
+    // Primary search & quick-query chips are visible; advanced filters are collapsed
+    expect(screen.getByLabelText(/buscar fichas de evidencia/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^RIR$/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/etiquetas/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/nivel de evidencia/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/vigencia/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /limpiar filtros/i })).not.toBeInTheDocument();
+
+    const filtersToggle = screen.getByRole("button", { name: /^filtros$/i });
+    expect(filtersToggle).toHaveAttribute("aria-expanded", "false");
+
+    // Open advanced filters
+    await user.click(filtersToggle);
+    expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
+    const tagInput = screen.getByLabelText(/etiquetas/i);
+    const levelSelect = screen.getByLabelText(/nivel de evidencia/i);
+    const validitySelect = screen.getByLabelText(/vigencia/i);
+
+    // Applying evidence level filters immediately and updates count to Filtros (1)
+    await user.selectOptions(levelSelect, "meta_analysis");
+    expect(screen.getByRole("button", { name: /filtros \(1\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /limpiar filtros/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /early low-volume resistance training trial/i }),
+    ).not.toBeInTheDocument();
+
+    // Adding validity & tag updates count to Filtros (3)
+    await user.selectOptions(validitySelect, "active");
+    await user.type(tagInput, "volumen");
+    expect(screen.getByRole("button", { name: /filtros \(3\)/i })).toBeInTheDocument();
+
+    // Collapse filters while active: count and one-tap clear remain visible
+    await user.click(screen.getByRole("button", { name: /filtros \(3\)/i }));
+    expect(screen.queryByLabelText(/nivel de evidencia/i)).not.toBeInTheDocument();
+    const clearBtn = screen.getByRole("button", { name: /limpiar filtros/i });
+    expect(clearBtn).toBeInTheDocument();
+
+    // One-tap clear triggers a clean refetch restoring all cards without stale filter params
+    await user.click(clearBtn);
+    expect(
+      await screen.findByRole("heading", { name: /early low-volume resistance training trial/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^filtros$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /limpiar filtros/i })).not.toBeInTheDocument();
+  });
+
+  it("exposes accessible inline help explaining evidence levels and scientific validity", async () => {
+    seedSupabaseSession("tok-athlete");
+    const user = userEvent.setup();
+    render(<App initialEntries={["/science"]} />);
+
+    const helpBtn = await screen.findByRole("button", {
+      name: /ayuda sobre rigor y actualización científica/i,
+    });
+    expect(helpBtn).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(helpBtn);
+    expect(helpBtn).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/metaanálisis y revisiones sistemáticas/i)).toBeInTheDocument();
+    expect(screen.getByText(/vigente, matizada o superada/i)).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(helpBtn).toHaveAttribute("aria-expanded", "false");
   });
 });

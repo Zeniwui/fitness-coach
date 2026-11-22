@@ -1,8 +1,13 @@
 import { FormEvent, useState } from "react";
 import { apiClient } from "../../api/client";
 import type { components } from "../../api/generated/schema";
+import { AlertBanner } from "../../ui/AlertBanner";
+import { Button } from "../../ui/Button";
+import { Input } from "../../ui/Field";
+import { Surface } from "../../ui/Surface";
 
 export type TrainingSessionDraftItem = components["schemas"]["TrainingSessionDraftResponse"];
+export type SavedTrainingSession = components["schemas"]["TrainingSessionResponse"];
 type SessionSetInput = components["schemas"]["SessionSetInput"];
 
 interface EditableDraftSet {
@@ -20,7 +25,7 @@ interface EditableDraftSet {
 interface SessionDraftCardProps {
   draft: TrainingSessionDraftItem;
   activeMesocycleId?: string | null;
-  onSaved?: () => void | Promise<void>;
+  onSaved?: (savedSession: SavedTrainingSession) => void | Promise<void>;
   onDiscard: () => void;
 }
 
@@ -105,11 +110,11 @@ export function SessionDraftCard({
           sets: payloadSets,
         },
       });
-      if (res.error) {
+      if (res.error || !res.data) {
         setErrorMsg("No se pudo guardar la Sesión de Entrenamiento. Revisa los datos.");
         return;
       }
-      await onSaved?.();
+      await onSaved?.(res.data);
     } finally {
       setSaving(false);
     }
@@ -118,176 +123,154 @@ export function SessionDraftCard({
   const ambiguities = draft.ambiguities ?? [];
 
   return (
-    <form
-      onSubmit={(e) => void handleConfirmSave(e)}
-      className="space-y-3 rounded-2xl border border-amber-500/50 bg-amber-950/20 p-4"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
-            Borrador de Sesión de Entrenamiento (sin guardar)
-          </p>
-          <p className="text-[11px] text-slate-300">
-            Revisa y edita los campos antes de confirmar su guardado en tu historial.
-          </p>
+    <Surface variant="warning" padded="md">
+      <form onSubmit={(e) => void handleConfirmSave(e)} className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-warning-text">
+              Borrador de Sesión de Entrenamiento (sin guardar)
+            </p>
+            <p className="text-xs text-ink-muted">
+              Revisa y edita los campos antes de confirmar su guardado en tu historial.
+            </p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={onDiscard}>
+            Descartar borrador
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={onDiscard}
-          className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs text-slate-300 hover:border-slate-400"
-        >
-          Descartar borrador
-        </button>
-      </div>
 
-      {ambiguities.length > 0 && (
-        <div
-          role="status"
-          className="space-y-1 rounded-xl border border-amber-500/40 bg-amber-950/50 p-3 text-xs text-amber-200"
-        >
-          <p className="font-semibold text-amber-300">Campos pendientes o ambiguos detectados:</p>
-          <ul className="list-disc space-y-0.5 pl-4">
-            {ambiguities.map((amb, i) => (
-              <li key={`${amb.field}-${amb.set_index ?? i}`}>{amb.message_es}</li>
-            ))}
-          </ul>
+        {ambiguities.length > 0 && (
+          <AlertBanner tone="warning" className="text-xs">
+            <p className="font-semibold">Campos pendientes o ambiguos detectados:</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4">
+              {ambiguities.map((amb, i) => (
+                <li key={`${amb.field}-${amb.set_index ?? i}`}>{amb.message_es}</li>
+              ))}
+            </ul>
+          </AlertBanner>
+        )}
+
+        {errorMsg && <AlertBanner tone="error">{errorMsg}</AlertBanner>}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block space-y-1 text-xs font-medium text-ink-muted">
+            <span>Nombre del borrador</span>
+            <Input
+              compact
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <label className="block space-y-1 text-xs font-medium text-ink-muted">
+            <span>Fecha de sesión</span>
+            <Input
+              compact
+              type="date"
+              value={sessionDate}
+              onChange={(e) => setSessionDate(e.target.value)}
+            />
+          </label>
         </div>
-      )}
 
-      {errorMsg && (
-        <p
-          role="alert"
-          className="rounded-lg border border-rose-500/40 bg-rose-950/60 px-3 py-2 text-xs text-rose-200"
-        >
-          {errorMsg}
-        </p>
-      )}
+        <div className="space-y-2.5">
+          {sets.map((row, idx) => {
+            const loadMissing = row.missing_fields.includes("load") && row.load.trim() === "";
+            const rirMissing =
+              row.missing_fields.includes("rir") && row.rir.trim() === "" && row.rpe.trim() === "";
+            return (
+              <div
+                key={idx}
+                className="grid grid-cols-2 gap-2.5 rounded-panel border border-line bg-surface p-3 sm:grid-cols-6"
+              >
+                <label className="col-span-2 block space-y-1 text-xs text-ink-muted">
+                  <span>Ejercicio serie {idx + 1}</span>
+                  <Input
+                    compact
+                    type="text"
+                    value={row.exercise_name}
+                    onChange={(e) => updateSet(idx, { exercise_name: e.target.value })}
+                  />
+                </label>
+                <label className="block space-y-1 text-xs text-ink-muted">
+                  <span>Reps serie {idx + 1}</span>
+                  <Input
+                    compact
+                    type="number"
+                    min={1}
+                    value={row.reps}
+                    onChange={(e) => updateSet(idx, { reps: e.target.value })}
+                    className="tabular-nums"
+                  />
+                </label>
+                <label
+                  className={`block space-y-1 text-xs ${
+                    loadMissing ? "font-semibold text-warning-text" : "text-ink-muted"
+                  }`}
+                >
+                  <span>
+                    Carga serie {idx + 1} ({row.unit})
+                  </span>
+                  <Input
+                    compact
+                    type="number"
+                    step="0.5"
+                    min={0}
+                    placeholder="Pendiente"
+                    value={row.load}
+                    onChange={(e) => updateSet(idx, { load: e.target.value })}
+                    className={`tabular-nums ${loadMissing ? "border-warning bg-warning-soft/50" : ""}`}
+                  />
+                </label>
+                <label
+                  className={`block space-y-1 text-xs ${
+                    rirMissing ? "font-semibold text-warning-text" : "text-ink-muted"
+                  }`}
+                >
+                  <span>RIR serie {idx + 1}</span>
+                  <Input
+                    compact
+                    type="number"
+                    step="0.5"
+                    min={0}
+                    max={10}
+                    placeholder="Opcional"
+                    value={row.rir}
+                    onChange={(e) => updateSet(idx, { rir: e.target.value })}
+                    className={`tabular-nums ${rirMissing ? "border-warning bg-warning-soft/50" : ""}`}
+                  />
+                </label>
+                <label className="block space-y-1 text-xs text-ink-muted">
+                  <span>Músculo</span>
+                  <Input
+                    compact
+                    type="text"
+                    value={row.muscle_group}
+                    onChange={(e) => updateSet(idx, { muscle_group: e.target.value })}
+                  />
+                </label>
+              </div>
+            );
+          })}
+        </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <label className="block text-xs text-slate-300">
-          Nombre del borrador
-          <input
+        <label className="block space-y-1 text-xs font-medium text-ink-muted">
+          <span>Notas de fatiga / sensaciones</span>
+          <Input
+            compact
             type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
+            value={fatigueNotes}
+            onChange={(e) => setFatigueNotes(e.target.value)}
+            placeholder="Ej. última serie costó mucho"
           />
         </label>
-        <label className="block text-xs text-slate-300">
-          Fecha de sesión
-          <input
-            type="date"
-            value={sessionDate}
-            onChange={(e) => setSessionDate(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
-          />
-        </label>
-      </div>
 
-      <div className="space-y-2">
-        {sets.map((row, idx) => {
-          const loadMissing = row.missing_fields.includes("load") && row.load.trim() === "";
-          const rirMissing =
-            row.missing_fields.includes("rir") && row.rir.trim() === "" && row.rpe.trim() === "";
-          return (
-            <div
-              key={idx}
-              className="grid grid-cols-2 gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-2.5 sm:grid-cols-6"
-            >
-              <label className="col-span-2 block text-[11px] text-slate-400">
-                Ejercicio serie {idx + 1}
-                <input
-                  type="text"
-                  value={row.exercise_name}
-                  onChange={(e) => updateSet(idx, { exercise_name: e.target.value })}
-                  className="mt-0.5 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white"
-                />
-              </label>
-              <label className="block text-[11px] text-slate-400">
-                Reps serie {idx + 1}
-                <input
-                  type="number"
-                  min={1}
-                  value={row.reps}
-                  onChange={(e) => updateSet(idx, { reps: e.target.value })}
-                  className="mt-0.5 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white"
-                />
-              </label>
-              <label
-                className={`block text-[11px] ${
-                  loadMissing ? "font-semibold text-amber-300" : "text-slate-400"
-                }`}
-              >
-                Carga serie {idx + 1} ({row.unit})
-                <input
-                  type="number"
-                  step="0.5"
-                  min={0}
-                  placeholder="Pendiente"
-                  value={row.load}
-                  onChange={(e) => updateSet(idx, { load: e.target.value })}
-                  className={`mt-0.5 w-full rounded-lg border px-2 py-1 text-xs text-white ${
-                    loadMissing
-                      ? "border-amber-400 bg-amber-950/40"
-                      : "border-slate-700 bg-slate-900"
-                  }`}
-                />
-              </label>
-              <label
-                className={`block text-[11px] ${
-                  rirMissing ? "font-semibold text-amber-300" : "text-slate-400"
-                }`}
-              >
-                RIR serie {idx + 1}
-                <input
-                  type="number"
-                  step="0.5"
-                  min={0}
-                  max={10}
-                  placeholder="Opcional"
-                  value={row.rir}
-                  onChange={(e) => updateSet(idx, { rir: e.target.value })}
-                  className={`mt-0.5 w-full rounded-lg border px-2 py-1 text-xs text-white ${
-                    rirMissing
-                      ? "border-amber-400 bg-amber-950/40"
-                      : "border-slate-700 bg-slate-900"
-                  }`}
-                />
-              </label>
-              <label className="block text-[11px] text-slate-400">
-                Músculo
-                <input
-                  type="text"
-                  value={row.muscle_group}
-                  onChange={(e) => updateSet(idx, { muscle_group: e.target.value })}
-                  className="mt-0.5 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white"
-                />
-              </label>
-            </div>
-          );
-        })}
-      </div>
-
-      <label className="block text-xs text-slate-300">
-        Notas de fatiga / sensaciones
-        <input
-          type="text"
-          value={fatigueNotes}
-          onChange={(e) => setFatigueNotes(e.target.value)}
-          placeholder="Ej. última serie costó mucho"
-          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
-        />
-      </label>
-
-      <div className="flex flex-wrap justify-end gap-2">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
-        >
-          {saving ? "Guardando…" : "Confirmar y guardar sesión"}
-        </button>
-      </div>
-    </form>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button type="submit" disabled={saving}>
+            {saving ? "Guardando…" : "Confirmar y guardar sesión"}
+          </Button>
+        </div>
+      </form>
+    </Surface>
   );
 }

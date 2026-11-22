@@ -31,3 +31,6 @@ backend/openapi.json
 Thumbs.db
 .vscode/
 .idea/
+# Playwright CLI output (may contain credentials)
+.playwright/
+.playwright-cli/

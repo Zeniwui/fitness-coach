@@ -21,7 +21,7 @@ export function ColdStartBanner() {
       <div
         role="status"
         aria-live="polite"
-        className="border-b border-amber-500/40 bg-amber-950/80 px-4 py-2 text-center text-xs font-medium text-amber-200"
+        className="sticky top-0 z-40 border-b border-warning/35 bg-warning-soft px-4 py-2 text-center text-xs font-medium text-warning-text shadow-sm"
       >
         {state.message}
       </div>
@@ -31,7 +31,7 @@ export function ColdStartBanner() {
   return (
     <div
       role="alert"
-      className="border-b border-rose-500/40 bg-rose-950/90 px-4 py-2 text-center text-xs font-medium text-rose-200"
+      className="sticky top-0 z-40 border-b border-danger/35 bg-danger-soft px-4 py-2 text-center text-xs font-medium text-danger-text shadow-sm"
     >
       {state.message}
     </div>

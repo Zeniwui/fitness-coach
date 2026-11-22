@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -65,7 +66,7 @@ function translateSupabaseAuthError(message: string | undefined): string {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const configured = isSupabaseConfigured();
-  const missingEnvVars = getMissingSupabaseEnvVars();
+  const missingEnvVars = useMemo(() => getMissingSupabaseEnvVars(), []);
   const { pendingInviteCode, clearPendingInviteCode } = usePendingInviteCode();
 
   const [status, setStatus] = useState<AuthStatus>(
@@ -300,26 +301,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clearSessionState]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        status,
-        athlete,
-        loading: status === "loading",
-        pendingEmail,
-        pendingInviteCode,
-        missingEnvVars,
-        error,
-        signInWithPassword,
-        redeemInvitation,
-        bootstrapCurator,
-        logout,
-        refreshSession,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      status,
+      athlete,
+      loading: status === "loading",
+      pendingEmail,
+      pendingInviteCode,
+      missingEnvVars,
+      error,
+      signInWithPassword,
+      redeemInvitation,
+      bootstrapCurator,
+      logout,
+      refreshSession,
+    }),
+    [
+      status,
+      athlete,
+      pendingEmail,
+      pendingInviteCode,
+      missingEnvVars,
+      error,
+      signInWithPassword,
+      redeemInvitation,
+      bootstrapCurator,
+      logout,
+      refreshSession,
+    ],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

@@ -1,5 +1,11 @@
 import { type FormEvent, useState } from "react";
 import { apiClient } from "../../api/client";
+import { AlertBanner } from "../../ui/AlertBanner";
+import { Badge } from "../../ui/Badge";
+import { Button } from "../../ui/Button";
+import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
+import { Input, Select } from "../../ui/Field";
+import { Surface } from "../../ui/Surface";
 import {
   type InjuryResponse,
   type InjurySeverity,
@@ -129,76 +135,67 @@ export function InjuriesSection({ injuries, onInjuriesChanged }: InjuriesSection
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-      <div>
-        <h2 className="text-base font-semibold text-white">Lesiones y restricciones físicas</h2>
-        <p className="text-xs text-slate-400">
+    <Surface variant="default" padded="md" className="space-y-4">
+      <div className="space-y-1">
+        <h2 className="heading-section text-xl text-ink">Lesiones y restricciones físicas</h2>
+        <p className="text-xs leading-relaxed text-ink-muted">
           Marca una molestia como resuelta o elimínala en un toque para que el Coach deje de
           restringir esos ejercicios de inmediato.
         </p>
       </div>
 
-      {error && (
-        <div
-          role="alert"
-          className="rounded-xl border border-rose-500/40 bg-rose-950/50 px-3 py-2 text-xs text-rose-200"
-        >
-          {error}
-        </div>
-      )}
+      {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
-      <form onSubmit={handleAddInjury} className="space-y-3 rounded-xl bg-slate-950/60 p-3">
+      <form
+        onSubmit={handleAddInjury}
+        className="space-y-3 rounded-panel border border-line bg-surface-muted/50 p-4"
+      >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block space-y-1 text-xs">
-            <span className="font-medium text-slate-300">Zona corporal</span>
-            <input
+          <label className="block space-y-1 text-xs font-medium text-ink-muted">
+            <span>Zona corporal</span>
+            <Input
               type="text"
               value={bodyPart}
               onChange={(e) => setBodyPart(e.target.value)}
               placeholder="Ej. Hombro derecho, rodilla izquierda"
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
             />
           </label>
-          <label className="block space-y-1 text-xs">
-            <span className="font-medium text-slate-300">Gravedad</span>
-            <select
+          <label className="block space-y-1 text-xs font-medium text-ink-muted">
+            <span>Gravedad</span>
+            <Select
               value={severity}
               onChange={(e) => setSeverity(e.target.value as InjurySeverity)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
             >
-              <option value="mild">Leve</option>
-              <option value="moderate">Moderada</option>
-              <option value="severe">Severa</option>
-            </select>
+              {(Object.keys(SEVERITY_LABELS) as InjurySeverity[]).map((lvl) => (
+                <option key={lvl} value={lvl}>
+                  {SEVERITY_LABELS[lvl]}
+                </option>
+              ))}
+            </Select>
           </label>
         </div>
 
-        <label className="block space-y-1 text-xs">
-          <span className="font-medium text-slate-300">Descripción de la lesión o restricción</span>
-          <input
+        <label className="block space-y-1 text-xs font-medium text-ink-muted">
+          <span>Descripción de la lesión o restricción</span>
+          <Input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Ej. Molestia en press plano con agarre ancho"
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
           />
         </label>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-60 sm:w-auto"
-        >
+        <Button type="submit" variant="warning" disabled={submitting}>
           {submitting ? "Añadiendo…" : "Añadir restricción"}
-        </button>
+        </Button>
       </form>
 
       {injuries.length === 0 ? (
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-ink-muted">
           No hay lesiones ni restricciones registradas en tu Perfil Vivo.
         </p>
       ) : (
-        <ul className="space-y-2.5">
+        <ul className="space-y-3">
           {injuries.map((injury) => {
             const isEditing = editingId === injury.id;
             const isActive = injury.status === "active";
@@ -206,89 +203,74 @@ export function InjuriesSection({ injuries, onInjuriesChanged }: InjuriesSection
             return (
               <li
                 key={injury.id}
-                className={`rounded-xl border p-3 ${
+                className={`rounded-panel border p-4 ${
                   isActive
-                    ? "border-amber-500/30 bg-slate-950/80"
-                    : "border-slate-800 bg-slate-950/40 opacity-80"
+                    ? "border-warning/35 bg-warning-soft/35"
+                    : "border-line bg-surface-muted/40 opacity-85"
                 }`}
               >
                 {isEditing ? (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <input
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      <Input
+                        compact
                         aria-label="Editar zona corporal"
                         type="text"
                         value={editBodyPart}
                         onChange={(e) => setEditBodyPart(e.target.value)}
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm text-white"
                       />
-                      <select
+                      <Select
+                        compact
                         aria-label="Editar gravedad"
                         value={editSeverity}
                         onChange={(e) => setEditSeverity(e.target.value as InjurySeverity)}
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm text-white"
                       >
-                        <option value="mild">Leve</option>
-                        <option value="moderate">Moderada</option>
-                        <option value="severe">Severa</option>
-                      </select>
+                        {(Object.keys(SEVERITY_LABELS) as InjurySeverity[]).map((lvl) => (
+                          <option key={lvl} value={lvl}>
+                            {SEVERITY_LABELS[lvl]}
+                          </option>
+                        ))}
+                      </Select>
                     </div>
-                    <input
+                    <Input
+                      compact
                       aria-label="Editar descripción"
                       type="text"
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm text-white"
                     />
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleSaveEdit(injury.id)}
-                        className="rounded-lg bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950"
-                      >
+                      <Button size="sm" onClick={() => void handleSaveEdit(injury.id)}>
                         Guardar cambios
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(null)}
-                        className="rounded-lg border border-slate-700 px-3 py-1 text-xs text-slate-300"
-                      >
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => setEditingId(null)}>
                         Cancelar
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-white">
-                            {injury.body_part}
-                          </span>
-                          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
-                            {SEVERITY_LABELS[injury.severity]}
-                          </span>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                              isActive
-                                ? "bg-amber-500/20 text-amber-200"
-                                : "bg-emerald-500/20 text-emerald-200"
-                            }`}
-                          >
-                            {isActive ? "Activa" : "Resuelta"}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-300">{injury.description}</p>
-                        {injury.resolution_notes && (
-                          <p className="mt-1 text-xs text-emerald-300">
-                            Nota de recuperación: {injury.resolution_notes}
-                          </p>
-                        )}
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-ink">{injury.body_part}</span>
+                        <Badge tone="neutral">{SEVERITY_LABELS[injury.severity]}</Badge>
+                        <Badge tone={isActive ? "warning" : "success"}>
+                          {isActive ? "Activa" : "Resuelta"}
+                        </Badge>
                       </div>
+                      <p className="text-xs leading-relaxed text-ink-muted">
+                        {injury.description}
+                      </p>
+                      {injury.resolution_notes && (
+                        <p className="text-xs font-medium text-success-text">
+                          Nota de recuperación: {injury.resolution_notes}
+                        </p>
+                      )}
                     </div>
 
                     {isActive && (
-                      <input
+                      <Input
+                        compact
                         type="text"
                         value={resolutionNotesMap[injury.id] ?? ""}
                         onChange={(e) =>
@@ -299,36 +281,27 @@ export function InjuriesSection({ injuries, onInjuriesChanged }: InjuriesSection
                         }
                         placeholder="Nota opcional al marcar resuelta…"
                         aria-label={`Nota de resolución para ${injury.body_part}`}
-                        className="w-full rounded-lg border border-slate-800 bg-slate-900/70 px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500"
                       />
                     )}
 
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(injury)}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                          isActive
-                            ? "bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30"
-                            : "bg-amber-500/20 text-amber-200 hover:bg-amber-500/30"
-                        }`}
+                      <Button
+                        variant={isActive ? "soft" : "secondary"}
+                        size="sm"
+                        onClick={() => void handleToggleStatus(injury)}
                       >
                         {isActive ? "Marcar resuelta" : "Reactivar"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => startEdit(injury)}
-                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500"
-                      >
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => startEdit(injury)}>
                         Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(injury.id)}
-                        className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-xs text-rose-300 hover:bg-rose-950/60"
-                      >
-                        Eliminar
-                      </button>
+                      </Button>
+                      <ConfirmActionButton
+                        label="Eliminar"
+                        confirmLabel="Confirmar eliminación"
+                        variant="danger"
+                        size="sm"
+                        onConfirm={() => void handleDelete(injury.id)}
+                      />
                     </div>
                   </div>
                 )}
@@ -337,6 +310,6 @@ export function InjuriesSection({ injuries, onInjuriesChanged }: InjuriesSection
           })}
         </ul>
       )}
-    </section>
+    </Surface>
   );
 }

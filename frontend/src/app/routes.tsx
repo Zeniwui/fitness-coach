@@ -1,20 +1,65 @@
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { Suspense, lazy, type ReactNode } from "react";
+import { Navigate, NavLink, Outlet, Route, Routes } from "react-router-dom";
+import { LogOut, UserPlus } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
-import { CoachPage } from "../features/coach/CoachPage";
-import { NutritionPage } from "../features/nutrition/NutritionPage";
-import { LivingProfilePage } from "../features/profile/LivingProfilePage";
-import { SciencePage } from "../features/science/SciencePage";
-import { TrainingPage } from "../features/training/TrainingPage";
+import { Badge } from "../ui/Badge";
+import { BrandMark } from "../ui/BrandMark";
+import { Button } from "../ui/Button";
+import { AppearanceControls } from "./AppearanceControls";
 import { BottomNav } from "./BottomNav";
+
+const CoachPage = lazy(() =>
+  import("../features/coach/CoachPage").then((m) => ({ default: m.CoachPage })),
+);
+const TrainingPage = lazy(() =>
+  import("../features/training/TrainingPage").then((m) => ({ default: m.TrainingPage })),
+);
+const NutritionPage = lazy(() =>
+  import("../features/nutrition/NutritionPage").then((m) => ({ default: m.NutritionPage })),
+);
+const SciencePage = lazy(() =>
+  import("../features/science/SciencePage").then((m) => ({ default: m.SciencePage })),
+);
+const LivingProfilePage = lazy(() =>
+  import("../features/profile/LivingProfilePage").then((m) => ({
+    default: m.LivingProfilePage,
+  })),
+);
+const CuratorInvitationsPage = lazy(() =>
+  import("../features/auth/CuratorInvitationsPage").then((m) => ({
+    default: m.CuratorInvitationsPage,
+  })),
+);
+
+function CuratorRoute({ children }: { children: ReactNode }) {
+  const { athlete } = useAuth();
+  if (!athlete?.is_curator) {
+    return <Navigate to="/coach" replace />;
+  }
+  return <>{children}</>;
+}
+
+function RouteLoadingFallback() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-h-[40vh] items-center justify-center text-sm text-ink-muted"
+    >
+      Cargando vista…
+    </div>
+  );
+}
 
 function ProtectedLayout() {
   const { athlete, loading, logout } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-slate-400">
-        Cargando sesión…
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-canvas px-4 text-sm text-ink-muted">
+        <BrandMark className="h-8 w-8 text-accent-text" />
+        <span>Cargando sesión…</span>
       </div>
     );
   }
@@ -24,37 +69,64 @@ function ProtectedLayout() {
   }
 
   return (
-    <div className="min-h-screen pb-20">
-      <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/90 px-4 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-              Fitness Coach
-            </p>
-            <p className="text-sm font-medium text-white">
-              {athlete.display_name}
+    <div className="min-h-screen bg-canvas pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-10 lg:pl-64">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:rounded-control focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-accent-ink focus:shadow-elevated"
+      >
+        Saltar al contenido principal
+      </a>
+
+      <header className="sticky top-0 z-20 border-b border-line bg-surface">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-2.5 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-control border border-line bg-surface-muted text-accent-text lg:hidden">
+              <BrandMark className="h-5 w-5" />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-ink">{athlete.display_name}</span>
               {athlete.is_curator && (
-                <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
-                  Curador
-                </span>
+                <>
+                  <Badge tone="secondary">Curador</Badge>
+                  <NavLink
+                    to="/invitaciones"
+                    className={({ isActive }) =>
+                      `inline-flex min-h-[44px] items-center gap-1.5 rounded-control border px-3 py-1.5 text-xs font-semibold transition-colors sm:min-h-[36px] ${
+                        isActive
+                          ? "border-secondary/40 bg-secondary-soft text-secondary-text"
+                          : "border-line-strong bg-surface text-ink-muted hover:border-ink/40 hover:bg-surface-muted/60 hover:text-ink"
+                      }`
+                    }
+                  >
+                    <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Invitaciones</span>
+                  </NavLink>
+                </>
               )}
-            </p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 hover:border-slate-500 hover:text-white"
-          >
-            Salir
-          </button>
+
+          <div className="flex items-center gap-2">
+            <AppearanceControls />
+            <Button variant="secondary" size="sm" onClick={() => void logout()}>
+              <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Salir</span>
+            </Button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-5">
-        <Outlet />
-      </main>
-
       <BottomNav />
+
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-6xl px-4 py-6 focus:outline-none sm:px-6 lg:px-8 lg:py-8"
+      >
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Outlet />
+        </Suspense>
+      </main>
     </div>
   );
 }
@@ -68,6 +140,14 @@ export function AppRoutes() {
         <Route path="/nutrition" element={<NutritionPage />} />
         <Route path="/science" element={<SciencePage />} />
         <Route path="/profile" element={<LivingProfilePage />} />
+        <Route
+          path="/invitaciones"
+          element={
+            <CuratorRoute>
+              <CuratorInvitationsPage />
+            </CuratorRoute>
+          }
+        />
         <Route path="/" element={<Navigate to="/coach" replace />} />
         <Route path="*" element={<Navigate to="/coach" replace />} />
       </Route>
