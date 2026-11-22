@@ -1,41 +1,23 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ExternalLink, Search } from "lucide-react";
-import { apiClient } from "../../api/client";
+import { apiClient, extractApiErrorDetail } from "../../api/client";
 import type { components } from "../../api/generated/schema";
 import { AlertBanner } from "../../ui/AlertBanner";
-import { Badge, type BadgeTone } from "../../ui/Badge";
+import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Input, Select, Textarea } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
+import {
+  EVIDENCE_LEVEL_LABELS,
+  VALIDITY_LABELS,
+  VALIDITY_TONES,
+  type EvidenceLevel,
+  type ValidityStatus,
+} from "./labels";
 
 type EvidenceSearchHit = components["schemas"]["EvidenceSearchHitResponse"];
-type EvidenceLevel = components["schemas"]["EvidenceLevel"];
-type ValidityStatus = components["schemas"]["ValidityStatus"];
 
-const EVIDENCE_LEVEL_LABELS: Record<EvidenceLevel, string> = {
-  meta_analysis: "Meta-análisis",
-  systematic_review: "Revisión sistemática",
-  position_stand: "Posicionamiento (ISSN/Consenso)",
-  rct: "ECA (RCT)",
-  controlled_trial: "Ensayo controlado",
-  observational: "Observacional",
-  mechanistic: "Mecanístico",
-  preprint: "Preprint",
-};
-
-const VALIDITY_LABELS: Record<ValidityStatus, string> = {
-  active: "Vigente",
-  nuanced: "Matizada",
-  superseded: "Superada",
-  archived: "Archivada",
-};
-
-const VALIDITY_TONES: Record<ValidityStatus, BadgeTone> = {
-  active: "success",
-  nuanced: "warning",
-  superseded: "danger",
-  archived: "neutral",
-};
+const QUICK_QUERIES = ["RIR", "creatina", "volumen", "hipertrofia"] as const;
 
 interface KnowledgeExplorerProps {
   isCurator: boolean;
@@ -53,6 +35,7 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
   const [editNotes, setEditNotes] = useState("");
   const [editValidity, setEditValidity] = useState<ValidityStatus>("active");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const runSearch = useCallback(
     async (overrideQuery?: string) => {
@@ -80,9 +63,7 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
           setHits(data.items);
         } else {
           setError(
-            typeof apiError === "object" && apiError && "detail" in apiError
-              ? String((apiError as { detail: unknown }).detail)
-              : "No se pudo consultar la Base de Conocimiento.",
+            extractApiErrorDetail(apiError, "No se pudo consultar la Base de Conocimiento."),
           );
         }
       } catch (err) {
@@ -101,9 +82,37 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    function handleSlashShortcut(event: KeyboardEvent) {
+      if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable) {
+        return;
+      }
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    }
+    window.addEventListener("keydown", handleSlashShortcut);
+    return () => window.removeEventListener("keydown", handleSlashShortcut);
+  }, []);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     void runSearch();
+  };
+
+  const handleQuickQuery = (term: string) => {
+    setQuery(term);
+    void runSearch(term);
+  };
+
+  const handleResetFilters = () => {
+    setQuery("");
+    setTagFilter("");
+    setEvidenceLevel("");
+    setValidityStatus("");
+    void runSearch("");
   };
 
   const handleStartEdit = (hit: EvidenceSearchHit) => {
@@ -127,27 +136,28 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
       setActionMessage("Ficha de Evidencia actualizada.");
       await runSearch();
     } else {
-      setError(
-        typeof apiError === "object" && apiError && "detail" in apiError
-          ? String((apiError as { detail: unknown }).detail)
-          : "No se pudo actualizar la Ficha de Evidencia.",
-      );
+      setError(extractApiErrorDetail(apiError, "No se pudo actualizar la Ficha de Evidencia."));
     }
   };
 
   return (
     <section className="space-y-5">
-      <Surface variant="classical" padded="md">
+      <Surface variant="focal" padded="md">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label
-              htmlFor="kb-search-input"
-              className="mb-1.5 block text-xs font-medium text-ink-muted"
-            >
-              Buscar Fichas de Evidencia (español, inglés o siglas como RIR, 1RM, HMB, ISSN, mTOR)
-            </label>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label
+                htmlFor="kb-search-input"
+                className="block text-xs font-medium text-ink-muted"
+              >
+                Buscar Fichas de Evidencia (español, inglés o siglas como RIR, 1RM, HMB, ISSN,
+                mTOR)
+              </label>
+              <span className="hidden text-xs text-ink-subtle sm:inline">Atajo: /</span>
+            </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
+                ref={searchInputRef}
                 id="kb-search-input"
                 type="search"
                 value={query}
@@ -160,9 +170,23 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
                 <span>Buscar</span>
               </Button>
             </div>
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-ink-subtle">Consultas rápidas:</span>
+              {QUICK_QUERIES.map((term) => (
+                <Button
+                  key={term}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleQuickQuery(term)}
+                  className="bg-surface-muted/70 text-ink-muted hover:text-ink"
+                >
+                  {term}
+                </Button>
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 border-t border-line pt-3.5 sm:grid-cols-3">
             <div>
               <label htmlFor="kb-tag-filter" className="mb-1 block text-xs text-ink-muted">
                 Etiquetas (separadas por coma)
@@ -222,44 +246,55 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
       {actionMessage && <AlertBanner tone="success">{actionMessage}</AlertBanner>}
 
       {loading ? (
-        <p className="text-sm text-ink-muted">Buscando Fichas de Evidencia…</p>
+        <p role="status" className="text-sm text-ink-muted">
+          Buscando Fichas de Evidencia…
+        </p>
       ) : hits.length === 0 ? (
-        <Surface variant="inset" padded="lg" className="text-center text-sm text-ink-muted">
-          No se encontraron Fichas de Evidencia para los criterios seleccionados.
+        <Surface variant="inset" padded="lg" className="space-y-3 text-center">
+          <p className="text-sm text-ink-muted">
+            No se encontraron Fichas de Evidencia para los criterios seleccionados.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button variant="secondary" size="sm" onClick={handleResetFilters}>
+              Limpiar filtros
+            </Button>
+          </div>
         </Surface>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-5">
           {hits.map((hit) => {
             const { card } = hit;
             return (
               <li
                 key={card.id}
-                className="space-y-3 rounded-panel border border-line bg-surface p-5 shadow-panel"
+                className="space-y-3.5 rounded-panel border border-line bg-surface p-5 shadow-panel sm:p-6"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={VALIDITY_TONES[card.validity_status]}>
                     {VALIDITY_LABELS[card.validity_status]}
                   </Badge>
-                  <Badge tone="secondary">{EVIDENCE_LEVEL_LABELS[card.evidence_level]}</Badge>
+                  <Badge tone="secondary">
+                    {EVIDENCE_LEVEL_LABELS[card.evidence_level] ?? card.evidence_level}
+                  </Badge>
                   <Badge tone="neutral">
                     {card.coverage === "full_text" ? "Texto completo" : "Solo abstract"}
                   </Badge>
                 </div>
 
-                <h2 className="heading-section text-xl text-ink">{card.title}</h2>
-                <p className="max-w-[76ch] text-sm leading-relaxed text-ink-muted">
+                <h2 className="heading-section max-w-[46ch] text-xl text-ink">{card.title}</h2>
+                <p className="max-w-[68ch] text-sm leading-relaxed text-ink-muted">
                   {card.curated_text_es}
                 </p>
 
                 {hit.updated_by_cards.length > 0 && (
-                  <div className="rounded-control border border-warning/35 bg-warning-soft/75 px-3.5 py-2 text-xs text-warning-text">
+                  <div className="max-w-[68ch] rounded-control border border-warning/35 bg-warning-soft/75 px-3.5 py-2 text-xs text-warning-text">
                     <span className="font-semibold">Actualizada por: </span>
                     {hit.updated_by_cards.map((u) => u.title).join(" · ")}
                   </div>
                 )}
 
                 {card.curator_notes && (
-                  <p className="text-xs leading-relaxed text-ink-muted">
+                  <p className="max-w-[68ch] text-xs leading-relaxed text-ink-muted">
                     <span className="font-semibold text-ink">Notas del Curador:</span>{" "}
                     {card.curator_notes}
                   </p>
@@ -280,13 +315,13 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
 
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs">
                   <div className="flex flex-wrap items-center gap-3 text-ink-muted">
-                    {card.doi && <span className="font-mono text-[11px]">DOI: {card.doi}</span>}
+                    {card.doi && <span className="break-all font-mono text-xs">DOI: {card.doi}</span>}
                     {card.source_url && (
                       <a
                         href={card.source_url}
                         target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-[44px] items-center gap-1 font-semibold text-accent-text hover:underline sm:min-h-[32px]"
                       >
                         <span>Abrir DOI / PubMed</span>
                         <ExternalLink className="h-3 w-3" aria-hidden="true" />

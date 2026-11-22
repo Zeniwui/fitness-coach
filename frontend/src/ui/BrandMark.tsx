@@ -1,7 +1,7 @@
 /**
  * Calibrated barbell emblem for Fitness Coach (Cuaderno de Hierro).
  */
-export function ClassicalMark({ className = "h-7 w-7" }: { className?: string }) {
+export function BrandMark({ className = "h-7 w-7" }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 40 40"

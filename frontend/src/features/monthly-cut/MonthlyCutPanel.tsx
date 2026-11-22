@@ -6,16 +6,17 @@ import { Badge, type BadgeTone } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
+import { MONTHLY_CUT_RUN_TYPE_LABELS } from "../science/labels";
 
 type MonthlyCutRun = components["schemas"]["MonthlyCutRunResponse"];
 
 const STATUS_LABELS: Record<MonthlyCutRun["status"], string> = {
   queued: "En cola",
   collecting: "Recolectando",
-  filtering: "Pre-filtrando",
+  filtering: "Filtrando",
   analyzing: "Analizando",
   completed: "Completado",
-  paused_rate_limit: "Pausado por cuota (HTTP 429)",
+  paused_rate_limit: "Pausado por cuota",
   failed: "Fallido",
 };
 
@@ -77,7 +78,7 @@ export function MonthlyCutPanel() {
     }
     setFeedback(
       data.status === "paused_rate_limit"
-        ? `Corte Mensual pausado por cuota en checkpoint ${data.checkpoint_next_index}/${data.checkpoint_queue_size}.`
+        ? `Corte Mensual pausado por cuota en el punto ${data.checkpoint_next_index}/${data.checkpoint_queue_size}.`
         : `Corte Mensual ejecutado (${data.analyzed_count} Estudios Candidatos analizados).`,
     );
     await loadRuns();
@@ -93,7 +94,7 @@ export function MonthlyCutPanel() {
     );
     setBusy(false);
     if (apiErr || !data) {
-      setError("No se pudo reanudar el Corte Mensual desde el checkpoint.");
+      setError("No se pudo reanudar el Corte Mensual desde el último punto guardado.");
       return;
     }
     setFeedback(
@@ -124,13 +125,13 @@ export function MonthlyCutPanel() {
 
   return (
     <section className="space-y-5">
-      <Surface variant="classical" padded="md" className="space-y-4">
+      <Surface variant="focal" padded="md" className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <h2 className="heading-section text-xl text-ink">Ejecutar Corte Mensual</h2>
             <p className="max-w-2xl text-xs leading-relaxed text-ink-muted">
-              Recolecta literatura de PubMed, Europe PMC, Crossref y SportRxiv con pre-filtrado
-              determinista, tope configurable y checkpointing de cuota.
+              Recolecta literatura de PubMed, Europe PMC, Crossref y SportRxiv con filtrado
+              automático, tope configurable y guardado de progreso si se alcanza el límite de cuota.
             </p>
           </div>
           <Button
@@ -212,7 +213,9 @@ export function MonthlyCutPanel() {
       <div className="space-y-3">
         <h3 className="heading-section text-lg text-ink">Historial de ejecuciones</h3>
         {loading ? (
-          <p className="text-sm text-ink-muted">Cargando historial del Corte Mensual…</p>
+          <p role="status" className="text-sm text-ink-muted">
+            Cargando historial del Corte Mensual…
+          </p>
         ) : runs.length === 0 ? (
           <Surface variant="inset" padded="md" className="text-xs text-ink-muted">
             Aún no hay ejecuciones registradas del Corte Mensual.
@@ -227,7 +230,9 @@ export function MonthlyCutPanel() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <Badge tone={STATUS_TONES[run.status]}>{STATUS_LABELS[run.status]}</Badge>
-                    <span className="text-xs font-medium text-ink-muted">{run.run_type}</span>
+                    <span className="text-xs font-medium text-ink-muted">
+                      {MONTHLY_CUT_RUN_TYPE_LABELS[run.run_type] ?? run.run_type}
+                    </span>
                   </div>
                   <span className="text-xs text-ink-muted tabular-nums">
                     {run.date_from || run.date_to
@@ -236,7 +241,7 @@ export function MonthlyCutPanel() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 rounded-control border border-line bg-surface-muted/50 p-3 text-xs tabular-nums">
+                <div className="grid grid-cols-1 gap-2 rounded-control border border-line bg-surface-muted/50 p-3 text-xs tabular-nums sm:grid-cols-3">
                   <div>
                     <span className="text-ink-muted">Recolectados:</span>{" "}
                     <strong className="text-ink">{run.collected_count}</strong>
@@ -259,7 +264,7 @@ export function MonthlyCutPanel() {
 
                 {run.pause_reason && (
                   <p className="rounded-control border border-warning/35 bg-warning-soft px-3 py-2 text-xs text-warning-text">
-                    Motivo de pausa: {run.pause_reason} (Checkpoint: {run.checkpoint_next_index}/
+                    Motivo de pausa: {run.pause_reason} (Progreso: {run.checkpoint_next_index}/
                     {run.checkpoint_queue_size})
                   </p>
                 )}
@@ -277,7 +282,7 @@ export function MonthlyCutPanel() {
                     disabled={busy}
                     onClick={() => void handleResumeRun(run.id)}
                   >
-                    Reanudar desde checkpoint
+                    Reanudar desde último punto
                   </Button>
                 )}
               </li>

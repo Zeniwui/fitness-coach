@@ -3,6 +3,7 @@ import { FileUp, RefreshCw } from "lucide-react";
 import { AlertBanner } from "../../ui/AlertBanner";
 import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Field";
+import { FileUploadButton } from "../../ui/FileUploadButton";
 import { Surface } from "../../ui/Surface";
 
 export interface PriorRejectionConflict {
@@ -31,7 +32,7 @@ export function CuratorIntakeBar({
   onReindex,
 }: CuratorIntakeBarProps) {
   return (
-    <Surface variant="classical" padded="md" className="space-y-4">
+    <Surface variant="focal" padded="md" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h2 className="heading-section text-xl text-ink">Bandeja del Curador</h2>
@@ -62,17 +63,15 @@ export function CuratorIntakeBar({
         <Button type="submit" size="md">
           Proponer por DOI
         </Button>
-        <label className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-control border border-secondary/35 bg-secondary-soft px-3.5 py-2 text-xs font-semibold text-secondary-text transition-colors hover:bg-secondary/20">
+        <FileUploadButton
+          accept="application/pdf"
+          tone="secondary"
+          ariaLabel="Proponer nuevo estudio desde PDF"
+          onChange={onProposeFromPdf}
+        >
           <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
           <span>Proponer nuevo estudio desde PDF</span>
-          <input
-            type="file"
-            accept="application/pdf"
-            aria-label="Proponer nuevo estudio desde PDF"
-            onChange={onProposeFromPdf}
-            className="sr-only"
-          />
-        </label>
+        </FileUploadButton>
       </form>
 
       {priorRejection && (

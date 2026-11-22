@@ -38,8 +38,9 @@ describe("Nutrition: Fase Nutricional & Guided Weekly Check-in UI (#8)", () => {
     expect(await screen.findByText(/fase nutricional activada/i)).toBeInTheDocument();
     expect(screen.getByText(/2400 kcal/i)).toBeInTheDocument();
 
-    // Complete the active phase and verify it appears in history
+    // Complete the active phase (with inline confirmation) and verify it appears in history
     await user.click(screen.getByRole("button", { name: /finalizar fase/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar fin/i }));
     expect(await screen.findByText(/fase nutricional finalizada/i)).toBeInTheDocument();
     expect(screen.getByText(/historial de fases nutricionales/i)).toBeInTheDocument();
   });

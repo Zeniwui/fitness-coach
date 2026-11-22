@@ -50,7 +50,7 @@ describe("Ciencia — Corte Mensual, Lote Semilla y Temas de Actualidad (#5)", (
     expect(screen.getByText(/cuota gratuita alcanzada/i)).toBeInTheDocument();
 
     // Resume from checkpoint transitions run to completed
-    await user.click(screen.getByRole("button", { name: /reanudar desde checkpoint/i }));
+    await user.click(screen.getByRole("button", { name: /reanudar desde último punto/i }));
     expect(await screen.findByText(/corte reanudado y completado/i)).toBeInTheDocument();
 
     // Load seed batch idempotently

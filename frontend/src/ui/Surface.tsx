@@ -7,7 +7,7 @@ export type SurfaceVariant =
   | "accent"
   | "warning"
   | "danger"
-  | "classical";
+  | "focal";
 
 const VARIANT_CLASSES: Record<SurfaceVariant, string> = {
   default: "border-line bg-surface shadow-panel",
@@ -16,7 +16,7 @@ const VARIANT_CLASSES: Record<SurfaceVariant, string> = {
   accent: "border-accent/35 bg-accent-soft/60",
   warning: "border-warning/35 bg-warning-soft/75",
   danger: "border-danger/35 bg-danger-soft/75",
-  classical: "surface-classical-accent border-line bg-surface shadow-panel",
+  focal: "border-line surface-focal-accent bg-surface",
 };
 
 interface SurfaceProps extends HTMLAttributes<HTMLDivElement> {

@@ -70,9 +70,9 @@ export function TrendingTopicsPanel({ isCurator }: TrendingTopicsPanelProps) {
   return (
     <section className="space-y-4">
       <Surface variant="warning" padded="sm" className="text-xs">
-        <p className="font-semibold text-warning-text">
+        <h2 className="font-semibold text-warning-text">
           Temas de Actualidad — Bloque independiente
-        </p>
+        </h2>
         <p className="mt-1 leading-relaxed text-ink-muted">
           Tendencias, debates y afirmaciones recientes del fitness contrastados frente a la Base de
           Conocimiento. Se mantienen estrictamente separados de la evidencia científica primaria
@@ -84,7 +84,9 @@ export function TrendingTopicsPanel({ isCurator }: TrendingTopicsPanelProps) {
       {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
       {loading ? (
-        <p className="text-sm text-ink-muted">Cargando Temas de Actualidad…</p>
+        <p role="status" className="text-sm text-ink-muted">
+          Cargando Temas de Actualidad…
+        </p>
       ) : topics.length === 0 ? (
         <Surface variant="inset" padded="md" className="text-xs text-ink-muted">
           No hay Temas de Actualidad disponibles todavía.
@@ -103,9 +105,9 @@ export function TrendingTopicsPanel({ isCurator }: TrendingTopicsPanelProps) {
                 </Badge>
               </div>
 
-              <p className="max-w-[74ch] text-sm leading-relaxed text-ink-muted">{topic.summary}</p>
+              <p className="max-w-[68ch] text-sm leading-relaxed text-ink-muted">{topic.summary}</p>
 
-              <div className="rounded-control border border-line bg-surface-muted/60 p-3.5 text-xs">
+              <div className="max-w-[68ch] rounded-control border border-line bg-surface-muted/60 p-3.5 text-xs">
                 <p className="mb-1 font-semibold text-accent-text">
                   Contraste crítico frente a la Base de Conocimiento
                 </p>

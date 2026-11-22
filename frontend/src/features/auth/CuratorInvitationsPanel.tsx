@@ -11,11 +11,13 @@ import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
+import { INVITATION_STATUS_LABELS } from "../science/labels";
 
 type InvitationSummary = components["schemas"]["InvitationSummaryResponse"];
 
 export function CuratorInvitationsPanel() {
   const [invitations, setInvitations] = useState<InvitationSummary[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
   const [email, setEmail] = useState("");
   const [grantCurator, setGrantCurator] = useState(false);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
@@ -28,9 +30,18 @@ export function CuratorInvitationsPanel() {
     : null;
 
   const loadInvitations = useCallback(async () => {
-    const { data } = await apiClient.GET("/api/v1/curator/invitations");
-    if (data) {
-      setInvitations(data.items);
+    setLoadingList(true);
+    try {
+      const { data, error: apiError } = await apiClient.GET("/api/v1/curator/invitations");
+      if (data) {
+        setInvitations(data.items);
+      } else if (apiError) {
+        setError(extractApiErrorDetail(apiError, "No se pudo cargar el listado de invitaciones."));
+      }
+    } catch {
+      setError("Error de conexión al cargar las invitaciones.");
+    } finally {
+      setLoadingList(false);
     }
   }, []);
 
@@ -88,7 +99,7 @@ export function CuratorInvitationsPanel() {
   }
 
   return (
-    <Surface variant="default" padded="md" className="space-y-4">
+    <Surface variant="focal" padded="md" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="heading-section text-lg text-ink">Panel del Curador — Invitaciones</h2>
@@ -116,7 +127,7 @@ export function CuratorInvitationsPanel() {
           />
         </div>
 
-        <label className="flex items-center gap-2 text-xs text-ink-muted">
+        <label className="flex min-h-[44px] cursor-pointer items-center gap-2.5 text-xs text-ink-muted sm:min-h-[32px]">
           <input
             type="checkbox"
             checked={grantCurator}
@@ -165,15 +176,23 @@ export function CuratorInvitationsPanel() {
         </Surface>
       )}
 
-      {invitations.length > 0 && (
+      {loadingList ? (
+        <p className="text-xs text-ink-muted">Cargando invitaciones emitidas…</p>
+      ) : invitations.length > 0 ? (
         <ul className="divide-y divide-line border-t border-line pt-2 text-xs">
           {invitations.map((inv) => (
             <li key={inv.id} className="flex items-center justify-between gap-2 py-2.5">
-              <span className="font-medium text-ink">{inv.email}</span>
-              <Badge tone="neutral">{inv.status}</Badge>
+              <span className="min-w-0 break-all font-medium text-ink">{inv.email}</span>
+              <Badge tone={inv.status === "pending" ? "accent" : "neutral"} className="shrink-0">
+                {INVITATION_STATUS_LABELS[inv.status] ?? inv.status}
+              </Badge>
             </li>
           ))}
         </ul>
+      ) : (
+        <p className="border-t border-line pt-3 text-xs text-ink-muted">
+          Aún no has emitido invitaciones.
+        </p>
       )}
     </Surface>
   );

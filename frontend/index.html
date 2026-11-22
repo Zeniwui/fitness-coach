@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@700&family=DM+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <title>Fitness Coach</title>
@@ -18,8 +18,16 @@
       (function () {
         try {
           var theme = localStorage.getItem("fc-theme-mode");
-          if (theme === "light" || theme === "dark") {
-            document.documentElement.setAttribute("data-theme", theme);
+          if (theme !== "light" && theme !== "dark") {
+            theme =
+              window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark";
+          }
+          document.documentElement.setAttribute("data-theme", theme);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) {
+            meta.setAttribute("content", theme === "light" ? "#EFF1F4" : "#14171D");
           }
         } catch (e) {}
       })();

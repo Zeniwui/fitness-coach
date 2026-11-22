@@ -16,6 +16,8 @@
     background-color: rgb(var(--c-canvas));
     color: rgb(var(--c-ink));
     color-scheme: light;
+    scrollbar-color: rgb(var(--c-line-strong)) rgb(var(--c-canvas));
+    scrollbar-width: thin;
   }
 
   html[data-theme="dark"] {
@@ -26,6 +28,16 @@
     background-color: rgb(var(--c-canvas));
     color: rgb(var(--c-ink));
     line-height: 1.55;
+    caret-color: rgb(var(--c-accent));
+  }
+
+  a {
+    text-underline-offset: 0.18em;
+  }
+
+  p,
+  dd {
+    text-wrap: pretty;
   }
 
   :focus-visible {
@@ -44,6 +56,7 @@
   letter-spacing: var(--display-tracking);
   font-weight: var(--display-weight);
   line-height: 1.12;
+  text-wrap: balance;
 }
 
 .heading-section {
@@ -51,15 +64,37 @@
   letter-spacing: var(--display-tracking);
   font-weight: var(--display-weight);
   line-height: 1.2;
+  text-wrap: balance;
 }
 
+/* Precision architectural section divider and focal panel accent */
+@layer utilities {
+  .section-rule {
+    border-bottom: 1px solid rgb(var(--c-line));
+  }
+
+  .surface-focal-accent {
+    box-shadow:
+      inset 0 2px 0 rgb(var(--c-accent) / 0.78),
+      var(--shadow-panel);
+  }
+}
+
+/* Intentional reduced-motion: disable pulsing/spinning while keeping calm state transitions */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-pulse,
+  .animate-spin {
+    animation: none !important;
+  }
+
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    transition-property: color, background-color, border-color, opacity;
+    transition-duration: 120ms;
   }
 }

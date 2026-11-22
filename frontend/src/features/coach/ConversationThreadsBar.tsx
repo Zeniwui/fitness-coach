@@ -1,5 +1,6 @@
 import { MessageSquare } from "lucide-react";
 import type { components } from "../../api/generated/schema";
+import { Button } from "../../ui/Button";
 import { Surface } from "../../ui/Surface";
 
 type ConversationItem = components["schemas"]["ConversationResponse"];
@@ -19,27 +20,30 @@ export function ConversationThreadsBar({
 
   return (
     <Surface variant="default" padded="sm" className="space-y-2.5">
-      <p className="text-xs font-semibold text-ink-muted">Conversaciones</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-ink-muted">Conversaciones</p>
+        <span className="text-xs text-ink-subtle tabular-nums">{conversations.length}</span>
+      </div>
       <div
         aria-label="Hilos de conversación"
-        className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-x-visible lg:pb-0"
+        className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-x-visible lg:pb-0"
       >
         {conversations.map((conv) => {
           const isActive = conv.id === activeConvId;
           return (
-            <button
+            <Button
               key={conv.id}
-              type="button"
+              variant={isActive ? "soft" : "ghost"}
+              size="sm"
+              aria-current={isActive ? "true" : undefined}
               onClick={() => onSelect(conv.id)}
-              className={`flex shrink-0 items-center gap-2 rounded-control border px-3 py-2 text-left text-xs font-medium transition-colors lg:w-full ${
-                isActive
-                  ? "border-accent/40 bg-accent-soft text-accent-text"
-                  : "border-transparent bg-surface-muted/70 text-ink-muted hover:border-line hover:text-ink"
+              className={`shrink-0 snap-start justify-start font-medium lg:w-full ${
+                isActive ? "" : "bg-surface-muted/70 text-ink-muted hover:text-ink"
               }`}
             >
               <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-75" aria-hidden="true" />
               <span className="truncate">{conv.title}</span>
-            </button>
+            </Button>
           );
         })}
       </div>

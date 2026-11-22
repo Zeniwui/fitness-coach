@@ -9,21 +9,22 @@ html[data-theme="dark"] {
   --c-surface: 28 33 43;
   --c-surface-muted: 36 42 54;
   --c-surface-elevated: 34 40 52;
+  --c-scrim: 8 10 14;
 
   --c-rail: 16 19 24;
   --c-rail-surface: 27 32 41;
   --c-rail-ink: 236 239 244;
-  --c-rail-ink-muted: 147 156 171;
+  --c-rail-ink-muted: 152 162 178;
   --c-rail-border: 42 48 61;
   --c-rail-active-bg: 48 42 29;
   --c-rail-active-ink: 226 181 102;
 
   --c-ink: 236 239 244;
   --c-ink-muted: 164 173 187;
-  --c-ink-subtle: 118 128 144;
+  --c-ink-subtle: 142 152 168;
 
-  --c-line: 45 52 66;
-  --c-line-strong: 68 77 96;
+  --c-line: 48 56 71;
+  --c-line-strong: 98 110 130;
 
   --c-accent: 212 161 75;
   --c-accent-hover: 226 178 96;
@@ -41,6 +42,7 @@ html[data-theme="dark"] {
 
   --c-warning: 227 151 74;
   --c-warning-soft: 63 40 19;
+  --c-warning-ink: 22 18 11;
   --c-warning-text: 245 190 129;
 
   --c-danger: 227 98 108;
@@ -52,8 +54,8 @@ html[data-theme="dark"] {
 
   --radius-panel: 0.5rem;
   --radius-control: 0.375rem;
-  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-elevated: 0 16px 36px -12px rgb(0 0 0 / 0.55);
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.32);
+  --shadow-elevated: 0 16px 36px -12px rgb(0 0 0 / 0.58);
 
   --display-scale: 1.75rem;
   --display-tracking: -0.02em;
@@ -65,27 +67,28 @@ html[data-theme="light"] {
   --c-surface: 255 255 255;
   --c-surface-muted: 230 233 238;
   --c-surface-elevated: 255 255 255;
+  --c-scrim: 18 22 30;
 
   --c-rail: 231 234 239;
   --c-rail-surface: 244 246 249;
   --c-rail-ink: 26 30 38;
-  --c-rail-ink-muted: 89 97 112;
-  --c-rail-border: 207 212 220;
+  --c-rail-ink-muted: 84 92 107;
+  --c-rail-border: 202 208 218;
   --c-rail-active-bg: 255 255 255;
-  --c-rail-active-ink: 145 98 25;
+  --c-rail-active-ink: 138 92 18;
 
   --c-ink: 26 30 38;
-  --c-ink-muted: 78 86 101;
-  --c-ink-subtle: 115 124 139;
+  --c-ink-muted: 75 83 98;
+  --c-ink-subtle: 92 101 116;
 
-  --c-line: 212 217 224;
-  --c-line-strong: 180 187 198;
+  --c-line: 208 214 222;
+  --c-line-strong: 126 134 148;
 
-  --c-accent: 154 107 31;
-  --c-accent-hover: 129 88 22;
-  --c-accent-soft: 248 238 220;
+  --c-accent: 150 100 22;
+  --c-accent-hover: 126 83 17;
+  --c-accent-soft: 249 239 221;
   --c-accent-ink: 255 255 255;
-  --c-accent-text: 129 88 22;
+  --c-accent-text: 124 81 16;
 
   --c-secondary: 37 99 166;
   --c-secondary-soft: 232 242 252;
@@ -97,6 +100,7 @@ html[data-theme="light"] {
 
   --c-warning: 173 91 18;
   --c-warning-soft: 253 240 223;
+  --c-warning-ink: 255 255 255;
   --c-warning-text: 139 71 11;
 
   --c-danger: 184 42 54;
@@ -108,19 +112,10 @@ html[data-theme="light"] {
 
   --radius-panel: 0.5rem;
   --radius-control: 0.375rem;
-  --shadow-panel: 0 1px 2px rgb(26 30 38 / 0.05);
-  --shadow-elevated: 0 12px 26px -10px rgb(26 30 38 / 0.14);
+  --shadow-panel: 0 1px 2px rgb(26 30 38 / 0.06);
+  --shadow-elevated: 0 12px 26px -10px rgb(26 30 38 / 0.16);
 
   --display-scale: 1.75rem;
   --display-tracking: -0.02em;
   --display-weight: 700;
-}
-
-/* Precision architectural section divider and focal panel accent */
-.classical-entablature {
-  border-bottom: 1px solid rgb(var(--c-line));
-}
-
-.surface-classical-accent {
-  border-top: 2px solid rgb(var(--c-accent) / 0.65);
 }

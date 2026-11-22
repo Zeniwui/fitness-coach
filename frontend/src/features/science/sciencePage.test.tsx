@@ -97,6 +97,9 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
     expect(lastFromPdfReceived).toBe(true);
 
     // 2. Attach an evolution relation (supersedes) targeting an existing approved EvidenceCard
+    await user.click(
+      await screen.findByRole("button", { name: /vincular con fichas existentes/i }),
+    );
     const relationTypeSelect = await screen.findByLabelText(/tipo de relación de evolución/i);
     await user.selectOptions(relationTypeSelect, "supersedes");
 

@@ -7,6 +7,7 @@ import { resetMockTrainingState } from "../../test/msw/handlers/training";
 
 describe("Training (Entrenamiento) UI (#7)", () => {
   beforeEach(() => {
+    window.localStorage.removeItem("fc-training-session-draft-v1");
     resetMockTrainingState();
     seedSupabaseSession("tok-athlete");
   });
@@ -30,7 +31,7 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     render(<App initialEntries={["/training"]} />);
 
     await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
-    await user.click(screen.getByRole("button", { name: /^Mesociclos$/i }));
+    await user.click(screen.getByRole("tab", { name: /^Mesociclos$/i }));
 
     // Generate draft with Coach
     await user.click(screen.getByRole("button", { name: /generar borrador con coach/i }));
@@ -66,7 +67,7 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     render(<App initialEntries={["/training"]} />);
 
     await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
-    await user.click(screen.getByRole("button", { name: /^Sesiones$/i }));
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
 
     // Fill quick session form
     const sessionName = screen.getByLabelText(/nombre de la sesión/i);
@@ -90,9 +91,10 @@ describe("Training (Entrenamiento) UI (#7)", () => {
 
     expect(await screen.findByText(/Pierna A Rápida/i)).toBeInTheDocument();
 
-    // Delete the newly created session
-    const deleteButtons = screen.getAllByRole("button", { name: /eliminar/i });
+    // Delete the newly created session (with explicit inline confirmation)
+    const deleteButtons = screen.getAllByRole("button", { name: /^eliminar$/i });
     await user.click(deleteButtons[0]);
+    await user.click(screen.getByRole("button", { name: /confirmar eliminación/i }));
 
     expect(screen.queryByText(/Pierna A Rápida/i)).not.toBeInTheDocument();
   });
@@ -102,7 +104,7 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     render(<App initialEntries={["/training"]} />);
 
     await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
-    await user.click(screen.getByRole("button", { name: /volumen y descarga/i }));
+    await user.click(screen.getByRole("tab", { name: /volumen y descarga/i }));
 
     expect(await screen.findByText(/descarga recomendada/i)).toBeInTheDocument();
     expect(screen.getByText(/pecho/i)).toBeInTheDocument();

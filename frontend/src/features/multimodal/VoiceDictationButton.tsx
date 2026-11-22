@@ -1,4 +1,5 @@
 import { Mic, MicOff } from "lucide-react";
+import { Button } from "../../ui/Button";
 import { useVoiceDictation } from "./useVoiceDictation";
 
 interface VoiceDictationButtonProps {
@@ -17,7 +18,7 @@ export function VoiceDictationButton({
 
   if (!isSupported) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-control border border-line bg-surface-muted px-2.5 py-1.5 text-xs text-ink-muted">
+      <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-control border border-line bg-surface-muted px-2.5 py-1.5 text-xs text-ink-muted">
         <MicOff className="h-3.5 w-3.5" aria-hidden="true" />
         Dictado por voz no disponible en este navegador
       </span>
@@ -26,21 +27,23 @@ export function VoiceDictationButton({
 
   return (
     <div className="inline-flex flex-col items-start gap-1">
-      <button
-        type="button"
+      <Button
+        variant={isListening ? "danger" : "secondary"}
+        size="sm"
         onClick={toggleListening}
         disabled={disabled}
         aria-pressed={isListening}
         aria-label={isListening ? "Detener dictado por voz" : label}
-        className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-control border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
-          isListening
-            ? "animate-pulse border-danger bg-danger-soft text-danger-text"
-            : "border-line-strong bg-surface text-ink hover:border-accent hover:text-accent-text"
-        }`}
       >
+        {isListening && (
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 rounded-full bg-danger motion-safe:animate-pulse"
+          />
+        )}
         <Mic className="h-3.5 w-3.5" aria-hidden="true" />
-        {isListening ? "Escuchando…" : label}
-      </button>
+        <span>{isListening ? "Escuchando…" : label}</span>
+      </Button>
       {interimTranscript && (
         <p className="text-xs italic text-accent-text">Transcribiendo: “{interimTranscript}”</p>
       )}

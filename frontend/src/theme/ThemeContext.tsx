@@ -23,8 +23,14 @@ function readInitialMode(): ThemeMode {
     if (stored === "light" || stored === "dark") {
       return stored;
     }
+    if (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-color-scheme: light)").matches
+    ) {
+      return "light";
+    }
   } catch {
-    // Ignore storage unavailability
+    // Ignore storage/media unavailability
   }
   return "dark";
 }
@@ -49,6 +55,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       metaTheme.setAttribute("content", THEME_COLORS[mode]);
     }
   }, [mode]);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia("(prefers-color-scheme: light)");
+    function handleSystemChange(event: MediaQueryListEvent) {
+      try {
+        const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+        if (stored === "light" || stored === "dark") return;
+      } catch {
+        // Ignore storage unavailability
+      }
+      setModeState(event.matches ? "light" : "dark");
+    }
+    if (typeof mql.addEventListener === "function") {
+      mql.addEventListener("change", handleSystemChange);
+      return () => mql.removeEventListener("change", handleSystemChange);
+    }
+    return undefined;
+  }, []);
 
   const setMode = useCallback((next: ThemeMode) => {
     setModeState(next);

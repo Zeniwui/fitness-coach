@@ -1,25 +1,11 @@
 import { BookOpen, ExternalLink, Paperclip, ShieldAlert } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
+import { EVIDENCE_LEVEL_LABELS, VALIDITY_LABELS } from "../science/labels";
+import { SimpleMarkdown } from "./SimpleMarkdown";
 import type { ChatMessageItem, CitationItem, QuarantinedLiveResultItem } from "./sse";
 
-export const EVIDENCE_LEVEL_LABELS: Record<string, string> = {
-  meta_analysis: "Meta-análisis",
-  systematic_review: "Revisión sistemática",
-  position_stand: "Posicionamiento (ISSN)",
-  rct: "Ensayo clínico (RCT)",
-  controlled_trial: "Ensayo controlado",
-  observational: "Observacional",
-  mechanistic: "Mecanístico",
-  preprint: "Preprint",
-};
-
-export const VALIDITY_LABELS: Record<string, string> = {
-  active: "Vigente",
-  nuanced: "Matizada",
-  superseded: "Superada",
-  archived: "Archivada",
-};
+export { EVIDENCE_LEVEL_LABELS, VALIDITY_LABELS };
 
 interface ChatMessageCardProps {
   msg: ChatMessageItem;
@@ -56,9 +42,13 @@ export function ChatMessageCard({
         </span>
       </div>
 
-      <p className="max-w-[72ch] whitespace-pre-wrap text-sm leading-relaxed text-ink">
-        {msg.content}
-      </p>
+      {isUser ? (
+        <p className="max-w-[70ch] whitespace-pre-wrap text-sm leading-relaxed text-ink">
+          {msg.content}
+        </p>
+      ) : (
+        <SimpleMarkdown content={msg.content} />
+      )}
 
       {msg.attachments && msg.attachments.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pt-1">
@@ -85,18 +75,21 @@ export function ChatMessageCard({
           </p>
           <div className="flex flex-wrap gap-2">
             {msg.citations.map((cit) => (
-              <button
+              <Button
                 key={cit.card_id}
-                type="button"
+                variant="soft"
+                size="sm"
                 onClick={() => onSelectCitation(cit)}
-                className="rounded-control border border-accent/30 bg-accent-soft/60 px-3 py-1.5 text-left text-xs text-ink transition-colors hover:border-accent hover:bg-accent-soft"
+                className="h-auto whitespace-normal text-left font-normal"
               >
-                <span className="font-semibold text-ink">{cit.title}</span>{" "}
-                <span className="text-[11px] text-accent-text">
-                  [{EVIDENCE_LEVEL_LABELS[cit.evidence_level] ?? cit.evidence_level} ·{" "}
-                  {VALIDITY_LABELS[cit.validity_status] ?? cit.validity_status}]
+                <span>
+                  <span className="font-semibold text-ink">{cit.title}</span>{" "}
+                  <span className="text-xs text-accent-text">
+                    [{EVIDENCE_LEVEL_LABELS[cit.evidence_level] ?? cit.evidence_level} ·{" "}
+                    {VALIDITY_LABELS[cit.validity_status] ?? cit.validity_status}]
+                  </span>
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -121,8 +114,8 @@ export function ChatMessageCard({
                   <a
                     href={hit.url}
                     target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-warning-text underline underline-offset-2"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-warning-text underline sm:min-h-[32px]"
                   >
                     <span>Ver fuente externa</span>
                     <ExternalLink className="h-3 w-3" aria-hidden="true" />

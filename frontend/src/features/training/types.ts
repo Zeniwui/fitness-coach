@@ -24,6 +24,8 @@ export interface EditableSetRow {
   unit: "kg" | "lb";
   rir: string;
   rpe: string;
+  targetHint?: string;
+  previousMarkHint?: string;
 }
 
 export function defaultSetRow(): EditableSetRow {
@@ -32,7 +34,7 @@ export function defaultSetRow(): EditableSetRow {
     muscle_group: "pecho",
     secondary_muscle_groups: "",
     reps: "8",
-    load: "20",
+    load: "",
     unit: "kg",
     rir: "2",
     rpe: "",

@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import { Sparkles } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
+import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
 import { Input } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
 import {
@@ -51,7 +52,7 @@ export function MesocyclesTab({
 }: MesocyclesTabProps) {
   return (
     <div className="space-y-5">
-      <Surface variant="classical" padded="md" className="space-y-3">
+      <Surface variant="focal" padded="md" className="space-y-3">
         <div className="space-y-1">
           <h2 className="heading-section text-lg text-ink">Diseñar Mesociclo con el Coach</h2>
           <p className="text-xs leading-relaxed text-ink-muted">
@@ -59,14 +60,22 @@ export function MesocyclesTab({
             la Base de Conocimiento aprobada.
           </p>
         </div>
-        <div className="flex flex-col gap-2.5 sm:flex-row">
-          <Input
-            type="text"
-            value={coachFocus}
-            onChange={(e) => onCoachFocusChange(e.target.value)}
-            placeholder="Enfoque opcional (ej. priorizar espalda y brazos)"
-            className="flex-1"
-          />
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-1">
+            <label
+              htmlFor="meso-coach-focus"
+              className="block text-xs font-medium text-ink-muted"
+            >
+              Enfoque opcional para el Coach
+            </label>
+            <Input
+              id="meso-coach-focus"
+              type="text"
+              value={coachFocus}
+              onChange={(e) => onCoachFocusChange(e.target.value)}
+              placeholder="Ej. priorizar espalda y brazos"
+            />
+          </div>
           <Button disabled={draftingWithCoach} onClick={onDraftWithCoach}>
             <Sparkles className="h-4 w-4" aria-hidden="true" />
             <span>{draftingWithCoach ? "Generando…" : "Generar borrador con Coach"}</span>
@@ -146,13 +155,14 @@ export function MesocyclesTab({
                 </Button>
               )}
               {m.status === "active" && (
-                <Button
+                <ConfirmActionButton
+                  label="Pasar a descarga"
+                  confirmLabel="Confirmar descarga"
                   variant="soft"
+                  confirmVariant="warning"
                   size="sm"
-                  onClick={() => onTransitionStatus(m.id, "deload")}
-                >
-                  Pasar a descarga
-                </Button>
+                  onConfirm={() => onTransitionStatus(m.id, "deload")}
+                />
               )}
             </div>
           </article>

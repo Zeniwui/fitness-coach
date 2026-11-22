@@ -1,7 +1,9 @@
 import type { FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { Copy, Plus, Trash2 } from "lucide-react";
 import { Button } from "../../ui/Button";
-import { Input, Textarea } from "../../ui/Field";
+import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
+import { Input, Select, Textarea } from "../../ui/Field";
+import { IconButton } from "../../ui/IconButton";
 import { Surface } from "../../ui/Surface";
 import { NaturalSessionLogger } from "../multimodal/NaturalSessionLogger";
 import {
@@ -12,6 +14,7 @@ import {
 
 interface SessionsTabProps {
   activeMesocycleId: string | null;
+  startedFromToday?: boolean;
   sessions: TrainingSessionResponse[];
   editingSessionId: string | null;
   sessionName: string;
@@ -31,6 +34,7 @@ interface SessionsTabProps {
 
 export function SessionsTab({
   activeMesocycleId,
+  startedFromToday = false,
   sessions,
   editingSessionId,
   sessionName,
@@ -51,23 +55,47 @@ export function SessionsTab({
     onSetRowsChange(setRows.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
   }
 
+  function duplicateRow(idx: number) {
+    const source = setRows[idx];
+    if (!source) return;
+    const copy: EditableSetRow = {
+      ...source,
+      targetHint: undefined,
+      previousMarkHint: undefined,
+    };
+    const next = [...setRows];
+    next.splice(idx + 1, 0, copy);
+    onSetRowsChange(next);
+  }
+
+  function removeRow(idx: number) {
+    if (setRows.length <= 1) return;
+    onSetRowsChange(setRows.filter((_, i) => i !== idx));
+  }
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-      {/* Left: Voice/NL logger + Manual quick form */}
+      {/* Left: Voice/NL logger + Manual quick gym log */}
       <div className="space-y-5 lg:col-span-7">
         <NaturalSessionLogger
           activeMesocycleId={activeMesocycleId}
+          defaultCollapsed={startedFromToday}
           onSessionSaved={onNaturalSessionSaved}
         />
 
-        <Surface variant="default" padded="md">
+        <Surface variant="focal" padded="md">
           <form onSubmit={onSaveSession} className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="heading-section text-lg text-ink">
-                {editingSessionId
-                  ? "Editar Sesión de Entrenamiento"
-                  : "Registro rápido de Sesión de Entrenamiento"}
-              </h2>
+              <div className="space-y-0.5">
+                <h2 className="heading-section text-lg text-ink">
+                  {editingSessionId
+                    ? "Editar Sesión de Entrenamiento"
+                    : "Registro rápido de Sesión de Entrenamiento"}
+                </h2>
+                <p className="text-xs text-ink-muted">
+                  Tu borrador se guarda localmente mientras entrenas para no perder series.
+                </p>
+              </div>
               {editingSessionId && (
                 <Button variant="ghost" size="sm" onClick={onCancelEdit}>
                   Cancelar edición
@@ -96,63 +124,125 @@ export function SessionsTab({
               </label>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {setRows.map((row, idx) => (
                 <div
                   key={idx}
-                  className="grid grid-cols-2 gap-2.5 rounded-panel border border-line bg-surface-muted/50 p-3 sm:grid-cols-6"
+                  className="space-y-2.5 rounded-panel border border-line bg-surface-muted/50 p-3.5"
                 >
-                  <label className="col-span-2 block space-y-1 text-xs text-ink-muted">
-                    <span>Ejercicio</span>
-                    <Input
-                      compact
-                      type="text"
-                      value={row.exercise_name}
-                      onChange={(e) => updateRow(idx, { exercise_name: e.target.value })}
-                      placeholder="Ej. Press inclinado"
-                    />
-                  </label>
-                  <label className="block space-y-1 text-xs text-ink-muted">
-                    <span>Músculo</span>
-                    <Input
-                      compact
-                      type="text"
-                      value={row.muscle_group}
-                      onChange={(e) => updateRow(idx, { muscle_group: e.target.value })}
-                    />
-                  </label>
-                  <label className="block space-y-1 text-xs text-ink-muted">
-                    <span>Carga ({row.unit})</span>
-                    <Input
-                      compact
-                      type="number"
-                      step="0.5"
-                      value={row.load}
-                      onChange={(e) => updateRow(idx, { load: e.target.value })}
-                      className="tabular-nums"
-                    />
-                  </label>
-                  <label className="block space-y-1 text-xs text-ink-muted">
-                    <span>Repeticiones</span>
-                    <Input
-                      compact
-                      type="number"
-                      value={row.reps}
-                      onChange={(e) => updateRow(idx, { reps: e.target.value })}
-                      className="tabular-nums"
-                    />
-                  </label>
-                  <label className="block space-y-1 text-xs text-ink-muted">
-                    <span>RIR</span>
-                    <Input
-                      compact
-                      type="number"
-                      step="0.5"
-                      value={row.rir}
-                      onChange={(e) => updateRow(idx, { rir: e.target.value })}
-                      className="tabular-nums"
-                    />
-                  </label>
+                  {(row.targetHint || row.previousMarkHint) && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-accent/25 bg-accent-soft/45 px-3 py-2 text-xs">
+                      {row.targetHint && (
+                        <span className="font-semibold text-accent-text tabular-nums">
+                          Objetivo: {row.targetHint}
+                        </span>
+                      )}
+                      {row.previousMarkHint && (
+                        <span className="text-secondary-text tabular-nums">
+                          {row.previousMarkHint}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-ink tabular-nums">
+                      Serie {idx + 1}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <IconButton
+                        onClick={() => duplicateRow(idx)}
+                        aria-label={`Duplicar serie ${idx + 1}`}
+                        title="Duplicar serie"
+                      >
+                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span className="hidden sm:inline">Duplicar</span>
+                      </IconButton>
+                      {setRows.length > 1 && (
+                        <IconButton
+                          tone="danger"
+                          onClick={() => removeRow(idx)}
+                          aria-label={`Quitar serie ${idx + 1}`}
+                          title="Quitar serie"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </IconButton>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-6">
+                    <label className="col-span-2 block space-y-1 text-xs text-ink-muted">
+                      <span>Ejercicio</span>
+                      <Input
+                        compact
+                        type="text"
+                        value={row.exercise_name}
+                        onChange={(e) => updateRow(idx, { exercise_name: e.target.value })}
+                        placeholder="Ej. Press inclinado"
+                      />
+                    </label>
+                    <label className="col-span-2 block space-y-1 text-xs text-ink-muted sm:col-span-1">
+                      <span>Músculo</span>
+                      <Input
+                        compact
+                        type="text"
+                        value={row.muscle_group}
+                        onChange={(e) => updateRow(idx, { muscle_group: e.target.value })}
+                      />
+                    </label>
+                    <label className="col-span-2 block space-y-1 text-xs text-ink-muted sm:col-span-2">
+                      <span>Carga ({row.unit})</span>
+                      <div className="flex gap-1.5">
+                        <Input
+                          compact
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          placeholder="0"
+                          value={row.load}
+                          onChange={(e) => updateRow(idx, { load: e.target.value })}
+                          className="min-w-0 flex-1 tabular-nums"
+                        />
+                        <Select
+                          compact
+                          aria-label={`Unidad serie ${idx + 1}`}
+                          value={row.unit}
+                          onChange={(e) =>
+                            updateRow(idx, { unit: e.target.value === "lb" ? "lb" : "kg" })
+                          }
+                          className="w-[4.25rem] shrink-0 px-2"
+                        >
+                          <option value="kg">kg</option>
+                          <option value="lb">lb</option>
+                        </Select>
+                      </div>
+                    </label>
+                    <label className="block space-y-1 text-xs text-ink-muted sm:col-span-1">
+                      <span>Repeticiones</span>
+                      <Input
+                        compact
+                        type="number"
+                        min={1}
+                        value={row.reps}
+                        onChange={(e) => updateRow(idx, { reps: e.target.value })}
+                        className="tabular-nums"
+                      />
+                    </label>
+                    <label className="block space-y-1 text-xs text-ink-muted sm:col-span-1">
+                      <span>RIR</span>
+                      <Input
+                        compact
+                        type="number"
+                        step="0.5"
+                        min={0}
+                        max={10}
+                        value={row.rir}
+                        onChange={(e) => updateRow(idx, { rir: e.target.value })}
+                        className="tabular-nums"
+                      />
+                    </label>
+                  </div>
                 </div>
               ))}
 
@@ -200,7 +290,7 @@ export function SessionsTab({
                 key={s.id}
                 className="rounded-panel border border-line bg-surface p-4 shadow-panel"
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="space-y-1">
                     <h4 className="text-sm font-semibold text-ink">{s.name}</h4>
                     <p className="text-xs text-ink-muted tabular-nums">
@@ -210,13 +300,17 @@ export function SessionsTab({
                       <p className="text-xs text-warning-text">{s.fatigue_notes}</p>
                     )}
                   </div>
-                  <div className="flex shrink-0 gap-1.5">
+                  <div className="flex shrink-0 flex-wrap gap-1.5">
                     <Button variant="secondary" size="sm" onClick={() => onEditSession(s)}>
                       Editar
                     </Button>
-                    <Button variant="danger" size="sm" onClick={() => onDeleteSession(s.id)}>
-                      Eliminar
-                    </Button>
+                    <ConfirmActionButton
+                      label="Eliminar"
+                      confirmLabel="Confirmar eliminación"
+                      variant="danger"
+                      size="sm"
+                      onConfirm={() => onDeleteSession(s.id)}
+                    />
                   </div>
                 </div>
               </article>

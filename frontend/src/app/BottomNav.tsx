@@ -6,7 +6,7 @@ import {
   FlaskConical,
   UserCheck,
 } from "lucide-react";
-import { ClassicalMark } from "../ui/ClassicalMark";
+import { BrandMark } from "../ui/BrandMark";
 
 const NAV_ITEMS = [
   { to: "/coach", label: "Coach", icon: MessageSquare },
@@ -20,14 +20,14 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur lg:inset-y-0 lg:right-auto lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-t-0 lg:border-rail-border lg:bg-rail lg:text-rail-ink lg:backdrop-blur-none"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:inset-y-0 lg:right-auto lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-t-0 lg:border-rail-border lg:bg-rail lg:pb-0 lg:text-rail-ink"
     >
       {/* Desktop Brand Header inside the single semantic navigation rail */}
       <div className="hidden lg:block">
         <div className="px-5 pb-5 pt-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-control border border-rail-border bg-rail-surface text-rail-active-ink">
-              <ClassicalMark className="h-6 w-6" />
+              <BrandMark className="h-6 w-6" />
             </div>
             <div>
               <p className="font-display text-lg font-bold leading-none tracking-tight text-rail-ink">
@@ -49,7 +49,7 @@ export function BottomNav() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `relative flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors lg:flex-row lg:justify-start lg:gap-3 lg:rounded-control lg:px-3.5 lg:py-2.5 lg:text-sm ${
+              `relative flex min-h-[52px] flex-col items-center justify-center gap-1 px-1 py-2 text-xs font-medium transition-colors lg:min-h-[40px] lg:flex-row lg:justify-start lg:gap-3 lg:rounded-control lg:px-3.5 lg:py-2.5 lg:text-sm ${
                 isActive
                   ? "text-accent-text lg:bg-rail-active lg:text-rail-active-ink"
                   : "text-ink-muted hover:text-ink lg:text-rail-muted lg:hover:bg-rail-surface lg:hover:text-rail-ink"
@@ -65,7 +65,7 @@ export function BottomNav() {
                   />
                 )}
                 <Icon className="h-5 w-5 shrink-0 lg:h-[18px] lg:w-[18px]" aria-hidden="true" />
-                <span className="truncate">{label}</span>
+                <span className="max-w-full truncate">{label}</span>
               </>
             )}
           </NavLink>
@@ -74,7 +74,7 @@ export function BottomNav() {
 
       <div className="hidden border-t border-rail-border px-5 py-4 lg:block">
         <p className="text-xs font-semibold text-rail-ink">Evidencia y progresión</p>
-        <p className="mt-0.5 text-[11px] leading-snug text-rail-muted">
+        <p className="mt-0.5 text-xs leading-snug text-rail-muted">
           Hipertrofia, nutrición y literatura curada en un mismo cuaderno.
         </p>
       </div>

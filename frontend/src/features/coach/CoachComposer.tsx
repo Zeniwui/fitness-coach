@@ -1,7 +1,9 @@
-import type { ChangeEvent, FormEvent } from "react";
+import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
 import { ImagePlus, Send, X } from "lucide-react";
 import { Button } from "../../ui/Button";
 import { Select, Textarea } from "../../ui/Field";
+import { FileUploadButton } from "../../ui/FileUploadButton";
+import { IconButton } from "../../ui/IconButton";
 import { Surface } from "../../ui/Surface";
 import { VoiceDictationButton } from "../multimodal/VoiceDictationButton";
 
@@ -38,17 +40,30 @@ export function CoachComposer({
   streaming,
   onSubmit,
 }: CoachComposerProps) {
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (!streaming && inputText.trim()) {
+        event.currentTarget.form?.requestSubmit();
+      }
+    }
+  }
+
   return (
     <Surface variant="elevated" padded="sm">
       <form onSubmit={onSubmit} className="space-y-3">
-        <label htmlFor="coach-message-input" className="block text-xs font-medium text-ink-muted">
-          Mensaje para el Coach
-        </label>
+        <div className="flex items-center justify-between gap-2">
+          <label htmlFor="coach-message-input" className="block text-xs font-medium text-ink-muted">
+            Mensaje para el Coach
+          </label>
+          <span className="hidden text-xs text-ink-subtle sm:inline">Ctrl/⌘ + Enter para enviar</span>
+        </div>
         <Textarea
           id="coach-message-input"
           rows={3}
           value={inputText}
           onChange={(e) => onInputTextChange(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Escribe o dicta tu consulta, una Sesión de Entrenamiento o adjunta una foto…"
         />
 
@@ -59,12 +74,14 @@ export function CoachComposer({
                 <img
                   src={imagePreviewUrl}
                   alt="Vista previa de imagen adjunta"
+                  width={44}
+                  height={44}
                   className="h-11 w-11 rounded-control object-cover"
                 />
               )}
               <div className="space-y-1 text-xs">
                 <p className="font-medium text-ink">{selectedImage.name}</p>
-                <label className="flex items-center gap-1.5 text-[11px] text-ink-muted">
+                <label className="flex items-center gap-1.5 text-xs text-ink-muted">
                   <span>Tipo:</span>
                   <Select
                     compact
@@ -80,41 +97,36 @@ export function CoachComposer({
                 </label>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClearImage}
-              aria-label="Quitar imagen adjunta"
-              className="rounded-control p-1.5 text-ink-muted hover:bg-surface hover:text-ink"
-            >
+            <IconButton onClick={onClearImage} aria-label="Quitar imagen adjunta">
               <X className="h-4 w-4" aria-hidden="true" />
-            </button>
+            </IconButton>
           </div>
         )}
 
         <div className="flex flex-wrap items-center gap-2">
           <VoiceDictationButton onTranscript={onVoiceTranscript} disabled={streaming} />
-          <label className="inline-flex min-h-[34px] cursor-pointer items-center gap-1.5 rounded-control border border-line-strong bg-surface px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-accent hover:text-accent-text">
+          <FileUploadButton
+            accept="image/jpeg,image/png,image/webp"
+            onChange={onImageSelect}
+            disabled={streaming}
+          >
             <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Adjuntar imagen</span>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={onImageSelect}
-              disabled={streaming}
-              className="sr-only"
-            />
-          </label>
+          </FileUploadButton>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
-          <label className="flex items-center gap-2 text-xs text-ink-muted">
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-xs text-ink-muted sm:min-h-[32px]">
             <input
               type="checkbox"
               checked={enableLiveSearch}
               onChange={(e) => onEnableLiveSearchChange(e.target.checked)}
-              className="h-4 w-4 rounded border-line-strong accent-accent"
+              className="h-4 w-4 shrink-0 rounded border-line-strong accent-accent"
             />
-            <span>Búsqueda en vivo (cuarentena)</span>
+            <span>
+              <span className="font-medium text-ink">Búsqueda en vivo</span>{" "}
+              <span className="text-ink-subtle">(fuentes externas sin revisar por el Curador)</span>
+            </span>
           </label>
           <Button type="submit" size="md" disabled={streaming || !inputText.trim()}>
             <Send className="h-3.5 w-3.5" aria-hidden="true" />

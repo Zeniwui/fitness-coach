@@ -1,9 +1,11 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { apiClient } from "../../api/client";
+import { apiClient, extractApiErrorDetail } from "../../api/client";
 import type { components } from "../../api/generated/schema";
 import { AlertBanner } from "../../ui/AlertBanner";
 import { Button } from "../../ui/Button";
+import { ModalDialog } from "../../ui/ModalDialog";
 import { PageHeader } from "../../ui/PageHeader";
 import { Surface } from "../../ui/Surface";
 import { SessionDraftCard } from "../multimodal/SessionDraftCard";
@@ -24,8 +26,15 @@ import {
 
 type ConversationItem = components["schemas"]["ConversationResponse"];
 
+const STARTER_PROMPTS = [
+  "¿Cuántas series semanales efectivas recomiendas para hipertrofia?",
+  "Revisa mi Mesociclo actual y sugiere ajustes según mi Perfil Vivo",
+  "¿Qué dosis de creatina monohidrato tiene mejor respaldo científico?",
+] as const;
+
 export function CoachPage() {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [loadingInitial, setLoadingInitial] = useState(true);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [proposals, setProposals] = useState<ProfileProposalItem[]>([]);
@@ -46,42 +55,59 @@ export function CoachPage() {
   const [draftFeedback, setDraftFeedback] = useState<string | null>(null);
 
   async function loadInitialState() {
+    setLoadingInitial(true);
     setErrorMessage(null);
-    const [convRes, propRes] = await Promise.all([
-      apiClient.GET("/api/v1/coach/conversations"),
-      apiClient.GET("/api/v1/profile/proposals"),
-    ]);
+    try {
+      const [convRes, propRes] = await Promise.all([
+        apiClient.GET("/api/v1/coach/conversations"),
+        apiClient.GET("/api/v1/profile/proposals"),
+      ]);
 
-    if (propRes.data) {
-      setProposals(propRes.data);
-    }
-
-    if (convRes.data && convRes.data.length > 0) {
-      setConversations(convRes.data);
-      const firstId = convRes.data[0].id;
-      setActiveConvId(firstId);
-      const msgRes = await apiClient.GET("/api/v1/coach/conversations/{conversation_id}/messages", {
-        params: { path: { conversation_id: firstId } },
-      });
-      if (msgRes.data) {
-        setMessages(msgRes.data);
+      if (propRes.data) {
+        setProposals(propRes.data);
       }
-      return;
-    }
 
-    const created = await apiClient.POST("/api/v1/coach/conversations", {
-      body: { title: "Nueva conversación" },
-    });
-    if (created.data) {
-      setConversations([created.data]);
-      setActiveConvId(created.data.id);
-      setMessages([]);
+      if (convRes.data && convRes.data.length > 0) {
+        setConversations(convRes.data);
+        const firstId = convRes.data[0].id;
+        setActiveConvId(firstId);
+        const msgRes = await apiClient.GET(
+          "/api/v1/coach/conversations/{conversation_id}/messages",
+          {
+            params: { path: { conversation_id: firstId } },
+          },
+        );
+        if (msgRes.data) {
+          setMessages(msgRes.data);
+        }
+      }
+    } finally {
+      setLoadingInitial(false);
     }
   }
 
   useEffect(() => {
     void loadInitialState();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl && typeof URL.revokeObjectURL === "function") {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
+
+  useEffect(() => {
+    if (!selectedCitation) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSelectedCitation(null);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedCitation]);
 
   async function handleSelectConversation(convId: string) {
     setActiveConvId(convId);
@@ -172,8 +198,9 @@ export function CoachPage() {
     setStreaming(true);
     setStreamingDraft("");
 
+    const optimisticId = `local-user-${Date.now()}`;
     const optimisticUserMsg: ChatMessageItem = {
-      id: `local-user-${Date.now()}`,
+      id: optimisticId,
       conversation_id: convId,
       role: "user",
       content: cleaned,
@@ -186,6 +213,7 @@ export function CoachPage() {
     };
     setMessages((prev) => [...prev, optimisticUserMsg]);
 
+    let completed = false;
     try {
       await streamCoachMessage(
         convId,
@@ -203,14 +231,21 @@ export function CoachPage() {
           },
           onSessionDraft: (draft) => setPendingSessionDraft(draft),
           onDone: (assistantMsg) => {
+            completed = true;
             setStreamingDraft("");
             setMessages((prev) => [...prev, assistantMsg]);
           },
-          onError: (detail) => setErrorMessage(detail),
+          onError: (detail) => {
+            setErrorMessage(detail);
+            setInputText((curr) => curr || cleaned);
+          },
         },
       );
     } catch {
-      setErrorMessage("Error de conexión durante el streaming con el Coach.");
+      setErrorMessage("Error de conexión durante la respuesta del Coach. Tu mensaje se ha recuperado.");
+      if (!completed) {
+        setInputText((curr) => curr || cleaned);
+      }
     } finally {
       setStreaming(false);
     }
@@ -242,6 +277,7 @@ export function CoachPage() {
   }
 
   async function handleAcceptProposal(proposalId: string) {
+    setErrorMessage(null);
     const res = await apiClient.POST("/api/v1/profile/proposals/{proposal_id}/accept", {
       params: { path: { proposal_id: proposalId } },
     });
@@ -251,10 +287,15 @@ export function CoachPage() {
         ...prev,
         [proposalId]: "Perfil Vivo actualizado correctamente.",
       }));
+    } else {
+      setErrorMessage(
+        extractApiErrorDetail(res.error, "No se pudo aceptar la propuesta de actualización."),
+      );
     }
   }
 
   async function handleDismissProposal(proposalId: string) {
+    setErrorMessage(null);
     const res = await apiClient.POST("/api/v1/profile/proposals/{proposal_id}/dismiss", {
       params: { path: { proposal_id: proposalId } },
     });
@@ -264,6 +305,10 @@ export function CoachPage() {
         ...prev,
         [proposalId]: "Propuesta descartada sin modificar tu Perfil Vivo.",
       }));
+    } else {
+      setErrorMessage(
+        extractApiErrorDetail(res.error, "No se pudo descartar la propuesta de actualización."),
+      );
     }
   }
 
@@ -320,11 +365,49 @@ export function CoachPage() {
           ))}
 
           <div className="space-y-3.5">
-            {messages.length === 0 && !streaming && (
-              <Surface variant="inset" padded="lg" className="text-sm text-ink-muted">
-                Pregunta a tu Coach sobre hipertrofia, fuerza, nutrición deportiva o ajustes de tu
-                planificación.
-              </Surface>
+            {loadingInitial ? (
+              <p role="status" className="text-sm text-ink-muted">
+                Cargando conversaciones del Coach…
+              </p>
+            ) : (
+              messages.length === 0 &&
+              !streaming && (
+                <Surface variant="inset" padded="md" className="space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-ink">
+                      Empieza una consulta con tu Coach
+                    </p>
+                    <p className="text-xs leading-relaxed text-ink-muted">
+                      El Coach cruza tu{" "}
+                      <Link to="/profile" className="font-medium text-accent-text underline">
+                        Perfil Vivo
+                      </Link>
+                      , tu{" "}
+                      <Link to="/training" className="font-medium text-accent-text underline">
+                        Mesociclo
+                      </Link>{" "}
+                      y tu{" "}
+                      <Link to="/nutrition" className="font-medium text-accent-text underline">
+                        Fase Nutricional
+                      </Link>{" "}
+                      con la Base de Conocimiento aprobada.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {STARTER_PROMPTS.map((prompt) => (
+                      <Button
+                        key={prompt}
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setInputText(prompt)}
+                        className="text-left font-normal"
+                      >
+                        {prompt}
+                      </Button>
+                    ))}
+                  </div>
+                </Surface>
+              )
             )}
 
             {messages.map((msg) => (
@@ -339,9 +422,13 @@ export function CoachPage() {
             ))}
 
             {streaming && (
-              <article className="mr-2 space-y-2 rounded-panel border border-accent/40 bg-surface p-4 shadow-panel sm:mr-6">
+              <article
+                aria-live="polite"
+                aria-busy="true"
+                className="mr-2 space-y-2 rounded-panel border border-accent/40 bg-surface p-4 shadow-panel sm:mr-6"
+              >
                 <p className="text-xs font-semibold text-accent-text">Coach escribiendo…</p>
-                <p className="max-w-[72ch] whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                <p className="max-w-[70ch] whitespace-pre-wrap text-sm leading-relaxed text-ink">
                   {streamingDraft || "Analizando tu Perfil Vivo y la Base de Conocimiento…"}
                 </p>
               </article>
@@ -380,7 +467,7 @@ export function CoachPage() {
           />
         </div>
 
-        {/* Auxiliary Sidebar: Conversations & Evidence Citation Inspector */}
+        {/* Auxiliary Sidebar: Conversations & Desktop Evidence Citation Inspector */}
         <div className="space-y-4 lg:col-span-4">
           <ConversationThreadsBar
             conversations={conversations}
@@ -388,22 +475,39 @@ export function CoachPage() {
             onSelect={(id) => void handleSelectConversation(id)}
           />
 
-          {selectedCitation ? (
-            <CitationInspector
-              citation={selectedCitation}
-              onClose={() => setSelectedCitation(null)}
-            />
-          ) : (
-            <Surface variant="inset" padded="sm" className="hidden text-xs text-ink-muted lg:block">
-              <p className="font-semibold text-ink">Inspector de evidencia</p>
-              <p className="mt-1 leading-relaxed">
-                Selecciona cualquier Ficha de Evidencia citada por el Coach para consultar aquí su
-                nivel metodológico, vigencia y DOI sin perder el hilo.
-              </p>
-            </Surface>
-          )}
+          <div className="hidden lg:block">
+            {selectedCitation ? (
+              <CitationInspector
+                citation={selectedCitation}
+                onClose={() => setSelectedCitation(null)}
+              />
+            ) : (
+              <Surface variant="inset" padded="sm" className="text-xs text-ink-muted">
+                <p className="font-semibold text-ink">Inspector de evidencia</p>
+                <p className="mt-1 leading-relaxed">
+                  Selecciona cualquier Ficha de Evidencia citada por el Coach para consultar aquí su
+                  nivel metodológico, vigencia y DOI sin perder el hilo.
+                </p>
+              </Surface>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Mobile Citation Inspector Bottom Sheet (accessible modal dialog) */}
+      {selectedCitation && (
+        <ModalDialog
+          placement="bottom-sheet"
+          ariaLabel="Detalle de Ficha de Evidencia"
+          onClose={() => setSelectedCitation(null)}
+          className="lg:hidden"
+        >
+          <CitationInspector
+            citation={selectedCitation}
+            onClose={() => setSelectedCitation(null)}
+          />
+        </ModalDialog>
+      )}
     </section>
   );
 }

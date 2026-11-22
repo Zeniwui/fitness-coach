@@ -10,6 +10,7 @@ export default {
           muted: "rgb(var(--c-surface-muted) / <alpha-value>)",
           elevated: "rgb(var(--c-surface-elevated) / <alpha-value>)",
         },
+        scrim: "rgb(var(--c-scrim) / <alpha-value>)",
         rail: {
           DEFAULT: "rgb(var(--c-rail) / <alpha-value>)",
           surface: "rgb(var(--c-rail-surface) / <alpha-value>)",
@@ -48,6 +49,7 @@ export default {
         warning: {
           DEFAULT: "rgb(var(--c-warning) / <alpha-value>)",
           soft: "rgb(var(--c-warning-soft) / <alpha-value>)",
+          ink: "rgb(var(--c-warning-ink) / <alpha-value>)",
           text: "rgb(var(--c-warning-text) / <alpha-value>)",
         },
         danger: {

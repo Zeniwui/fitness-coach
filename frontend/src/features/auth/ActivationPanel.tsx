@@ -40,41 +40,19 @@ export function ActivationPanel() {
     }
   }
 
+  const errorId = error ? "activation-error-message" : undefined;
+
   return (
     <div className="mt-5 space-y-4">
       <Surface variant="accent" padded="sm" className="text-xs">
         <p className="font-semibold text-accent-text">Sesión iniciada como:</p>
         <p className="mt-0.5 font-mono text-ink">{pendingEmail ?? "Identidad verificada"}</p>
         <p className="mt-1 text-ink-muted">
-          Tu cuenta aún no está activada en Fitness Coach. Canjea tu invitación o activa el primer
-          Curador si es un despliegue nuevo.
+          {mode === "invite"
+            ? "Introduce el código facilitado por tu Curador para activar tu cuenta de Atleta."
+            : "Modo de arranque inicial: solo disponible para el correo autorizado en un despliegue nuevo."}
         </p>
       </Surface>
-
-      <div className="grid grid-cols-2 gap-1.5 rounded-control border border-line bg-surface-muted p-1">
-        <button
-          type="button"
-          onClick={() => setMode("invite")}
-          className={`rounded-[calc(var(--radius-control)-2px)] py-2 text-xs font-semibold transition-colors ${
-            mode === "invite"
-              ? "bg-surface text-ink shadow-sm"
-              : "text-ink-muted hover:text-ink"
-          }`}
-        >
-          Canjear invitación
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("bootstrap")}
-          className={`rounded-[calc(var(--radius-control)-2px)] py-2 text-xs font-semibold transition-colors ${
-            mode === "bootstrap"
-              ? "bg-surface text-ink shadow-sm"
-              : "text-ink-muted hover:text-ink"
-          }`}
-        >
-          Activar Curador inicial
-        </button>
-      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === "invite" && (
@@ -89,6 +67,8 @@ export function ActivationPanel() {
               id="invitation-token"
               type="text"
               required
+              aria-invalid={Boolean(error)}
+              aria-describedby={errorId}
               value={invitationToken}
               onChange={(e) => setInvitationToken(e.target.value)}
               placeholder="Código facilitado por el Curador"
@@ -114,7 +94,11 @@ export function ActivationPanel() {
           />
         </div>
 
-        {error && <AlertBanner tone="error">{error}</AlertBanner>}
+        {error && (
+          <div id="activation-error-message">
+            <AlertBanner tone="error">{error}</AlertBanner>
+          </div>
+        )}
 
         <Button type="submit" size="lg" fullWidth disabled={submitting}>
           {submitting
@@ -125,9 +109,20 @@ export function ActivationPanel() {
         </Button>
       </form>
 
-      <Button variant="secondary" size="sm" fullWidth onClick={() => void logout()}>
-        Cerrar sesión
-      </Button>
+      <div className="flex flex-col gap-2 border-t border-line pt-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          fullWidth
+          onClick={() => setMode((prev) => (prev === "invite" ? "bootstrap" : "invite"))}
+        >
+          {mode === "invite" ? "Activar Curador inicial" : "Volver a canjear invitación"}
+        </Button>
+
+        <Button variant="secondary" size="sm" fullWidth onClick={() => void logout()}>
+          Cerrar sesión
+        </Button>
+      </div>
     </div>
   );
 }

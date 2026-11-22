@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { apiClient } from "../../api/client";
 import { AlertBanner } from "../../ui/AlertBanner";
 import { PageHeader } from "../../ui/PageHeader";
+import { SegmentedTabs, type SegmentedTabItem } from "../../ui/SegmentedTabs";
 import { MesocycleConflictModal } from "./MesocycleConflictModal";
 import { MesocyclesTab } from "./MesocyclesTab";
 import { SessionsTab } from "./SessionsTab";
@@ -20,16 +21,48 @@ import {
 } from "./types";
 import { VolumeDeloadTab } from "./VolumeDeloadTab";
 
-const TRAINING_TABS: ReadonlyArray<[TrainingTabKey, string]> = [
-  ["today", "Hoy"],
-  ["sessions", "Sesiones"],
-  ["mesocycles", "Mesociclos"],
-  ["volume", "Volumen y Descarga"],
+const TRAINING_TABS: ReadonlyArray<SegmentedTabItem<TrainingTabKey>> = [
+  { id: "today", label: "Hoy" },
+  { id: "sessions", label: "Sesiones" },
+  { id: "mesocycles", label: "Mesociclos" },
+  { id: "volume", label: "Volumen y Descarga" },
 ];
+
+const SESSION_DRAFT_KEY = "fc-training-session-draft-v1";
+
+interface PersistedSessionDraft {
+  sessionDate: string;
+  sessionName: string;
+  sessionPlannedId: string | null;
+  fatigueNotes: string;
+  setRows: EditableSetRow[];
+  startedFromToday: boolean;
+}
+
+function readPersistedDraft(): PersistedSessionDraft | null {
+  try {
+    const raw = window.localStorage.getItem(SESSION_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedSessionDraft;
+    if (!Array.isArray(parsed.setRows) || parsed.setRows.length === 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearPersistedDraft() {
+  try {
+    window.localStorage.removeItem(SESSION_DRAFT_KEY);
+  } catch {
+    // Ignore storage unavailability
+  }
+}
 
 export function TrainingPage() {
   const [activeTab, setActiveTab] = useState<TrainingTabKey>("today");
   const [loading, setLoading] = useState(true);
+  const [switchingDay, setSwitchingDay] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
@@ -51,12 +84,24 @@ export function TrainingPage() {
 
   const [conflictModal, setConflictModal] = useState<ConflictModalState | null>(null);
 
+  const [initialDraft] = useState(readPersistedDraft);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [sessionName, setSessionName] = useState("Sesión de Entrenamiento");
-  const [sessionPlannedId, setSessionPlannedId] = useState<string | null>(null);
-  const [fatigueNotes, setFatigueNotes] = useState("");
-  const [setRows, setSetRows] = useState<EditableSetRow[]>([defaultSetRow()]);
+  const [sessionDate, setSessionDate] = useState(
+    () => initialDraft?.sessionDate ?? new Date().toISOString().slice(0, 10),
+  );
+  const [sessionName, setSessionName] = useState(
+    () => initialDraft?.sessionName ?? "Sesión de Entrenamiento",
+  );
+  const [sessionPlannedId, setSessionPlannedId] = useState<string | null>(
+    () => initialDraft?.sessionPlannedId ?? null,
+  );
+  const [fatigueNotes, setFatigueNotes] = useState(() => initialDraft?.fatigueNotes ?? "");
+  const [setRows, setSetRows] = useState<EditableSetRow[]>(
+    () => initialDraft?.setRows ?? [defaultSetRow()],
+  );
+  const [startedFromToday, setStartedFromToday] = useState(
+    () => initialDraft?.startedFromToday ?? false,
+  );
 
   const loadAll = useCallback(async (plannedSessionId?: string) => {
     setLoading(true);
@@ -81,9 +126,62 @@ export function TrainingPage() {
     }
   }, []);
 
+  const loadTodaySession = useCallback(async (plannedSessionId: string) => {
+    setSwitchingDay(true);
+    setErrorMsg(null);
+    try {
+      const todayRes = await apiClient.GET("/api/v1/training/today", {
+        params: { query: { planned_session_id: plannedSessionId } },
+      });
+      if (todayRes.data) {
+        setTodayData(todayRes.data);
+      } else {
+        setErrorMsg("No se pudo cargar la sesión planificada seleccionada.");
+      }
+    } catch {
+      setErrorMsg("Error de conexión al cambiar el día planificado.");
+    } finally {
+      setSwitchingDay(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (editingSessionId) return;
+    const hasContent =
+      setRows.some((r) => r.exercise_name.trim().length > 0) || fatigueNotes.trim().length > 0;
+    if (!hasContent) {
+      clearPersistedDraft();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      try {
+        const payload: PersistedSessionDraft = {
+          sessionDate,
+          sessionName,
+          sessionPlannedId,
+          fatigueNotes,
+          setRows,
+          startedFromToday,
+        };
+        window.localStorage.setItem(SESSION_DRAFT_KEY, JSON.stringify(payload));
+      } catch {
+        // Ignore storage quota/availability errors
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [
+    editingSessionId,
+    sessionDate,
+    sessionName,
+    sessionPlannedId,
+    fatigueNotes,
+    setRows,
+    startedFromToday,
+  ]);
 
   function startLoggingTodaySession() {
     if (!todayData?.planned_session) return;
@@ -92,16 +190,50 @@ export function TrainingPage() {
     setSessionName(todayData.planned_session.name);
     setSessionPlannedId(todayData.planned_session.id);
     setFatigueNotes("");
-    const prefilled: EditableSetRow[] = todayData.exercises.map((item) => ({
-      exercise_name: item.planned.exercise_name,
-      muscle_group: item.planned.primary_muscle_group,
-      secondary_muscle_groups: (item.planned.secondary_muscle_groups ?? []).join(", "),
-      reps: String(item.previous_mark?.best_reps ?? item.planned.rep_range_min ?? 8),
-      load: String(item.previous_mark?.best_load ?? 20),
-      unit: (item.previous_mark?.best_unit === "lb" ? "lb" : "kg") as "kg" | "lb",
-      rir: String(item.planned.target_rir ?? 2),
-      rpe: "",
-    }));
+    setStartedFromToday(true);
+
+    const prefilled: EditableSetRow[] = [];
+    for (const item of todayData.exercises) {
+      const totalSets = Math.max(1, item.planned.target_sets || 1);
+      const targetHint = `${totalSets} series · ${item.planned.rep_range_min}–${item.planned.rep_range_max} reps${
+        item.planned.target_rir !== null && item.planned.target_rir !== undefined
+          ? ` · RIR ${item.planned.target_rir}`
+          : ""
+      }`;
+      const previousMarkHint = item.previous_mark
+        ? `Marca previa (${item.previous_mark.last_session_date}): ${item.previous_mark.best_load} ${item.previous_mark.best_unit} × ${item.previous_mark.best_reps}${
+            item.previous_mark.best_rir !== null && item.previous_mark.best_rir !== undefined
+              ? ` @ RIR ${item.previous_mark.best_rir}`
+              : ""
+          }`
+        : "Sin marcas previas registradas";
+
+      for (let s = 0; s < totalSets; s += 1) {
+        const prevSet = item.previous_mark?.last_sets?.[s];
+        prefilled.push({
+          exercise_name: item.planned.exercise_name,
+          muscle_group: item.planned.primary_muscle_group,
+          secondary_muscle_groups: (item.planned.secondary_muscle_groups ?? []).join(", "),
+          reps: String(
+            prevSet?.reps ?? item.previous_mark?.best_reps ?? item.planned.rep_range_min ?? 8,
+          ),
+          load:
+            prevSet?.load !== undefined
+              ? String(prevSet.load)
+              : item.previous_mark?.best_load !== undefined
+                ? String(item.previous_mark.best_load)
+                : "",
+          unit: ((prevSet?.unit ?? item.previous_mark?.best_unit) === "lb" ? "lb" : "kg") as
+            | "kg"
+            | "lb",
+          rir: String(prevSet?.rir ?? item.planned.target_rir ?? 2),
+          rpe: "",
+          targetHint: s === 0 ? targetHint : undefined,
+          previousMarkHint: s === 0 ? previousMarkHint : undefined,
+        });
+      }
+    }
+
     setSetRows(prefilled.length > 0 ? prefilled : [defaultSetRow()]);
     setActiveTab("sessions");
   }
@@ -112,6 +244,7 @@ export function TrainingPage() {
     setSessionName(session.name);
     setSessionPlannedId(session.planned_session_id ?? null);
     setFatigueNotes(session.fatigue_notes ?? "");
+    setStartedFromToday(false);
     setSetRows(
       session.sets.map((s) => ({
         exercise_name: s.exercise_name,
@@ -169,7 +302,9 @@ export function TrainingPage() {
         setErrorMsg("No se pudo actualizar la Sesión de Entrenamiento.");
         return;
       }
-      setFeedbackMsg("Sesión de Entrenamiento actualizada.");
+      setFeedbackMsg(
+        `Sesión de Entrenamiento actualizada (${parsedSets.length} series registradas).`,
+      );
     } else {
       const res = await apiClient.POST("/api/v1/training/sessions", {
         body: {
@@ -186,12 +321,16 @@ export function TrainingPage() {
         setErrorMsg("No se pudo guardar la Sesión de Entrenamiento.");
         return;
       }
-      setFeedbackMsg("Sesión de Entrenamiento registrada.");
+      setFeedbackMsg(
+        `Sesión de Entrenamiento registrada (${parsedSets.length} series guardadas en tu historial).`,
+      );
     }
 
     setEditingSessionId(null);
+    setStartedFromToday(false);
     setFatigueNotes("");
     setSetRows([defaultSetRow()]);
+    clearPersistedDraft();
     await loadAll();
   }
 
@@ -319,38 +458,33 @@ export function TrainingPage() {
         description="Planificación de Mesociclos, sesión de hoy con marcas previas, registro rápido y volumen semanal efectivo."
       />
 
-      {/* Segmented sub-navigation */}
-      <div className="grid grid-cols-2 gap-1.5 rounded-panel border border-line bg-surface-muted/70 p-1 sm:grid-cols-4">
-        {TRAINING_TABS.map(([key, label]) => {
-          const active = activeTab === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActiveTab(key)}
-              className={`min-h-[38px] rounded-control px-3 py-2 text-xs font-semibold transition-colors ${
-                active
-                  ? "bg-surface text-ink shadow-sm"
-                  : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      <SegmentedTabs
+        items={TRAINING_TABS}
+        activeId={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="Vistas de Entrenamiento"
+        idPrefix="training"
+        layout="grid"
+      />
 
       {errorMsg && <AlertBanner tone="error">{errorMsg}</AlertBanner>}
       {feedbackMsg && <AlertBanner tone="success">{feedbackMsg}</AlertBanner>}
 
       {loading ? (
-        <p className="text-sm text-ink-muted">Cargando entrenamiento…</p>
+        <p role="status" className="text-sm text-ink-muted">
+          Cargando entrenamiento…
+        </p>
       ) : (
-        <>
+        <div
+          id={`training-panel-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`training-tab-${activeTab}`}
+        >
           {activeTab === "today" && (
             <TodaySessionTab
               todayData={todayData}
-              onSelectPlannedSession={(id) => void loadAll(id)}
+              switchingDay={switchingDay}
+              onSelectPlannedSession={(id) => void loadTodaySession(id)}
               onStartLogging={startLoggingTodaySession}
               onGoToMesocycles={() => setActiveTab("mesocycles")}
             />
@@ -359,6 +493,7 @@ export function TrainingPage() {
           {activeTab === "sessions" && (
             <SessionsTab
               activeMesocycleId={todayData?.active_mesocycle?.id ?? null}
+              startedFromToday={startedFromToday}
               sessions={sessions}
               editingSessionId={editingSessionId}
               sessionName={sessionName}
@@ -371,7 +506,9 @@ export function TrainingPage() {
               onSetRowsChange={setSetRows}
               onCancelEdit={() => {
                 setEditingSessionId(null);
+                setStartedFromToday(false);
                 setSetRows([defaultSetRow()]);
+                clearPersistedDraft();
               }}
               onSaveSession={(e) => void handleSaveSession(e)}
               onEditSession={startEditingSession}
@@ -408,7 +545,7 @@ export function TrainingPage() {
           )}
 
           {activeTab === "volume" && <VolumeDeloadTab volumeSummary={volumeSummary} />}
-        </>
+        </div>
       )}
 
       {conflictModal && (

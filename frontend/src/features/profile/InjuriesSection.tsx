@@ -3,6 +3,7 @@ import { apiClient } from "../../api/client";
 import { AlertBanner } from "../../ui/AlertBanner";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
+import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
 import { Input, Select } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
 import {
@@ -165,9 +166,11 @@ export function InjuriesSection({ injuries, onInjuriesChanged }: InjuriesSection
               value={severity}
               onChange={(e) => setSeverity(e.target.value as InjurySeverity)}
             >
-              <option value="mild">Leve</option>
-              <option value="moderate">Moderada</option>
-              <option value="severe">Severa</option>
+              {(Object.keys(SEVERITY_LABELS) as InjurySeverity[]).map((lvl) => (
+                <option key={lvl} value={lvl}>
+                  {SEVERITY_LABELS[lvl]}
+                </option>
+              ))}
             </Select>
           </label>
         </div>
@@ -222,9 +225,11 @@ export function InjuriesSection({ injuries, onInjuriesChanged }: InjuriesSection
                         value={editSeverity}
                         onChange={(e) => setEditSeverity(e.target.value as InjurySeverity)}
                       >
-                        <option value="mild">Leve</option>
-                        <option value="moderate">Moderada</option>
-                        <option value="severe">Severa</option>
+                        {(Object.keys(SEVERITY_LABELS) as InjurySeverity[]).map((lvl) => (
+                          <option key={lvl} value={lvl}>
+                            {SEVERITY_LABELS[lvl]}
+                          </option>
+                        ))}
                       </Select>
                     </div>
                     <Input
@@ -290,9 +295,13 @@ export function InjuriesSection({ injuries, onInjuriesChanged }: InjuriesSection
                       <Button variant="secondary" size="sm" onClick={() => startEdit(injury)}>
                         Editar
                       </Button>
-                      <Button variant="danger" size="sm" onClick={() => void handleDelete(injury.id)}>
-                        Eliminar
-                      </Button>
+                      <ConfirmActionButton
+                        label="Eliminar"
+                        confirmLabel="Confirmar eliminación"
+                        variant="danger"
+                        size="sm"
+                        onConfirm={() => void handleDelete(injury.id)}
+                      />
                     </div>
                   </div>
                 )}

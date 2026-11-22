@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { apiClient, DuplicateSubmissionError } from "../../api/client";
 import { AlertBanner } from "../../ui/AlertBanner";
 import { PageHeader } from "../../ui/PageHeader";
@@ -63,15 +63,39 @@ function parseNumber(raw: string): number {
   return Number(raw.replace(",", "."));
 }
 
+export function parseDailyWeights(raw: string): number[] {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  const hasSemicolonOrNewline = /[;\n]/.test(trimmed);
+  const parts = hasSemicolonOrNewline
+    ? trimmed.split(/[;\n]+/)
+    : trimmed.includes(".")
+      ? trimmed.split(/[,\s]+/)
+      : trimmed.split(/,\s+|\s+/);
+  return parts
+    .map((s) => s.trim().replace(/,$/, ""))
+    .filter(Boolean)
+    .map(parseNumber)
+    .filter((n) => Number.isFinite(n) && n >= 20 && n <= 350);
+}
+
 export function NutritionPage() {
   const [phases, setPhases] = useState<NutritionPhaseResponse[]>([]);
   const [checkins, setCheckins] = useState<WeeklyCheckInResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const errorBannerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (error && errorBannerRef.current && typeof errorBannerRef.current.scrollIntoView === "function") {
+      errorBannerRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [error]);
 
   const [phaseForm, setPhaseForm] = useState<PhaseFormState>(createEmptyPhaseForm);
   const [phaseMode, setPhaseMode] = useState<"create" | "edit">("create");
+  const [phaseEditorOpen, setPhaseEditorOpen] = useState(false);
   const [savingPhase, setSavingPhase] = useState(false);
 
   const [checkinForm, setCheckinForm] = useState<CheckInFormState>(createEmptyCheckInForm);
@@ -178,6 +202,7 @@ export function NutritionPage() {
           return;
         }
         await refreshPhases();
+        setPhaseEditorOpen(false);
         setStatusMessage("Fase Nutricional actualizada correctamente.");
       } else {
         const { data, error: apiError } = await apiClient.POST("/api/v1/nutrition/phases", {
@@ -197,6 +222,7 @@ export function NutritionPage() {
           return;
         }
         await refreshPhases();
+        setPhaseEditorOpen(false);
         setStatusMessage("Fase Nutricional activada correctamente.");
       }
     } catch (err) {
@@ -240,12 +266,7 @@ export function NutritionPage() {
     setError(null);
     setStatusMessage(null);
 
-    const dailyWeights = checkinForm.daily_weights_raw
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map(parseNumber)
-      .filter((n) => Number.isFinite(n));
+    const dailyWeights = parseDailyWeights(checkinForm.daily_weights_raw);
 
     const avgWeight = checkinForm.average_weight_kg.trim()
       ? parseNumber(checkinForm.average_weight_kg)
@@ -357,7 +378,9 @@ export function NutritionPage() {
           title="Nutrición"
           description="Gestiona tu Fase Nutricional activa, registra tu Check-in semanal y revisa las propuestas de ajuste del Coach."
         />
-        <p className="text-sm text-ink-muted">Cargando Fase Nutricional y Check-ins…</p>
+        <p role="status" className="text-sm text-ink-muted">
+          Cargando Fase Nutricional y Check-ins…
+        </p>
       </section>
     );
   }
@@ -370,36 +393,40 @@ export function NutritionPage() {
       />
 
       {/* Quick anchor strip on mobile */}
-      <div className="flex flex-wrap gap-2 lg:hidden">
+      <nav aria-label="Secciones de Nutrición" className="flex flex-wrap gap-2 lg:hidden">
         <a
           href="#fase-activa"
-          className="rounded-control border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+          className="inline-flex min-h-[44px] items-center rounded-control border border-line bg-surface px-3.5 py-2 text-xs font-medium text-ink-muted hover:text-ink"
         >
           Fase activa
         </a>
         {latestCheckIn && (
           <a
             href="#ajuste-coach"
-            className="rounded-control border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+            className="inline-flex min-h-[44px] items-center rounded-control border border-line bg-surface px-3.5 py-2 text-xs font-medium text-ink-muted hover:text-ink"
           >
             Ajuste del Coach
           </a>
         )}
         <a
           href="#checkin-semanal"
-          className="rounded-control border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+          className="inline-flex min-h-[44px] items-center rounded-control border border-line bg-surface px-3.5 py-2 text-xs font-medium text-ink-muted hover:text-ink"
         >
           Check-in semanal
         </a>
         <a
           href="#historial-nutricion"
-          className="rounded-control border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+          className="inline-flex min-h-[44px] items-center rounded-control border border-line bg-surface px-3.5 py-2 text-xs font-medium text-ink-muted hover:text-ink"
         >
           Historial
         </a>
-      </div>
+      </nav>
 
-      {error && <AlertBanner tone="error">{error}</AlertBanner>}
+      {error && (
+        <div ref={errorBannerRef}>
+          <AlertBanner tone="error">{error}</AlertBanner>
+        </div>
+      )}
       {statusMessage && <AlertBanner tone="success">{statusMessage}</AlertBanner>}
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
@@ -408,18 +435,19 @@ export function NutritionPage() {
             activePhase={activePhase}
             phaseForm={phaseForm}
             phaseMode={phaseMode}
+            editorOpen={phaseEditorOpen}
             savingPhase={savingPhase}
             onChangeForm={(patch) => setPhaseForm((prev) => ({ ...prev, ...patch }))}
-            onToggleMode={() => {
-              if (!activePhase) return;
-              if (phaseMode === "edit") {
-                setPhaseMode("create");
-                setPhaseForm(createEmptyPhaseForm());
-              } else {
-                setPhaseMode("edit");
-                setPhaseForm(phaseToForm(activePhase));
-              }
+            onOpenEditor={(nextMode) => {
+              setPhaseMode(nextMode);
+              setPhaseForm(
+                nextMode === "edit" && activePhase
+                  ? phaseToForm(activePhase)
+                  : createEmptyPhaseForm(),
+              );
+              setPhaseEditorOpen(true);
             }}
+            onCloseEditor={() => setPhaseEditorOpen(false)}
             onCompletePhase={() => void handleCompleteActivePhase()}
             onSubmit={(e) => void handleSavePhase(e)}
           />

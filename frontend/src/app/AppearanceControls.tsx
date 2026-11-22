@@ -1,29 +1,31 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "../theme/ThemeContext";
+import { Button } from "../ui/Button";
 
 export function AppearanceControls() {
   const { mode, toggleMode } = useTheme();
   const isDark = mode === "dark";
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
+      size="sm"
       onClick={toggleMode}
       aria-label={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
       title={isDark ? "Activar tema claro" : "Activar tema oscuro"}
-      className="inline-flex min-h-[34px] items-center gap-1.5 rounded-control border border-line-strong bg-surface px-2.5 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-ink/40 hover:text-ink"
+      className="min-w-[44px] px-2.5 font-medium text-ink-muted hover:text-ink sm:min-w-0"
     >
       {isDark ? (
         <>
-          <Sun className="h-3.5 w-3.5 text-accent-text" aria-hidden="true" />
+          <Sun className="h-4 w-4 text-accent-text sm:h-3.5 sm:w-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">Claro</span>
         </>
       ) : (
         <>
-          <Moon className="h-3.5 w-3.5 text-accent-text" aria-hidden="true" />
+          <Moon className="h-4 w-4 text-accent-text sm:h-3.5 sm:w-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">Oscuro</span>
         </>
       )}
-    </button>
+    </Button>
   );
 }

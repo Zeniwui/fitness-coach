@@ -9,7 +9,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, action, meta }: PageHeaderProps) {
   return (
-    <header className="classical-entablature pb-4">
+    <header className="section-rule pb-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="max-w-2xl space-y-1.5">
           {meta && <div className="flex flex-wrap items-center gap-2">{meta}</div>}

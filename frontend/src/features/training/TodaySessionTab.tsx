@@ -10,6 +10,7 @@ import {
 
 interface TodaySessionTabProps {
   todayData: TodaySessionResponse | null;
+  switchingDay?: boolean;
   onSelectPlannedSession: (plannedSessionId: string) => void;
   onStartLogging: () => void;
   onGoToMesocycles: () => void;
@@ -17,6 +18,7 @@ interface TodaySessionTabProps {
 
 export function TodaySessionTab({
   todayData,
+  switchingDay = false,
   onSelectPlannedSession,
   onStartLogging,
   onGoToMesocycles,
@@ -24,9 +26,7 @@ export function TodaySessionTab({
   if (!todayData?.active_mesocycle) {
     return (
       <Surface variant="inset" padded="lg" className="text-center">
-        <p className="heading-section text-lg text-ink">
-          No tienes ningún Mesociclo activo.
-        </p>
+        <p className="heading-section text-lg text-ink">No tienes ningún Mesociclo activo.</p>
         <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-ink-muted">
           Genera un borrador personalizado con el Coach o activa uno existente en la pestaña
           Mesociclos.
@@ -42,13 +42,11 @@ export function TodaySessionTab({
 
   return (
     <div className="space-y-5">
-      <Surface variant="classical" padded="md" className="space-y-4">
+      <Surface variant="focal" padded="md" className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={statusBadgeTone(meso.status)}>
-                {statusBadgeLabel(meso.status)}
-              </Badge>
+              <Badge tone={statusBadgeTone(meso.status)}>{statusBadgeLabel(meso.status)}</Badge>
               <span className="text-xs text-ink-muted tabular-nums">
                 {meso.duration_weeks} semanas · {todayData.completed_sessions_in_mesocycle} sesiones
                 completadas
@@ -57,30 +55,32 @@ export function TodaySessionTab({
             <h2 className="heading-section text-xl text-ink">{meso.name}</h2>
             <p className="text-xs text-ink-muted">{meso.goal}</p>
           </div>
-          <Button onClick={onStartLogging}>
+          <Button onClick={onStartLogging} disabled={switchingDay}>
             <ClipboardList className="h-4 w-4" aria-hidden="true" />
             <span>Registrar esta sesión</span>
           </Button>
         </div>
 
         {meso.planned_sessions.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+          <div
+            role="group"
+            aria-label="Seleccionar día planificado"
+            className="flex flex-wrap items-center gap-2 border-t border-line pt-3"
+          >
             <CalendarDays className="h-4 w-4 text-ink-subtle" aria-hidden="true" />
             {meso.planned_sessions.map((ps) => {
               const isSelected = todayData.planned_session?.id === ps.id;
               return (
-                <button
+                <Button
                   key={ps.id}
-                  type="button"
+                  variant={isSelected ? "soft" : "secondary"}
+                  size="sm"
+                  aria-pressed={isSelected}
+                  disabled={switchingDay}
                   onClick={() => onSelectPlannedSession(ps.id)}
-                  className={`rounded-control border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    isSelected
-                      ? "border-accent bg-accent-soft text-accent-text"
-                      : "border-line bg-surface-muted/60 text-ink-muted hover:border-line-strong hover:text-ink"
-                  }`}
                 >
                   Día {ps.day_order}: {ps.name}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -88,13 +88,13 @@ export function TodaySessionTab({
       </Surface>
 
       {todayData.planned_session && (
-        <div className="space-y-3.5">
+        <div className="space-y-3.5" aria-busy={switchingDay}>
           <div className="flex items-center justify-between gap-2">
             <h3 className="heading-section text-lg text-ink">
               Sesión planificada: {todayData.planned_session.name}
             </h3>
             <span className="text-xs text-ink-muted tabular-nums">
-              {todayData.exercises.length} ejercicios
+              {switchingDay ? "Actualizando…" : `${todayData.exercises.length} ejercicios`}
             </span>
           </div>
 
@@ -157,6 +157,14 @@ export function TodaySessionTab({
                 </div>
               </article>
             ))}
+          </div>
+
+          {/* Thumb-zone CTA on mobile */}
+          <div className="pt-1 sm:hidden">
+            <Button size="lg" fullWidth onClick={onStartLogging} disabled={switchingDay}>
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              <span>Registrar esta sesión</span>
+            </Button>
           </div>
         </div>
       )}

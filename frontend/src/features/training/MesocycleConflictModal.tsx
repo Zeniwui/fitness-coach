@@ -1,4 +1,5 @@
 import { Button } from "../../ui/Button";
+import { ModalDialog } from "../../ui/ModalDialog";
 import { Surface } from "../../ui/Surface";
 import type { ConflictModalState } from "./types";
 
@@ -14,14 +15,9 @@ export function MesocycleConflictModal({
   onCancel,
 }: MesocycleConflictModalProps) {
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Confirmar cambio de Mesociclo activo"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
-    >
-      <Surface variant="elevated" padded="lg" className="w-full max-w-md space-y-4">
-        <h2 className="heading-section text-xl text-ink">
+    <ModalDialog ariaLabelledBy="meso-conflict-title" onClose={onCancel}>
+      <Surface variant="elevated" padded="lg" className="space-y-4">
+        <h2 id="meso-conflict-title" className="heading-section text-xl text-ink">
           Confirmar cambio de Mesociclo activo
         </h2>
         <p className="text-sm leading-relaxed text-ink-muted">
@@ -43,6 +39,6 @@ export function MesocycleConflictModal({
           </Button>
         </div>
       </Surface>
-    </div>
+    </ModalDialog>
   );
 }

@@ -56,7 +56,7 @@ export function CoachAdjustmentCard({
             </dd>
           </div>
           <div className="rounded-control border border-line bg-surface p-3 text-xs">
-            <dt className="text-ink-muted">Delta TDEE estimado</dt>
+            <dt className="text-ink-muted">Desviación de gasto diario (TDEE)</dt>
             <dd className="mt-1 text-sm font-semibold text-ink tabular-nums">
               {latestCheckIn.estimated_tdee_delta_kcal !== null
                 ? `${latestCheckIn.estimated_tdee_delta_kcal > 0 ? "+" : ""}${latestCheckIn.estimated_tdee_delta_kcal} kcal/día`

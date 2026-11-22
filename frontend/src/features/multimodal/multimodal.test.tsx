@@ -126,7 +126,7 @@ describe("Multimodal Gym Flows: Voice Dictation, NL Training Session Draft & Ima
     MockSpeechRecognition.nextTranscript = "Hice 4 series de press banca a 8 repes";
     render(<App initialEntries={["/training"]} />);
 
-    const sessionsTab = await screen.findByRole("button", { name: /^sesiones$/i });
+    const sessionsTab = await screen.findByRole("tab", { name: /^sesiones$/i });
     await user.click(sessionsTab);
 
     // Dictate incomplete training session

@@ -99,8 +99,9 @@ describe("Living Profile (Perfil Vivo) & Injuries UI (#3)", () => {
     await user.click(screen.getByRole("button", { name: /reactivar/i }));
     expect(await within(banner).findByText(/1 restricción activa/i)).toBeInTheDocument();
 
-    // Delete -> removed completely
-    await user.click(screen.getByRole("button", { name: /eliminar/i }));
+    // Delete -> requires explicit confirmation, then removed completely
+    await user.click(screen.getByRole("button", { name: /^eliminar$/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar eliminación/i }));
     expect(await within(banner).findByText(/sin lesiones activas/i)).toBeInTheDocument();
     expect(screen.queryByText(/molestia solo con mancuernas pesadas/i)).not.toBeInTheDocument();
   });

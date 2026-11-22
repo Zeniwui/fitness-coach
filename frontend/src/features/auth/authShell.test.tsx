@@ -107,6 +107,7 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     expect(screen.getByText(/^Curador$/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: /ciencia/i }));
+    await user.click(await screen.findByRole("tab", { name: /invitaciones/i }));
     expect(await screen.findByText(/panel del curador/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: /perfil vivo/i }));
@@ -118,6 +119,7 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     const user = userEvent.setup();
     render(<App initialEntries={["/science"]} />);
 
+    await user.click(await screen.findByRole("tab", { name: /invitaciones/i }));
     expect(await screen.findByText(/panel del curador/i)).toBeInTheDocument();
 
     const emailInput = screen.getByLabelText(/correo del atleta/i);
@@ -143,6 +145,7 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     const user = userEvent.setup();
     render(<App initialEntries={["/science"]} />);
 
+    await user.click(await screen.findByRole("tab", { name: /invitaciones/i }));
     const emailInput = await screen.findByLabelText(/correo del atleta/i);
     await user.type(emailInput, "sinclipboard@fitness.test");
     await user.click(screen.getByRole("button", { name: /generar invitación/i }));
@@ -233,6 +236,7 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     const user = userEvent.setup();
     render(<App initialEntries={["/science"]} />);
 
+    await user.click(await screen.findByRole("tab", { name: /invitaciones/i }));
     const emailInput = await screen.findByLabelText(/correo del atleta/i);
     await user.type(emailInput, "doble@fitness.test");
 

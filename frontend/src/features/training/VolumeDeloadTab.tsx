@@ -19,12 +19,12 @@ export function VolumeDeloadTab({ volumeSummary }: VolumeDeloadTabProps) {
   return (
     <div className="space-y-5">
       <Surface
-        variant={deload_assessment.recommended ? "warning" : "classical"}
+        variant={deload_assessment.recommended ? "warning" : "focal"}
         padded="md"
         className="space-y-3"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="heading-section text-lg text-ink">Evaluación de Descarga (Deload)</h2>
+          <h2 className="heading-section text-lg text-ink">Evaluación de Descarga</h2>
           <Badge
             tone={
               deload_assessment.recommended
@@ -62,7 +62,7 @@ export function VolumeDeloadTab({ volumeSummary }: VolumeDeloadTabProps) {
           </h3>
           <p className="text-xs text-ink-muted tabular-nums">
             {volumeSummary.total_sessions} sesiones · {volumeSummary.total_effective_sets} series
-            efectivas totales (directas = 1.0, secundarias = 0.5)
+            efectivas totales (directas = 1.0, secundarias = 0.5; RIR = repeticiones en reserva)
           </p>
         </div>
 
@@ -97,7 +97,7 @@ export function VolumeDeloadTab({ volumeSummary }: VolumeDeloadTabProps) {
                         {mg.effective_sets} efectivas
                       </p>
                       {mg.planned_sets > 0 && (
-                        <p className="text-[11px] text-ink-muted">Objetivo: {mg.planned_sets}</p>
+                        <p className="text-xs text-ink-muted">Objetivo: {mg.planned_sets}</p>
                       )}
                     </div>
                   </div>
@@ -105,6 +105,7 @@ export function VolumeDeloadTab({ volumeSummary }: VolumeDeloadTabProps) {
                     value={mg.effective_sets}
                     max={target}
                     tone={isOverTarget ? "warning" : "accent"}
+                    ariaLabel={`Volumen efectivo de ${mg.muscle_group}: ${mg.effective_sets} de ${target} series`}
                   />
                 </div>
               );
