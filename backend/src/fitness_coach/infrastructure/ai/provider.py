@@ -214,7 +214,7 @@ class ConfigurableAIProvider:
                     }
                 ]
             }
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with self._client() as client:
                 resp = await client.post(url, json=body)
             self._raise_for_status(resp)
             data = resp.json()
@@ -235,7 +235,26 @@ class ConfigurableAIProvider:
     def _raise_for_status(self, response: httpx.Response) -> None:
         if response.status_code == 429:
             raise RateLimitError("HTTP 429: cuota del proveedor de IA agotada temporalmente.")
-        response.raise_for_status()
+        if response.is_error:
+            detail = self._extract_error_detail(response)
+            raise RuntimeError(
+                f"HTTP {response.status_code} del proveedor de IA: {detail}"
+            )
+
+    @staticmethod
+    def _extract_error_detail(response: httpx.Response) -> str:
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+        if isinstance(payload, dict):
+            err = payload.get("error")
+            if isinstance(err, dict) and err.get("message"):
+                return str(err["message"])
+            if payload.get("message"):
+                return str(payload["message"])
+        text = response.text.strip()
+        return text[:300] if text else response.reason_phrase
 
     async def _generate_google(
         self,
@@ -266,7 +285,7 @@ class ConfigurableAIProvider:
         }
         if json_schema is not None:
             body["generationConfig"] = {"responseMimeType": "application/json"}
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
+        async with self._client() as client:
             resp = await client.post(url, json=body)
         self._raise_for_status(resp)
         data = resp.json()

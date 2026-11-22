@@ -46,14 +46,14 @@ class Settings(BaseSettings):
 
     # AI Provider (ADR-0003: swappable via env vars without domain changes)
     ai_provider: str = "google_ai_studio"
-    ai_fast_model: str = "gemini-2.0-flash"
-    ai_reasoning_model: str = "gemini-2.5-pro"
+    ai_fast_model: str = "gemini-3.6-flash"
+    ai_reasoning_model: str = "gemini-4-hydrogen"
     ai_base_url: str | None = None
     google_api_key: str | None = None
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     embedding_provider: str = "google_ai_studio"
-    embedding_model: str = "text-embedding-004"
+    embedding_model: str = "gemini-embedding-001"
 
     @model_validator(mode="after")
     def _validate_security_invariants(self) -> Settings:

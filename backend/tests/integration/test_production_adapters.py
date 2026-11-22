@@ -332,3 +332,53 @@ async def test_create_app_wires_production_adapters_by_default() -> None:
     assert isinstance(prod_app.state.scientific_sources, HttpScientificSourcesAdapter)
     assert isinstance(prod_app.state.binary_storage, SupabaseBinaryStorageAdapter)
 
+
+def test_settings_default_google_models_are_current() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.ai_provider == "google_ai_studio"
+    assert settings.ai_fast_model == "gemini-3.6-flash"
+    assert settings.ai_reasoning_model == "gemini-4-hydrogen"
+    assert settings.embedding_model == "gemini-embedding-001"
+
+
+@pytest.mark.asyncio
+async def test_google_ai_studio_error_redacts_api_key_and_surfaces_detail() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            404,
+            json={
+                "error": {
+                    "code": 404,
+                    "message": "models/gemini-3.1-pro is not found for API version v1beta",
+                    "status": "NOT_FOUND",
+                }
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    settings = Settings(
+        _env_file=None,
+        ai_provider="google_ai_studio",
+        ai_reasoning_model="gemini-3.1-pro",
+        embedding_provider="google_ai_studio",
+        embedding_model="text-embedding-004",
+        google_api_key="super-secret-google-key",
+    )
+    provider = build_ai_provider(settings, transport=transport)
+
+    with pytest.raises(RuntimeError) as gen_exc:
+        await provider.generate(
+            tier=ModelTier.REASONING,
+            system_prompt="Coach",
+            user_prompt="Hola",
+        )
+    assert "super-secret-google-key" not in str(gen_exc.value)
+    assert "404" in str(gen_exc.value)
+    assert "not found" in str(gen_exc.value)
+
+    with pytest.raises(RuntimeError) as emb_exc:
+        await provider.embed_texts(["Hola"])
+    assert "super-secret-google-key" not in str(emb_exc.value)
+    assert "404" in str(emb_exc.value)
+
+
