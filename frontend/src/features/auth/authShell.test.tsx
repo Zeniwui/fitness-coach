@@ -55,9 +55,22 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     expect(nav).toHaveTextContent("Nutrición");
     expect(nav).toHaveTextContent("Ciencia");
     expect(nav).toHaveTextContent("Perfil Vivo");
+    expect(screen.queryByText(/^Curador$/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /invitaciones/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: /ciencia/i }));
     expect(await screen.findByText(/base de conocimiento/i)).toBeInTheDocument();
+    expect(screen.queryByText(/panel del curador/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/generar invitación/i)).not.toBeInTheDocument();
+  });
+
+  it("redirects non-Curator Athlete navigating directly to /invitaciones and hides the header control", async () => {
+    seedSupabaseSession("tok-athlete");
+    render(<App initialEntries={["/invitaciones"]} />);
+
+    expect(await screen.findByRole("navigation", { name: /navegación principal/i })).toBeInTheDocument();
+    expect(await screen.findByLabelText(/mensaje para el coach/i)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /invitaciones/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/panel del curador/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/generar invitación/i)).not.toBeInTheDocument();
   });
@@ -106,9 +119,16 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     expect(await screen.findByRole("navigation", { name: /navegación principal/i })).toBeInTheDocument();
     expect(screen.getByText(/^Curador$/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: /ciencia/i }));
-    await user.click(await screen.findByRole("tab", { name: /invitaciones/i }));
+    // Invitaciones is accessible from the dedicated header control, not inside Ciencia
+    await user.click(screen.getByRole("link", { name: /invitaciones/i }));
     expect(await screen.findByText(/panel del curador/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: /ciencia/i }));
+    expect(await screen.findByRole("tab", { name: /base de conocimiento/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /temas de actualidad/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /bandeja del curador/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /corte mensual/i })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /invitaciones/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: /perfil vivo/i }));
     expect(await screen.findByRole("heading", { name: /perfil vivo/i })).toBeInTheDocument();
@@ -117,9 +137,9 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
   it("allows Dual-role Curator+Athlete to access personal tabs and issue invitations", async () => {
     seedSupabaseSession("tok-dual");
     const user = userEvent.setup();
-    render(<App initialEntries={["/science"]} />);
+    render(<App initialEntries={["/coach"]} />);
 
-    await user.click(await screen.findByRole("tab", { name: /invitaciones/i }));
+    await user.click(await screen.findByRole("link", { name: /invitaciones/i }));
     expect(await screen.findByText(/panel del curador/i)).toBeInTheDocument();
 
     const emailInput = screen.getByLabelText(/correo del atleta/i);
@@ -143,9 +163,8 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
   it("shows an error instead of false copy confirmation when Clipboard API is unavailable", async () => {
     seedSupabaseSession("tok-dual");
     const user = userEvent.setup();
-    render(<App initialEntries={["/science"]} />);
+    render(<App initialEntries={["/invitaciones"]} />);
 
-    await user.click(await screen.findByRole("tab", { name: /invitaciones/i }));
     const emailInput = await screen.findByLabelText(/correo del atleta/i);
     await user.type(emailInput, "sinclipboard@fitness.test");
     await user.click(screen.getByRole("button", { name: /generar invitación/i }));
@@ -234,9 +253,8 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
     );
 
     const user = userEvent.setup();
-    render(<App initialEntries={["/science"]} />);
+    render(<App initialEntries={["/invitaciones"]} />);
 
-    await user.click(await screen.findByRole("tab", { name: /invitaciones/i }));
     const emailInput = await screen.findByLabelText(/correo del atleta/i);
     await user.type(emailInput, "doble@fitness.test");
 

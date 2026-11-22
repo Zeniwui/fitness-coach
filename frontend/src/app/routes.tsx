@@ -1,6 +1,6 @@
-import { Suspense, lazy } from "react";
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { Suspense, lazy, type ReactNode } from "react";
+import { Navigate, NavLink, Outlet, Route, Routes } from "react-router-dom";
+import { LogOut, UserPlus } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
 import { Badge } from "../ui/Badge";
@@ -26,6 +26,19 @@ const LivingProfilePage = lazy(() =>
     default: m.LivingProfilePage,
   })),
 );
+const CuratorInvitationsPage = lazy(() =>
+  import("../features/auth/CuratorInvitationsPage").then((m) => ({
+    default: m.CuratorInvitationsPage,
+  })),
+);
+
+function CuratorRoute({ children }: { children: ReactNode }) {
+  const { athlete } = useAuth();
+  if (!athlete?.is_curator) {
+    return <Navigate to="/coach" replace />;
+  }
+  return <>{children}</>;
+}
 
 function RouteLoadingFallback() {
   return (
@@ -72,7 +85,24 @@ function ProtectedLayout() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-ink">{athlete.display_name}</span>
-              {athlete.is_curator && <Badge tone="secondary">Curador</Badge>}
+              {athlete.is_curator && (
+                <>
+                  <Badge tone="secondary">Curador</Badge>
+                  <NavLink
+                    to="/invitaciones"
+                    className={({ isActive }) =>
+                      `inline-flex min-h-[44px] items-center gap-1.5 rounded-control border px-3 py-1.5 text-xs font-semibold transition-colors sm:min-h-[36px] ${
+                        isActive
+                          ? "border-secondary/40 bg-secondary-soft text-secondary-text"
+                          : "border-line-strong bg-surface text-ink-muted hover:border-ink/40 hover:bg-surface-muted/60 hover:text-ink"
+                      }`
+                    }
+                  >
+                    <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Invitaciones</span>
+                  </NavLink>
+                </>
+              )}
             </div>
           </div>
 
@@ -110,6 +140,14 @@ export function AppRoutes() {
         <Route path="/nutrition" element={<NutritionPage />} />
         <Route path="/science" element={<SciencePage />} />
         <Route path="/profile" element={<LivingProfilePage />} />
+        <Route
+          path="/invitaciones"
+          element={
+            <CuratorRoute>
+              <CuratorInvitationsPage />
+            </CuratorRoute>
+          }
+        />
         <Route path="/" element={<Navigate to="/coach" replace />} />
         <Route path="*" element={<Navigate to="/coach" replace />} />
       </Route>

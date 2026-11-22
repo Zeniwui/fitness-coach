@@ -11,18 +11,8 @@ const CuratorInbox = lazy(() =>
 const MonthlyCutPanel = lazy(() =>
   import("../monthly-cut/MonthlyCutPanel").then((m) => ({ default: m.MonthlyCutPanel })),
 );
-const CuratorInvitationsPanel = lazy(() =>
-  import("../auth/CuratorInvitationsPanel").then((m) => ({
-    default: m.CuratorInvitationsPanel,
-  })),
-);
 
-type ScienceTab =
-  | "knowledge_base"
-  | "trending_topics"
-  | "curator_inbox"
-  | "monthly_cut"
-  | "invitations";
+type ScienceTab = "knowledge_base" | "trending_topics" | "curator_inbox" | "monthly_cut";
 
 export function SciencePage() {
   const { athlete } = useAuth();
@@ -30,10 +20,7 @@ export function SciencePage() {
   const [activeTab, setActiveTab] = useState<ScienceTab>("knowledge_base");
 
   const resolvedTab: ScienceTab =
-    !isCurator &&
-    (activeTab === "curator_inbox" ||
-      activeTab === "monthly_cut" ||
-      activeTab === "invitations")
+    !isCurator && (activeTab === "curator_inbox" || activeTab === "monthly_cut")
       ? "knowledge_base"
       : activeTab;
 
@@ -44,7 +31,6 @@ export function SciencePage() {
       ? [
           { id: "curator_inbox" as const, label: "Bandeja del Curador" },
           { id: "monthly_cut" as const, label: "Corte Mensual" },
-          { id: "invitations" as const, label: "Invitaciones" },
         ]
       : []),
   ];
@@ -80,7 +66,6 @@ export function SciencePage() {
           {resolvedTab === "trending_topics" && <TrendingTopicsPanel isCurator={isCurator} />}
           {resolvedTab === "curator_inbox" && isCurator && <CuratorInbox />}
           {resolvedTab === "monthly_cut" && isCurator && <MonthlyCutPanel />}
-          {resolvedTab === "invitations" && isCurator && <CuratorInvitationsPanel />}
         </Suspense>
       </div>
     </div>

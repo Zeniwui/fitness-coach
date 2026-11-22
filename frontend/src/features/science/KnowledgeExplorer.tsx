@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ExternalLink, Search } from "lucide-react";
+import { ExternalLink, Search, SlidersHorizontal, X } from "lucide-react";
 import { apiClient, extractApiErrorDetail } from "../../api/client";
 import type { components } from "../../api/generated/schema";
 import { AlertBanner } from "../../ui/AlertBanner";
@@ -19,6 +19,13 @@ type EvidenceSearchHit = components["schemas"]["EvidenceSearchHitResponse"];
 
 const QUICK_QUERIES = ["RIR", "creatina", "volumen", "hipertrofia"] as const;
 
+interface SearchCriteria {
+  query: string;
+  tagFilter: string;
+  evidenceLevel: EvidenceLevel | "";
+  validityStatus: ValidityStatus | "";
+}
+
 interface KnowledgeExplorerProps {
   isCurator: boolean;
 }
@@ -28,6 +35,7 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
   const [tagFilter, setTagFilter] = useState("");
   const [evidenceLevel, setEvidenceLevel] = useState<EvidenceLevel | "">("");
   const [validityStatus, setValidityStatus] = useState<ValidityStatus | "">("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [hits, setHits] = useState<EvidenceSearchHit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,12 +45,21 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
+  const activeFilterCount =
+    (tagFilter.trim() ? 1 : 0) + (evidenceLevel ? 1 : 0) + (validityStatus ? 1 : 0);
+
   const runSearch = useCallback(
-    async (overrideQuery?: string) => {
+    async (overrides?: Partial<SearchCriteria>) => {
       setLoading(true);
       setError(null);
-      const qValue = (overrideQuery !== undefined ? overrideQuery : query).trim();
-      const parsedTags = tagFilter
+      const qValue = (overrides?.query !== undefined ? overrides.query : query).trim();
+      const rawTags = overrides?.tagFilter !== undefined ? overrides.tagFilter : tagFilter;
+      const nextEvidenceLevel =
+        overrides?.evidenceLevel !== undefined ? overrides.evidenceLevel : evidenceLevel;
+      const nextValidityStatus =
+        overrides?.validityStatus !== undefined ? overrides.validityStatus : validityStatus;
+
+      const parsedTags = rawTags
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
@@ -53,8 +70,8 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
             query: {
               q: qValue || undefined,
               tags: parsedTags.length > 0 ? parsedTags : undefined,
-              evidence_level: evidenceLevel || undefined,
-              validity_status: validityStatus || undefined,
+              evidence_level: nextEvidenceLevel || undefined,
+              validity_status: nextValidityStatus || undefined,
               limit: 20,
             },
           },
@@ -78,7 +95,7 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
   );
 
   useEffect(() => {
-    void runSearch("");
+    void runSearch({ query: "", tagFilter: "", evidenceLevel: "", validityStatus: "" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -104,7 +121,7 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
 
   const handleQuickQuery = (term: string) => {
     setQuery(term);
-    void runSearch(term);
+    void runSearch({ query: term });
   };
 
   const handleResetFilters = () => {
@@ -112,7 +129,7 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
     setTagFilter("");
     setEvidenceLevel("");
     setValidityStatus("");
-    void runSearch("");
+    void runSearch({ query: "", tagFilter: "", evidenceLevel: "", validityStatus: "" });
   };
 
   const handleStartEdit = (hit: EvidenceSearchHit) => {
@@ -170,75 +187,112 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
                 <span>Buscar</span>
               </Button>
             </div>
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-ink-subtle">Consultas rápidas:</span>
-              {QUICK_QUERIES.map((term) => (
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-ink-subtle">Consultas rápidas:</span>
+                {QUICK_QUERIES.map((term) => (
+                  <Button
+                    key={term}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleQuickQuery(term)}
+                    className="bg-surface-muted/70 text-ink-muted hover:text-ink"
+                  >
+                    {term}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
-                  key={term}
-                  variant="ghost"
+                  variant={filtersOpen || activeFilterCount > 0 ? "soft" : "secondary"}
                   size="sm"
-                  onClick={() => handleQuickQuery(term)}
-                  className="bg-surface-muted/70 text-ink-muted hover:text-ink"
+                  aria-expanded={filtersOpen}
+                  aria-controls="kb-advanced-filters"
+                  onClick={() => setFiltersOpen((prev) => !prev)}
                 >
-                  {term}
+                  <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>
+                    {activeFilterCount > 0 ? `Filtros (${activeFilterCount})` : "Filtros"}
+                  </span>
                 </Button>
-              ))}
+
+                {activeFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={handleResetFilters}>
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Limpiar filtros</span>
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 border-t border-line pt-3.5 sm:grid-cols-3">
-            <div>
-              <label htmlFor="kb-tag-filter" className="mb-1 block text-xs text-ink-muted">
-                Etiquetas (separadas por coma)
-              </label>
-              <Input
-                compact
-                id="kb-tag-filter"
-                type="text"
-                value={tagFilter}
-                onChange={(e) => setTagFilter(e.target.value)}
-                placeholder="hipertrofia, volumen"
-              />
-            </div>
+          {filtersOpen && (
+            <div
+              id="kb-advanced-filters"
+              className="grid grid-cols-1 gap-3 border-t border-line pt-3.5 sm:grid-cols-3"
+            >
+              <div>
+                <label htmlFor="kb-tag-filter" className="mb-1 block text-xs text-ink-muted">
+                  Etiquetas (separadas por coma)
+                </label>
+                <Input
+                  compact
+                  id="kb-tag-filter"
+                  type="text"
+                  value={tagFilter}
+                  onChange={(e) => setTagFilter(e.target.value)}
+                  placeholder="hipertrofia, volumen"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="kb-level-filter" className="mb-1 block text-xs text-ink-muted">
-                Nivel de evidencia
-              </label>
-              <Select
-                compact
-                id="kb-level-filter"
-                value={evidenceLevel}
-                onChange={(e) => setEvidenceLevel(e.target.value as EvidenceLevel | "")}
-              >
-                <option value="">Todos los niveles</option>
-                {(Object.keys(EVIDENCE_LEVEL_LABELS) as EvidenceLevel[]).map((lvl) => (
-                  <option key={lvl} value={lvl}>
-                    {EVIDENCE_LEVEL_LABELS[lvl]}
-                  </option>
-                ))}
-              </Select>
-            </div>
+              <div>
+                <label htmlFor="kb-level-filter" className="mb-1 block text-xs text-ink-muted">
+                  Nivel de evidencia
+                </label>
+                <Select
+                  compact
+                  id="kb-level-filter"
+                  value={evidenceLevel}
+                  onChange={(e) => {
+                    const nextLevel = e.target.value as EvidenceLevel | "";
+                    setEvidenceLevel(nextLevel);
+                    void runSearch({ evidenceLevel: nextLevel });
+                  }}
+                >
+                  <option value="">Todos los niveles</option>
+                  {(Object.keys(EVIDENCE_LEVEL_LABELS) as EvidenceLevel[]).map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {EVIDENCE_LEVEL_LABELS[lvl]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
 
-            <div>
-              <label htmlFor="kb-validity-filter" className="mb-1 block text-xs text-ink-muted">
-                Vigencia
-              </label>
-              <Select
-                compact
-                id="kb-validity-filter"
-                value={validityStatus}
-                onChange={(e) => setValidityStatus(e.target.value as ValidityStatus | "")}
-              >
-                <option value="">Cualquier vigencia</option>
-                {(Object.keys(VALIDITY_LABELS) as ValidityStatus[]).map((st) => (
-                  <option key={st} value={st}>
-                    {VALIDITY_LABELS[st]}
-                  </option>
-                ))}
-              </Select>
+              <div>
+                <label htmlFor="kb-validity-filter" className="mb-1 block text-xs text-ink-muted">
+                  Vigencia
+                </label>
+                <Select
+                  compact
+                  id="kb-validity-filter"
+                  value={validityStatus}
+                  onChange={(e) => {
+                    const nextValidity = e.target.value as ValidityStatus | "";
+                    setValidityStatus(nextValidity);
+                    void runSearch({ validityStatus: nextValidity });
+                  }}
+                >
+                  <option value="">Cualquier vigencia</option>
+                  {(Object.keys(VALIDITY_LABELS) as ValidityStatus[]).map((st) => (
+                    <option key={st} value={st}>
+                      {VALIDITY_LABELS[st]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
         </form>
       </Surface>
 
@@ -254,11 +308,13 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
           <p className="text-sm text-ink-muted">
             No se encontraron Fichas de Evidencia para los criterios seleccionados.
           </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button variant="secondary" size="sm" onClick={handleResetFilters}>
-              Limpiar filtros
-            </Button>
-          </div>
+          {activeFilterCount === 0 && (
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="secondary" size="sm" onClick={handleResetFilters}>
+                Limpiar filtros
+              </Button>
+            </div>
+          )}
         </Surface>
       ) : (
         <ul className="space-y-5">

@@ -5,7 +5,7 @@ import { Input, Textarea } from "../../ui/Field";
 import { IconButton } from "../../ui/IconButton";
 import { MetricBar } from "../../ui/MetricBar";
 import { Surface } from "../../ui/Surface";
-import { parseDailyWeights } from "./NutritionPage";
+import { parseDailyWeightsDetailed } from "./dailyWeights";
 
 export interface CheckInFormState {
   checkin_date: string;
@@ -62,16 +62,16 @@ export function WeeklyCheckInForm({
     onChange({ [key]: String(next) });
   }
 
-  const parsedDailyWeights = parseDailyWeights(form.daily_weights_raw);
+  const {
+    weights: parsedDailyWeights,
+    average: parsedDailyAverageNum,
+    ignoredTokens,
+  } = parseDailyWeightsDetailed(form.daily_weights_raw);
   const parsedDailyAverage =
-    parsedDailyWeights.length > 0
-      ? (
-          parsedDailyWeights.reduce((acc, w) => acc + w, 0) / parsedDailyWeights.length
-        ).toFixed(2)
-      : null;
+    parsedDailyAverageNum !== null ? parsedDailyAverageNum.toFixed(2) : null;
 
   return (
-    <Surface id="checkin-semanal" variant="default" padded="md">
+    <Surface id="checkin-semanal" variant="focal" padded="md" className="mx-auto max-w-3xl">
       <form onSubmit={onSubmit} className="space-y-5">
         <div className="space-y-1">
           <h2 className="heading-section text-xl text-ink">Check-in semanal guiado</h2>
@@ -97,7 +97,7 @@ export function WeeklyCheckInForm({
             </label>
 
             <label className="block space-y-1 text-xs font-medium text-ink-muted">
-              <span>O lecturas diarias separadas por punto y coma o espacio (kg)</span>
+              <span>O lecturas diarias (coma, punto y coma o espacio, kg)</span>
               <Input
                 type="text"
                 value={form.daily_weights_raw}
@@ -106,8 +106,23 @@ export function WeeklyCheckInForm({
                 className="tabular-nums"
               />
               {parsedDailyAverage && (
-                <span className="block text-xs font-normal text-secondary-text tabular-nums">
-                  Media detectada: {parsedDailyAverage} kg ({parsedDailyWeights.length} pesajes)
+                <span
+                  role="status"
+                  className="block space-y-0.5 text-xs font-normal text-secondary-text tabular-nums"
+                >
+                  <span className="block font-medium">
+                    Media detectada: {parsedDailyAverage} kg
+                  </span>
+                  <span className="block text-ink-muted">
+                    ({parsedDailyWeights.length}{" "}
+                    {parsedDailyWeights.length === 1 ? "pesaje" : "pesajes"}:{" "}
+                    {parsedDailyWeights.join(" · ")} kg)
+                  </span>
+                </span>
+              )}
+              {ignoredTokens.length > 0 && (
+                <span role="status" className="block text-xs font-normal text-warning-text">
+                  Valores ignorados (usa pesos entre 20 y 350 kg): {ignoredTokens.join(", ")}
                 </span>
               )}
             </label>

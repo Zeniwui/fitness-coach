@@ -4,6 +4,7 @@ export interface SegmentedTabItem<T extends string> {
   id: T;
   label: string;
   count?: number;
+  indicator?: string;
 }
 
 interface SegmentedTabsProps<T extends string> {
@@ -77,6 +78,12 @@ export function SegmentedTabs<T extends string>({
             }`}
           >
             <span>{item.label}</span>
+            {item.indicator && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-text">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+                <span>{item.indicator}</span>
+              </span>
+            )}
             {item.count !== undefined && (
               <span
                 className={`rounded-full px-1.5 py-0.5 text-xs tabular-nums ${
