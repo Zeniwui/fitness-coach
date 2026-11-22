@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { ExternalLink, Search } from "lucide-react";
 import { apiClient } from "../../api/client";
 import type { components } from "../../api/generated/schema";
+import { AlertBanner } from "../../ui/AlertBanner";
+import { Badge, type BadgeTone } from "../../ui/Badge";
+import { Button } from "../../ui/Button";
+import { Input, Select, Textarea } from "../../ui/Field";
+import { Surface } from "../../ui/Surface";
 
 type EvidenceSearchHit = components["schemas"]["EvidenceSearchHitResponse"];
 type EvidenceLevel = components["schemas"]["EvidenceLevel"];
@@ -24,11 +30,11 @@ const VALIDITY_LABELS: Record<ValidityStatus, string> = {
   archived: "Archivada",
 };
 
-const VALIDITY_STYLES: Record<ValidityStatus, string> = {
-  active: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  nuanced: "bg-amber-500/20 text-amber-200 border-amber-500/30",
-  superseded: "bg-rose-500/20 text-rose-200 border-rose-500/30",
-  archived: "bg-slate-700/60 text-slate-300 border-slate-600",
+const VALIDITY_TONES: Record<ValidityStatus, BadgeTone> = {
+  active: "success",
+  nuanced: "warning",
+  superseded: "danger",
+  archived: "neutral",
 };
 
 interface KnowledgeExplorerProps {
@@ -92,7 +98,6 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
 
   useEffect(() => {
     void runSearch("");
-    // Initial load of approved EvidenceCards
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -131,240 +136,203 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
   };
 
   return (
-    <section className="space-y-4">
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4"
-      >
-        <div>
-          <label
-            htmlFor="kb-search-input"
-            className="mb-1 block text-xs font-medium text-slate-300"
-          >
-            Buscar Fichas de Evidencia (español, inglés o siglas como RIR, 1RM, HMB, ISSN, mTOR)
-          </label>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              id="kb-search-input"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ej.: volumen semanal hipertrofia, RIR, creatina, mTOR…"
-              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
-            >
-              Buscar
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <section className="space-y-5">
+      <Surface variant="classical" padded="md">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="kb-tag-filter" className="mb-1 block text-[11px] text-slate-400">
-              Etiquetas (separadas por coma)
-            </label>
-            <input
-              id="kb-tag-filter"
-              type="text"
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              placeholder="hipertrofia, volumen"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="kb-level-filter" className="mb-1 block text-[11px] text-slate-400">
-              Nivel de evidencia
-            </label>
-            <select
-              id="kb-level-filter"
-              value={evidenceLevel}
-              onChange={(e) => setEvidenceLevel(e.target.value as EvidenceLevel | "")}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
+            <label
+              htmlFor="kb-search-input"
+              className="mb-1.5 block text-xs font-medium text-ink-muted"
             >
-              <option value="">Todos los niveles</option>
-              {(Object.keys(EVIDENCE_LEVEL_LABELS) as EvidenceLevel[]).map((lvl) => (
-                <option key={lvl} value={lvl}>
-                  {EVIDENCE_LEVEL_LABELS[lvl]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="kb-validity-filter" className="mb-1 block text-[11px] text-slate-400">
-              Vigencia
+              Buscar Fichas de Evidencia (español, inglés o siglas como RIR, 1RM, HMB, ISSN, mTOR)
             </label>
-            <select
-              id="kb-validity-filter"
-              value={validityStatus}
-              onChange={(e) => setValidityStatus(e.target.value as ValidityStatus | "")}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
-            >
-              <option value="">Cualquier vigencia</option>
-              {(Object.keys(VALIDITY_LABELS) as ValidityStatus[]).map((st) => (
-                <option key={st} value={st}>
-                  {VALIDITY_LABELS[st]}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="kb-search-input"
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Ej.: volumen semanal hipertrofia, RIR, creatina, mTOR…"
+                className="flex-1"
+              />
+              <Button type="submit">
+                <Search className="h-4 w-4" aria-hidden="true" />
+                <span>Buscar</span>
+              </Button>
+            </div>
           </div>
-        </div>
-      </form>
 
-      {error && (
-        <div
-          role="alert"
-          className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-3 py-2 text-xs text-rose-200"
-        >
-          {error}
-        </div>
-      )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label htmlFor="kb-tag-filter" className="mb-1 block text-xs text-ink-muted">
+                Etiquetas (separadas por coma)
+              </label>
+              <Input
+                compact
+                id="kb-tag-filter"
+                type="text"
+                value={tagFilter}
+                onChange={(e) => setTagFilter(e.target.value)}
+                placeholder="hipertrofia, volumen"
+              />
+            </div>
 
-      {actionMessage && (
-        <div
-          role="status"
-          className="rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-200"
-        >
-          {actionMessage}
-        </div>
-      )}
+            <div>
+              <label htmlFor="kb-level-filter" className="mb-1 block text-xs text-ink-muted">
+                Nivel de evidencia
+              </label>
+              <Select
+                compact
+                id="kb-level-filter"
+                value={evidenceLevel}
+                onChange={(e) => setEvidenceLevel(e.target.value as EvidenceLevel | "")}
+              >
+                <option value="">Todos los niveles</option>
+                {(Object.keys(EVIDENCE_LEVEL_LABELS) as EvidenceLevel[]).map((lvl) => (
+                  <option key={lvl} value={lvl}>
+                    {EVIDENCE_LEVEL_LABELS[lvl]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div>
+              <label htmlFor="kb-validity-filter" className="mb-1 block text-xs text-ink-muted">
+                Vigencia
+              </label>
+              <Select
+                compact
+                id="kb-validity-filter"
+                value={validityStatus}
+                onChange={(e) => setValidityStatus(e.target.value as ValidityStatus | "")}
+              >
+                <option value="">Cualquier vigencia</option>
+                {(Object.keys(VALIDITY_LABELS) as ValidityStatus[]).map((st) => (
+                  <option key={st} value={st}>
+                    {VALIDITY_LABELS[st]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        </form>
+      </Surface>
+
+      {error && <AlertBanner tone="error">{error}</AlertBanner>}
+      {actionMessage && <AlertBanner tone="success">{actionMessage}</AlertBanner>}
 
       {loading ? (
-        <p className="text-xs text-slate-400">Buscando Fichas de Evidencia…</p>
+        <p className="text-sm text-ink-muted">Buscando Fichas de Evidencia…</p>
       ) : hits.length === 0 ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-center text-sm text-slate-400">
+        <Surface variant="inset" padded="lg" className="text-center text-sm text-ink-muted">
           No se encontraron Fichas de Evidencia para los criterios seleccionados.
-        </div>
+        </Surface>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-4">
           {hits.map((hit) => {
             const { card } = hit;
             return (
               <li
                 key={card.id}
-                className="space-y-2.5 rounded-xl border border-slate-800 bg-slate-900/70 p-4"
+                className="space-y-3 rounded-panel border border-line bg-surface p-5 shadow-panel"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${VALIDITY_STYLES[card.validity_status]}`}
-                  >
+                  <Badge tone={VALIDITY_TONES[card.validity_status]}>
                     {VALIDITY_LABELS[card.validity_status]}
-                  </span>
-                  <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-medium text-sky-300">
-                    {EVIDENCE_LEVEL_LABELS[card.evidence_level]}
-                  </span>
-                  <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
+                  </Badge>
+                  <Badge tone="secondary">{EVIDENCE_LEVEL_LABELS[card.evidence_level]}</Badge>
+                  <Badge tone="neutral">
                     {card.coverage === "full_text" ? "Texto completo" : "Solo abstract"}
-                  </span>
+                  </Badge>
                 </div>
 
-                <h2 className="text-base font-semibold text-white">{card.title}</h2>
-                <p className="text-sm leading-relaxed text-slate-200">{card.curated_text_es}</p>
+                <h2 className="heading-section text-xl text-ink">{card.title}</h2>
+                <p className="max-w-[76ch] text-sm leading-relaxed text-ink-muted">
+                  {card.curated_text_es}
+                </p>
 
                 {hit.updated_by_cards.length > 0 && (
-                  <div className="rounded-lg border border-amber-500/30 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+                  <div className="rounded-control border border-warning/35 bg-warning-soft/75 px-3.5 py-2 text-xs text-warning-text">
                     <span className="font-semibold">Actualizada por: </span>
                     {hit.updated_by_cards.map((u) => u.title).join(" · ")}
                   </div>
                 )}
 
                 {card.curator_notes && (
-                  <p className="text-xs text-slate-400">
-                    <span className="font-semibold text-slate-300">Notas del Curador:</span>{" "}
+                  <p className="text-xs leading-relaxed text-ink-muted">
+                    <span className="font-semibold text-ink">Notas del Curador:</span>{" "}
                     {card.curator_notes}
                   </p>
                 )}
 
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
                   {card.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded bg-slate-800 px-2 py-0.5 text-[11px] text-emerald-300"
-                    >
+                    <Badge key={tag} tone="accent">
                       #{tag}
-                    </span>
+                    </Badge>
                   ))}
                   {card.key_terms_en.map((term) => (
-                    <span
-                      key={term}
-                      className="rounded border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300"
-                    >
+                    <Badge key={term} tone="neutral">
                       {term}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2 text-xs">
-                  <div className="flex items-center gap-3 text-slate-400">
-                    {card.doi && <span>DOI: {card.doi}</span>}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-3 text-ink-muted">
+                    {card.doi && <span className="font-mono text-[11px]">DOI: {card.doi}</span>}
                     {card.source_url && (
                       <a
                         href={card.source_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-medium text-emerald-400 hover:underline"
+                        className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline"
                       >
-                        Abrir DOI / PubMed
+                        <span>Abrir DOI / PubMed</span>
+                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
                       </a>
                     )}
                   </div>
 
                   {isCurator && editingCardId !== card.id && (
-                    <button
-                      type="button"
-                      onClick={() => handleStartEdit(hit)}
-                      className="rounded-md border border-slate-700 px-2.5 py-1 text-[11px] font-medium text-slate-200 hover:border-emerald-500"
-                    >
+                    <Button variant="secondary" size="sm" onClick={() => handleStartEdit(hit)}>
                       Editar notas / vigencia
-                    </button>
+                    </Button>
                   )}
                 </div>
 
                 {isCurator && editingCardId === card.id && (
-                  <div className="space-y-2 rounded-lg border border-slate-700 bg-slate-950 p-3">
-                    <label className="block text-xs text-slate-300">
-                      Notas del Curador
-                      <textarea
+                  <div className="space-y-3 rounded-control border border-line bg-surface-muted/70 p-3.5">
+                    <label className="block space-y-1 text-xs font-medium text-ink-muted">
+                      <span>Notas del Curador</span>
+                      <Textarea
+                        compact
                         value={editNotes}
                         onChange={(e) => setEditNotes(e.target.value)}
                         rows={2}
-                        className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white"
                       />
                     </label>
-                    <label className="block text-xs text-slate-300">
-                      Vigencia
-                      <select
+                    <label className="block space-y-1 text-xs font-medium text-ink-muted">
+                      <span>Vigencia</span>
+                      <Select
+                        compact
                         value={editValidity}
                         onChange={(e) => setEditValidity(e.target.value as ValidityStatus)}
-                        className="mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white"
                       >
                         {(Object.keys(VALIDITY_LABELS) as ValidityStatus[]).map((st) => (
                           <option key={st} value={st}>
                             {VALIDITY_LABELS[st]}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void handleSaveCard(card.id)}
-                        className="rounded bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950"
-                      >
+                      <Button size="sm" onClick={() => void handleSaveCard(card.id)}>
                         Guardar cambios
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingCardId(null)}
-                        className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300"
-                      >
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => setEditingCardId(null)}>
                         Cancelar
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}

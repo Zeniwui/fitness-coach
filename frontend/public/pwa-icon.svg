@@ -1,4 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="96" fill="#0f172a"/>
-  <path d="M128 256h256M160 192v128M352 192v128M112 216v80M400 216v80" stroke="#10b981" stroke-width="32" stroke-linecap="round"/>
+  <rect width="512" height="512" rx="108" fill="#0E2236"/>
+  <rect x="28" y="28" width="456" height="456" rx="84" stroke="#D9A75A" stroke-opacity="0.35" stroke-width="4"/>
+  <!-- Classical pediment arch & fluted pillar motif fused with barbell -->
+  <path d="M132 184L256 116L380 184" stroke="#D9A75A" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M116 256H396" stroke="#EDF1F5" stroke-width="24" stroke-linecap="round"/>
+  <path d="M164 208V304M348 208V304" stroke="#38B28B" stroke-width="24" stroke-linecap="round"/>
+  <path d="M126 226V286M386 226V286" stroke="#D9A75A" stroke-width="18" stroke-linecap="round"/>
+  <path d="M164 364H348" stroke="#D9A75A" stroke-width="12" stroke-linecap="round"/>
+  <path d="M196 392H316" stroke="#EDF1F5" stroke-opacity="0.55" stroke-width="8" stroke-linecap="round"/>
 </svg>

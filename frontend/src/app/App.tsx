@@ -1,5 +1,6 @@
 import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import { AuthProvider } from "../features/auth/AuthContext";
+import { ThemeProvider } from "../theme/ThemeContext";
 import { ColdStartBanner } from "./ColdStartBanner";
 import { AppRoutes } from "./routes";
 
@@ -9,10 +10,12 @@ export interface AppProps {
 
 export function App({ initialEntries }: AppProps) {
   const content = (
-    <AuthProvider>
-      <ColdStartBanner />
-      <AppRoutes />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ColdStartBanner />
+        <AppRoutes />
+      </AuthProvider>
+    </ThemeProvider>
   );
 
   if (initialEntries) {

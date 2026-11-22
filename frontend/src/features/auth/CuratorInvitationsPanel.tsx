@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Check, Copy } from "lucide-react";
 import {
   apiClient,
   DuplicateSubmissionError,
   extractApiErrorDetail,
 } from "../../api/client";
 import type { components } from "../../api/generated/schema";
+import { AlertBanner } from "../../ui/AlertBanner";
+import { Badge } from "../../ui/Badge";
+import { Button } from "../../ui/Button";
+import { Input } from "../../ui/Field";
+import { Surface } from "../../ui/Surface";
 
 type InvitationSummary = components["schemas"]["InvitationSummaryResponse"];
 
@@ -41,12 +47,9 @@ export function CuratorInvitationsPanel() {
       const roles: ("athlete" | "curator")[] = grantCurator
         ? ["athlete", "curator"]
         : ["athlete"];
-      const { data, error: apiError } = await apiClient.POST(
-        "/api/v1/curator/invitations",
-        {
-          body: { email: email.trim(), roles },
-        },
-      );
+      const { data, error: apiError } = await apiClient.POST("/api/v1/curator/invitations", {
+        body: { email: email.trim(), roles },
+      });
       if (data) {
         setGeneratedToken(data.invitation_token);
         setCopied(false);
@@ -85,110 +88,93 @@ export function CuratorInvitationsPanel() {
   }
 
   return (
-    <section className="rounded-xl border border-emerald-500/30 bg-slate-900/80 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-emerald-300">
-          Panel del Curador — Invitaciones
-        </h2>
-        <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
-          Curador
-        </span>
-      </div>
-      <p className="mt-1 text-xs text-slate-400">
-        Emite invitaciones de un solo uso para incorporar nuevos Atletas sin abrir registro público.
-      </p>
-
-      <form onSubmit={handleCreateInvitation} className="mt-4 space-y-3">
+    <Surface variant="default" padded="md" className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <label
-            htmlFor="invite-email"
-            className="block text-xs font-medium text-slate-300"
-          >
+          <h2 className="heading-section text-lg text-ink">Panel del Curador — Invitaciones</h2>
+          <p className="mt-1 text-xs text-ink-muted">
+            Emite invitaciones de un solo uso para incorporar nuevos Atletas sin abrir registro
+            público.
+          </p>
+        </div>
+        <Badge tone="secondary">Acceso privado</Badge>
+      </div>
+
+      <form onSubmit={handleCreateInvitation} className="space-y-3">
+        <div>
+          <label htmlFor="invite-email" className="block text-xs font-medium text-ink-muted">
             Correo del Atleta
           </label>
-          <input
+          <Input
             id="invite-email"
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="atleta@ejemplo.com"
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+            className="mt-1.5"
           />
         </div>
 
-        <label className="flex items-center gap-2 text-xs text-slate-300">
+        <label className="flex items-center gap-2 text-xs text-ink-muted">
           <input
             type="checkbox"
             checked={grantCurator}
             onChange={(e) => setGrantCurator(e.target.checked)}
-            className="rounded border-slate-700 bg-slate-950"
+            className="h-4 w-4 rounded border-line-strong accent-accent"
           />
-          Incluir rol dual de Curador además de Atleta
+          <span>Incluir rol dual de Curador además de Atleta</span>
         </label>
 
-        {error && (
-          <p role="alert" className="text-xs text-rose-300">
-            {error}
-          </p>
-        )}
+        {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-        >
+        <Button type="submit" size="sm" disabled={submitting}>
           {submitting ? "Generando…" : "Generar invitación"}
-        </button>
+        </Button>
       </form>
 
       {generatedToken && directInviteLink && (
-        <div className="mt-4 space-y-2 rounded-lg border border-emerald-500/40 bg-emerald-950/40 p-3">
+        <Surface variant="accent" padded="sm" className="space-y-2.5 text-xs">
           <div>
-            <p className="text-xs font-medium text-emerald-200">
+            <p className="font-semibold text-accent-text">
               Código generado (compártelo de forma privada):
             </p>
-            <code className="mt-1 block break-all text-xs font-mono text-white">
-              {generatedToken}
-            </code>
+            <code className="mt-1 block break-all font-mono text-ink">{generatedToken}</code>
           </div>
           <div>
-            <p className="text-xs font-medium text-emerald-200">
-              Enlace directo de invitación:
-            </p>
-            <code className="mt-1 block break-all text-xs font-mono text-emerald-100">
+            <p className="font-semibold text-accent-text">Enlace directo de invitación:</p>
+            <code className="mt-1 block break-all font-mono text-ink-muted">
               {directInviteLink}
             </code>
           </div>
           <div className="flex items-center gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => void handleCopyLink()}
-              className="rounded-md border border-emerald-500/50 bg-emerald-900/50 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-800/60"
-            >
-              Copiar enlace
-            </button>
+            <Button variant="secondary" size="sm" onClick={() => void handleCopyLink()}>
+              {copied ? (
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              <span>Copiar enlace</span>
+            </Button>
             {copied && (
-              <span role="status" className="text-xs font-medium text-emerald-300">
+              <span role="status" className="text-xs font-semibold text-success-text">
                 Enlace copiado
               </span>
             )}
           </div>
-        </div>
+        </Surface>
       )}
 
       {invitations.length > 0 && (
-        <ul className="mt-4 divide-y divide-slate-800 text-xs">
+        <ul className="divide-y divide-line border-t border-line pt-2 text-xs">
           {invitations.map((inv) => (
-            <li key={inv.id} className="flex items-center justify-between py-2">
-              <span className="text-slate-200">{inv.email}</span>
-              <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-300">
-                {inv.status}
-              </span>
+            <li key={inv.id} className="flex items-center justify-between gap-2 py-2.5">
+              <span className="font-medium text-ink">{inv.email}</span>
+              <Badge tone="neutral">{inv.status}</Badge>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </Surface>
   );
 }

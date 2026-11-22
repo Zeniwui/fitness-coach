@@ -1,0 +1,392 @@
+/* ==========================================================================
+   Fitness Coach — Semantic Design Tokens
+   3 Visual Directions (ateneo | clinico | hierro) × 2 Modes (light | dark)
+   ========================================================================== */
+
+:root,
+html[data-direction="ateneo"][data-theme="light"] {
+  /* Ateneo Deportivo · Grecia Clásica — Mármol Pentélico & Marino Egeo */
+  --c-canvas: 243 244 241;
+  --c-surface: 255 255 255;
+  --c-surface-muted: 236 239 235;
+  --c-surface-elevated: 255 255 255;
+
+  --c-rail: 14 34 54;
+  --c-rail-surface: 22 48 74;
+  --c-rail-ink: 244 246 245;
+  --c-rail-ink-muted: 168 186 204;
+  --c-rail-border: 34 62 90;
+  --c-rail-active-bg: 28 60 88;
+  --c-rail-active-ink: 232 195 126;
+
+  --c-ink: 17 30 43;
+  --c-ink-muted: 75 91 107;
+  --c-ink-subtle: 112 126 139;
+
+  --c-line: 217 222 218;
+  --c-line-strong: 185 193 188;
+
+  --c-accent: 21 110 83;
+  --c-accent-hover: 17 91 68;
+  --c-accent-soft: 227 242 236;
+  --c-accent-ink: 255 255 255;
+  --c-accent-text: 16 92 69;
+
+  --c-secondary: 158 107 43;
+  --c-secondary-soft: 247 239 226;
+  --c-secondary-text: 132 87 30;
+
+  --c-success: 22 121 82;
+  --c-success-soft: 228 244 236;
+  --c-success-text: 15 88 60;
+
+  --c-warning: 168 101 24;
+  --c-warning-soft: 252 241 224;
+  --c-warning-text: 133 77 14;
+
+  --c-danger: 180 49 59;
+  --c-danger-soft: 252 234 236;
+  --c-danger-text: 148 34 44;
+
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+
+  --radius-panel: 0.75rem;
+  --radius-control: 0.5rem;
+  --shadow-panel: 0 1px 2px rgb(14 34 54 / 0.04);
+  --shadow-elevated: 0 12px 30px -12px rgb(14 34 54 / 0.14);
+
+  --display-scale: 1.95rem;
+  --display-tracking: -0.015em;
+  --display-weight: 600;
+}
+
+html[data-direction="ateneo"][data-theme="dark"] {
+  /* Ateneo Deportivo · Grecia Clásica — Noche Egea & Bronce Dorado */
+  --c-canvas: 14 22 33;
+  --c-surface: 21 32 47;
+  --c-surface-muted: 28 41 60;
+  --c-surface-elevated: 26 39 58;
+
+  --c-rail: 10 17 26;
+  --c-rail-surface: 19 30 45;
+  --c-rail-ink: 237 241 245;
+  --c-rail-ink-muted: 146 164 184;
+  --c-rail-border: 34 49 69;
+  --c-rail-active-bg: 27 42 62;
+  --c-rail-active-ink: 224 183 111;
+
+  --c-ink: 237 241 245;
+  --c-ink-muted: 167 181 197;
+  --c-ink-subtle: 122 138 156;
+
+  --c-line: 38 53 74;
+  --c-line-strong: 58 78 105;
+
+  --c-accent: 54 176 138;
+  --c-accent-hover: 70 194 155;
+  --c-accent-soft: 20 62 56;
+  --c-accent-ink: 9 24 20;
+  --c-accent-text: 106 214 178;
+
+  --c-secondary: 217 167 90;
+  --c-secondary-soft: 58 46 28;
+  --c-secondary-text: 235 196 130;
+
+  --c-success: 63 185 137;
+  --c-success-soft: 20 62 52;
+  --c-success-text: 126 224 183;
+
+  --c-warning: 226 168 78;
+  --c-warning-soft: 64 46 21;
+  --c-warning-text: 243 200 129;
+
+  --c-danger: 228 103 113;
+  --c-danger-soft: 68 28 36;
+  --c-danger-text: 247 165 171;
+
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+
+  --radius-panel: 0.75rem;
+  --radius-control: 0.5rem;
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.25);
+  --shadow-elevated: 0 16px 36px -14px rgb(0 0 0 / 0.5);
+
+  --display-scale: 1.95rem;
+  --display-tracking: -0.015em;
+  --display-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Dirección B: Instrumento Clínico (Swiss Biomechanics Lab)
+   -------------------------------------------------------------------------- */
+html[data-direction="clinico"][data-theme="light"] {
+  --c-canvas: 246 247 249;
+  --c-surface: 255 255 255;
+  --c-surface-muted: 239 242 246;
+  --c-surface-elevated: 255 255 255;
+
+  --c-rail: 255 255 255;
+  --c-rail-surface: 242 245 249;
+  --c-rail-ink: 19 24 34;
+  --c-rail-ink-muted: 92 103 120;
+  --c-rail-border: 223 227 234;
+  --c-rail-active-bg: 235 241 253;
+  --c-rail-active-ink: 30 79 214;
+
+  --c-ink: 19 24 34;
+  --c-ink-muted: 78 89 107;
+  --c-ink-subtle: 118 129 146;
+
+  --c-line: 223 227 234;
+  --c-line-strong: 195 203 216;
+
+  --c-accent: 30 79 214;
+  --c-accent-hover: 23 64 180;
+  --c-accent-soft: 235 241 253;
+  --c-accent-ink: 255 255 255;
+  --c-accent-text: 26 70 194;
+
+  --c-secondary: 15 118 110;
+  --c-secondary-soft: 230 246 244;
+  --c-secondary-text: 15 104 97;
+
+  --c-success: 21 128 61;
+  --c-success-soft: 230 245 235;
+  --c-success-text: 17 104 49;
+
+  --c-warning: 180 83 9;
+  --c-warning-soft: 254 243 226;
+  --c-warning-text: 146 64 14;
+
+  --c-danger: 190 38 56;
+  --c-danger-soft: 253 236 238;
+  --c-danger-text: 155 28 45;
+
+  --font-display: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  --font-sans: "Instrument Sans", system-ui, -apple-system, sans-serif;
+
+  --radius-panel: 0.625rem;
+  --radius-control: 0.375rem;
+  --shadow-panel: 0 1px 1px rgb(19 24 34 / 0.03);
+  --shadow-elevated: 0 10px 24px -10px rgb(19 24 34 / 0.12);
+
+  --display-scale: 1.65rem;
+  --display-tracking: -0.028em;
+  --display-weight: 700;
+}
+
+html[data-direction="clinico"][data-theme="dark"] {
+  --c-canvas: 17 21 28;
+  --c-surface: 24 30 40;
+  --c-surface-muted: 31 39 52;
+  --c-surface-elevated: 29 36 48;
+
+  --c-rail: 19 24 33;
+  --c-rail-surface: 28 36 49;
+  --c-rail-ink: 241 245 249;
+  --c-rail-ink-muted: 148 163 184;
+  --c-rail-border: 42 52 68;
+  --c-rail-active-bg: 30 49 84;
+  --c-rail-active-ink: 122 169 252;
+
+  --c-ink: 241 245 249;
+  --c-ink-muted: 162 175 194;
+  --c-ink-subtle: 115 129 150;
+
+  --c-line: 42 52 68;
+  --c-line-strong: 63 77 99;
+
+  --c-accent: 91 141 239;
+  --c-accent-hover: 112 157 244;
+  --c-accent-soft: 28 46 79;
+  --c-accent-ink: 12 20 36;
+  --c-accent-text: 147 185 252;
+
+  --c-secondary: 71 196 183;
+  --c-secondary-soft: 22 57 56;
+  --c-secondary-text: 119 224 213;
+
+  --c-success: 74 198 124;
+  --c-success-soft: 20 58 38;
+  --c-success-text: 134 228 171;
+
+  --c-warning: 229 154 61;
+  --c-warning-soft: 64 42 18;
+  --c-warning-text: 246 193 122;
+
+  --c-danger: 235 104 118;
+  --c-danger-soft: 69 26 35;
+  --c-danger-text: 251 163 172;
+
+  --font-display: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  --font-sans: "Instrument Sans", system-ui, -apple-system, sans-serif;
+
+  --radius-panel: 0.625rem;
+  --radius-control: 0.375rem;
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.25);
+  --shadow-elevated: 0 14px 32px -12px rgb(0 0 0 / 0.5);
+
+  --display-scale: 1.65rem;
+  --display-tracking: -0.028em;
+  --display-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   Dirección C: Cuaderno de Hierro (Architectural Steel & Calibrated Brass)
+   -------------------------------------------------------------------------- */
+html[data-direction="hierro"][data-theme="dark"] {
+  --c-canvas: 20 23 29;
+  --c-surface: 28 33 43;
+  --c-surface-muted: 36 42 54;
+  --c-surface-elevated: 34 40 52;
+
+  --c-rail: 16 19 24;
+  --c-rail-surface: 27 32 41;
+  --c-rail-ink: 236 239 244;
+  --c-rail-ink-muted: 147 156 171;
+  --c-rail-border: 42 48 61;
+  --c-rail-active-bg: 48 42 29;
+  --c-rail-active-ink: 226 181 102;
+
+  --c-ink: 236 239 244;
+  --c-ink-muted: 164 173 187;
+  --c-ink-subtle: 118 128 144;
+
+  --c-line: 45 52 66;
+  --c-line-strong: 68 77 96;
+
+  --c-accent: 212 161 75;
+  --c-accent-hover: 226 178 96;
+  --c-accent-soft: 56 46 27;
+  --c-accent-ink: 22 18 11;
+  --c-accent-text: 233 192 120;
+
+  --c-secondary: 99 164 219;
+  --c-secondary-soft: 27 48 68;
+  --c-secondary-text: 144 196 238;
+
+  --c-success: 83 191 135;
+  --c-success-soft: 23 56 41;
+  --c-success-text: 135 224 176;
+
+  --c-warning: 227 151 74;
+  --c-warning-soft: 63 40 19;
+  --c-warning-text: 245 190 129;
+
+  --c-danger: 227 98 108;
+  --c-danger-soft: 66 26 33;
+  --c-danger-text: 247 161 168;
+
+  --font-display: "Archivo", system-ui, -apple-system, sans-serif;
+  --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+
+  --radius-panel: 0.5rem;
+  --radius-control: 0.375rem;
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-elevated: 0 16px 36px -12px rgb(0 0 0 / 0.55);
+
+  --display-scale: 1.7rem;
+  --display-tracking: -0.02em;
+  --display-weight: 700;
+}
+
+html[data-direction="hierro"][data-theme="light"] {
+  --c-canvas: 239 241 244;
+  --c-surface: 255 255 255;
+  --c-surface-muted: 230 233 238;
+  --c-surface-elevated: 255 255 255;
+
+  --c-rail: 231 234 239;
+  --c-rail-surface: 244 246 249;
+  --c-rail-ink: 26 30 38;
+  --c-rail-ink-muted: 89 97 112;
+  --c-rail-border: 207 212 220;
+  --c-rail-active-bg: 255 255 255;
+  --c-rail-active-ink: 145 98 25;
+
+  --c-ink: 26 30 38;
+  --c-ink-muted: 78 86 101;
+  --c-ink-subtle: 115 124 139;
+
+  --c-line: 212 217 224;
+  --c-line-strong: 180 187 198;
+
+  --c-accent: 154 107 31;
+  --c-accent-hover: 129 88 22;
+  --c-accent-soft: 248 238 220;
+  --c-accent-ink: 255 255 255;
+  --c-accent-text: 129 88 22;
+
+  --c-secondary: 37 99 166;
+  --c-secondary-soft: 232 242 252;
+  --c-secondary-text: 28 80 138;
+
+  --c-success: 22 124 79;
+  --c-success-soft: 227 244 235;
+  --c-success-text: 16 96 60;
+
+  --c-warning: 173 91 18;
+  --c-warning-soft: 253 240 223;
+  --c-warning-text: 139 71 11;
+
+  --c-danger: 184 42 54;
+  --c-danger-soft: 253 235 237;
+  --c-danger-text: 148 31 42;
+
+  --font-display: "Archivo", system-ui, -apple-system, sans-serif;
+  --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+
+  --radius-panel: 0.5rem;
+  --radius-control: 0.375rem;
+  --shadow-panel: 0 1px 2px rgb(26 30 38 / 0.05);
+  --shadow-elevated: 0 12px 26px -10px rgb(26 30 38 / 0.14);
+
+  --display-scale: 1.7rem;
+  --display-tracking: -0.02em;
+  --display-weight: 700;
+}
+
+/* ==========================================================================
+   Direction-specific subtle architectural details
+   ========================================================================== */
+
+/* Classical double-rule entablature (active exclusively in Ateneo Deportivo) */
+.classical-entablature {
+  border-bottom: 1px solid rgb(var(--c-line));
+}
+
+html[data-direction="ateneo"] .classical-entablature {
+  position: relative;
+  border-bottom: 1px solid rgb(var(--c-secondary) / 0.42);
+  padding-bottom: 1rem;
+}
+
+html[data-direction="ateneo"] .classical-entablature::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 1px;
+  background: rgb(var(--c-line));
+}
+
+/* Delicate classical top keyline on primary focal surfaces in Ateneo */
+html[data-direction="ateneo"] .surface-classical-accent {
+  border-top: 2px solid rgb(var(--c-secondary) / 0.55);
+}
+
+/* Subtle architectural Greek meander hairline — used sparingly in Ateneo hero/rail */
+.classical-meander-strip {
+  display: none;
+}
+
+html[data-direction="ateneo"] .classical-meander-strip {
+  display: block;
+  height: 10px;
+  width: 100%;
+  opacity: 0.24;
+  color: rgb(var(--c-secondary));
+}

@@ -1,5 +1,9 @@
 import { FormEvent, useState } from "react";
 import { apiClient } from "../../api/client";
+import { AlertBanner } from "../../ui/AlertBanner";
+import { Button } from "../../ui/Button";
+import { Textarea } from "../../ui/Field";
+import { Surface } from "../../ui/Surface";
 import { SessionDraftCard, TrainingSessionDraftItem } from "./SessionDraftCard";
 import { VoiceDictationButton } from "./VoiceDictationButton";
 
@@ -59,46 +63,30 @@ export function NaturalSessionLogger({
   }
 
   return (
-    <div className="space-y-3 rounded-2xl border border-emerald-500/30 bg-slate-900/80 p-4">
+    <Surface variant="classical" padded="md" className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-sm font-bold text-white">
+        <h2 className="heading-section text-lg text-ink">
           Registro por voz o lenguaje natural
         </h2>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs leading-relaxed text-ink-muted">
           Dicta o escribe tu Sesión de Entrenamiento (ej. “press inclinado mancuernas 3x8 con 32 kg
           a RIR 1”) para revisar el borrador antes de guardarlo.
         </p>
       </div>
 
-      {savedNotice && (
-        <p
-          role="status"
-          className="rounded-lg border border-emerald-500/40 bg-emerald-950/50 px-3 py-2 text-xs text-emerald-200"
-        >
-          {savedNotice}
-        </p>
-      )}
+      {savedNotice && <AlertBanner tone="success">{savedNotice}</AlertBanner>}
+      {errorMsg && <AlertBanner tone="error">{errorMsg}</AlertBanner>}
 
-      {errorMsg && (
-        <p
-          role="alert"
-          className="rounded-lg border border-rose-500/40 bg-rose-950/60 px-3 py-2 text-xs text-rose-200"
-        >
-          {errorMsg}
-        </p>
-      )}
-
-      <form onSubmit={(e) => void handleGenerateDraft(e)} className="space-y-2">
-        <label htmlFor="nl-session-input" className="block text-xs font-medium text-slate-300">
+      <form onSubmit={(e) => void handleGenerateDraft(e)} className="space-y-3">
+        <label htmlFor="nl-session-input" className="block text-xs font-medium text-ink-muted">
           Describe tu Sesión de Entrenamiento
         </label>
-        <textarea
+        <Textarea
           id="nl-session-input"
           rows={2}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Ej. Hice 4 series de press banca con 80 kg a 8 repes RIR 2…"
-          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-emerald-400 focus:outline-none"
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <VoiceDictationButton
@@ -106,13 +94,9 @@ export function NaturalSessionLogger({
             disabled={parsing}
             label="Dictar sesión por voz"
           />
-          <button
-            type="submit"
-            disabled={parsing || !text.trim()}
-            className="rounded-lg bg-emerald-500 px-3.5 py-1.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
-          >
+          <Button type="submit" size="sm" disabled={parsing || !text.trim()}>
             {parsing ? "Analizando…" : "Generar borrador"}
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -124,6 +108,6 @@ export function NaturalSessionLogger({
           onDiscard={() => setDraft(null)}
         />
       )}
-    </div>
+    </Surface>
   );
 }
