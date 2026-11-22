@@ -293,4 +293,221 @@ describe("Nutrition: Fase Nutricional & Guided Weekly Check-in UI (#8)", () => {
     await user.click(screen.getByRole("tab", { name: /historial/i }));
     expect(screen.getByText(/82 kg/i)).toBeInTheDocument();
   });
+
+  it("shows truthful insufficient-data states for 0 and 1 Check-ins on the weight trend chart", async () => {
+    // 0 Check-ins -> explicitly states 2 Check-ins are needed
+    const { unmount } = render(<App initialEntries={["/nutrition"]} />);
+
+    expect(
+      await screen.findByRole("heading", { name: /tendencia de peso semanal/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/faltan 2 check-ins/i)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /tendencia de peso semanal/i })).not.toBeInTheDocument();
+    unmount();
+
+    // 1 Check-in -> explicitly states 1 more Check-in is needed and shows recorded weight
+    resetMockNutritionState({
+      checkins: [
+        {
+          id: "30000000-0000-0000-0000-000000000051",
+          athlete_id: "11111111-1111-1111-1111-111111111111",
+          nutrition_phase_id: null,
+          checkin_date: "2026-11-14",
+          idempotency_key: "single-checkin",
+          average_weight_kg: 82.4,
+          daily_weights: [82.4],
+          body_measurements: {},
+          adherence_score: 8,
+          sleep_quality: 7,
+          energy_level: 7,
+          hunger_level: 5,
+          recovery_score: 7,
+          perceived_fatigue: 5,
+          performance_notes: null,
+          estimated_tdee_delta_kcal: null,
+          weight_trend: null,
+          coach_recommendations: {
+            summary_es: "Primer punto registrado.",
+            rationale_es: "Sin ajuste.",
+            calorie_delta_kcal: 0,
+            proposed_target_calories: null,
+            proposed_protein_g: null,
+            proposed_fat_g: null,
+            proposed_carbs_g: null,
+            training_adjustment_es: null,
+            cited_card_ids: [],
+            respects_profile_notes: null,
+          },
+          adjustment_status: "none",
+          adjustment_resolved_at: null,
+          created_at: "2026-11-14T10:00:00Z",
+        },
+      ],
+    });
+
+    render(<App initialEntries={["/nutrition"]} />);
+    expect(
+      await screen.findByRole("heading", { name: /tendencia de peso semanal/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/falta 1 check-in/i)).toBeInTheDocument();
+    expect(screen.getByText(/82\.4 kg/i)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /tendencia de peso semanal/i })).not.toBeInTheDocument();
+  });
+
+  it("renders accessible weekly weight SVG chart with active Fase Nutricional target projection and summary table", async () => {
+    resetMockNutritionState({
+      phases: [
+        {
+          id: "20000000-0000-0000-0000-000000000088",
+          athlete_id: "11111111-1111-1111-1111-111111111111",
+          phase_type: "cut",
+          status: "active",
+          start_date: "2026-10-25",
+          end_date: null,
+          target_calories: 2350,
+          protein_g: 185,
+          fat_g: 65,
+          carbs_g: 256,
+          target_weekly_weight_change_kg: -0.5,
+          notes: "Definición controlada",
+          created_at: "2026-10-25T10:00:00Z",
+          updated_at: "2026-10-25T10:00:00Z",
+        },
+      ],
+      // Provided newest-first as returned by backend API
+      checkins: [
+        {
+          id: "30000000-0000-0000-0000-000000000083",
+          athlete_id: "11111111-1111-1111-1111-111111111111",
+          nutrition_phase_id: "20000000-0000-0000-0000-000000000088",
+          checkin_date: "2026-11-15",
+          idempotency_key: "ci-3",
+          average_weight_kg: 82.1,
+          daily_weights: [82.1],
+          body_measurements: {},
+          adherence_score: 9,
+          sleep_quality: 8,
+          energy_level: 7,
+          hunger_level: 5,
+          recovery_score: 8,
+          perceived_fatigue: 4,
+          performance_notes: null,
+          estimated_tdee_delta_kcal: 0,
+          weight_trend: {
+            current_weight_kg: 82.1,
+            previous_weight_kg: 82.6,
+            actual_weekly_change_kg: -0.5,
+            target_weekly_change_kg: -0.5,
+            weekly_deviation_kg: 0,
+            estimated_tdee_delta_kcal: 0,
+            trend_status: "on_track",
+          },
+          coach_recommendations: {
+            summary_es: "Progreso en objetivo.",
+            rationale_es: "Mantener calorías.",
+            calorie_delta_kcal: 0,
+            proposed_target_calories: 2350,
+            proposed_protein_g: 185,
+            proposed_fat_g: 65,
+            proposed_carbs_g: 256,
+            training_adjustment_es: null,
+            cited_card_ids: [],
+            respects_profile_notes: null,
+          },
+          adjustment_status: "none",
+          adjustment_resolved_at: null,
+          created_at: "2026-11-15T10:00:00Z",
+        },
+        {
+          id: "30000000-0000-0000-0000-000000000082",
+          athlete_id: "11111111-1111-1111-1111-111111111111",
+          nutrition_phase_id: "20000000-0000-0000-0000-000000000088",
+          checkin_date: "2026-11-08",
+          idempotency_key: "ci-2",
+          average_weight_kg: 82.6,
+          daily_weights: [82.6],
+          body_measurements: {},
+          adherence_score: 9,
+          sleep_quality: 8,
+          energy_level: 7,
+          hunger_level: 5,
+          recovery_score: 8,
+          perceived_fatigue: 4,
+          performance_notes: null,
+          estimated_tdee_delta_kcal: null,
+          weight_trend: null,
+          coach_recommendations: {
+            summary_es: "Sin ajuste.",
+            rationale_es: "Sin ajuste.",
+            calorie_delta_kcal: 0,
+            proposed_target_calories: 2350,
+            proposed_protein_g: 185,
+            proposed_fat_g: 65,
+            proposed_carbs_g: 256,
+            training_adjustment_es: null,
+            cited_card_ids: [],
+            respects_profile_notes: null,
+          },
+          adjustment_status: "none",
+          adjustment_resolved_at: null,
+          created_at: "2026-11-08T10:00:00Z",
+        },
+        {
+          id: "30000000-0000-0000-0000-000000000081",
+          athlete_id: "11111111-1111-1111-1111-111111111111",
+          nutrition_phase_id: "20000000-0000-0000-0000-000000000088",
+          checkin_date: "2026-11-01",
+          idempotency_key: "ci-1",
+          average_weight_kg: 83.0,
+          daily_weights: [83.0],
+          body_measurements: {},
+          adherence_score: 9,
+          sleep_quality: 8,
+          energy_level: 8,
+          hunger_level: 4,
+          recovery_score: 8,
+          perceived_fatigue: 4,
+          performance_notes: null,
+          estimated_tdee_delta_kcal: null,
+          weight_trend: null,
+          coach_recommendations: {
+            summary_es: "Referencia inicial.",
+            rationale_es: "Sin ajuste.",
+            calorie_delta_kcal: 0,
+            proposed_target_calories: 2350,
+            proposed_protein_g: 185,
+            proposed_fat_g: 65,
+            proposed_carbs_g: 256,
+            training_adjustment_es: null,
+            cited_card_ids: [],
+            respects_profile_notes: null,
+          },
+          adjustment_status: "none",
+          adjustment_resolved_at: null,
+          created_at: "2026-11-01T10:00:00Z",
+        },
+      ],
+    });
+
+    render(<App initialEntries={["/nutrition"]} />);
+
+    const chart = await screen.findByRole("img", { name: /tendencia de peso semanal/i });
+    expect(chart).toBeInTheDocument();
+    expect(chart).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/83\.0 kg.*82\.1 kg.*-0\.9 kg/i),
+    );
+    expect(chart).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/objetivo.*-0\.5 kg\/sem/i),
+    );
+
+    // Legend & accessible summary/table surface key chronological values
+    expect(
+      screen.getAllByText(/proyección objetivo \(-0\.5 kg\/sem\)/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/83\.0 kg/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/82\.6 kg/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/82\.1 kg/i).length).toBeGreaterThanOrEqual(1);
+  });
 });
