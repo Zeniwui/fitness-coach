@@ -68,6 +68,7 @@ def create_app(
     app.state.settings = resolved_settings
     app.state.identity_verifier = identity_verifier or SupabaseJWTVerifier(
         jwt_secret=resolved_settings.supabase_jwt_secret,
+        supabase_url=resolved_settings.supabase_url,
         audience=resolved_settings.supabase_jwt_audience,
     )
     app.state.binary_storage = binary_storage or build_binary_storage(resolved_settings)
