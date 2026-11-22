@@ -1,9 +1,13 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { apiClient, DuplicateSubmissionError } from "../../api/client";
 import { AlertBanner } from "../../ui/AlertBanner";
+import { Button } from "../../ui/Button";
 import { PageHeader } from "../../ui/PageHeader";
+import { SegmentedTabs, type SegmentedTabItem } from "../../ui/SegmentedTabs";
+import { Surface } from "../../ui/Surface";
 import { ActivePhasePanel, type PhaseFormState } from "./ActivePhasePanel";
 import { CoachAdjustmentCard } from "./CoachAdjustmentCard";
+import { parseDailyWeights } from "./dailyWeights";
 import {
   type NutritionPhaseResponse,
   type WeeklyCheckInResponse,
@@ -11,6 +15,10 @@ import {
 } from "./labels";
 import { NutritionHistorySection } from "./NutritionHistorySection";
 import { WeeklyCheckInForm, type CheckInFormState } from "./WeeklyCheckInForm";
+
+export { parseDailyWeights };
+
+type NutritionTab = "summary" | "checkin" | "history";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -63,23 +71,8 @@ function parseNumber(raw: string): number {
   return Number(raw.replace(",", "."));
 }
 
-export function parseDailyWeights(raw: string): number[] {
-  const trimmed = raw.trim();
-  if (!trimmed) return [];
-  const hasSemicolonOrNewline = /[;\n]/.test(trimmed);
-  const parts = hasSemicolonOrNewline
-    ? trimmed.split(/[;\n]+/)
-    : trimmed.includes(".")
-      ? trimmed.split(/[,\s]+/)
-      : trimmed.split(/,\s+|\s+/);
-  return parts
-    .map((s) => s.trim().replace(/,$/, ""))
-    .filter(Boolean)
-    .map(parseNumber)
-    .filter((n) => Number.isFinite(n) && n >= 20 && n <= 350);
-}
-
 export function NutritionPage() {
+  const [activeTab, setActiveTab] = useState<NutritionTab>("summary");
   const [phases, setPhases] = useState<NutritionPhaseResponse[]>([]);
   const [checkins, setCheckins] = useState<WeeklyCheckInResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -317,6 +310,7 @@ export function NutritionPage() {
       setCheckins((prev) => [data, ...prev.filter((item) => item.id !== data.id)]);
       setCheckinForm(createEmptyCheckInForm());
       setIdempotencyKey(createIdempotencyKey());
+      setActiveTab("summary");
       setStatusMessage("Check-in semanal registrado y analizado por el Coach.");
     } catch (err) {
       if (err instanceof DuplicateSubmissionError) {
@@ -385,6 +379,23 @@ export function NutritionPage() {
     );
   }
 
+  const hasPendingAdjustment = latestCheckIn?.adjustment_status === "proposed";
+  const historyCount = checkins.length + completedPhases.length;
+
+  const tabs: ReadonlyArray<SegmentedTabItem<NutritionTab>> = [
+    {
+      id: "summary",
+      label: "Resumen y Ajuste",
+      indicator: hasPendingAdjustment ? "Pendiente" : undefined,
+    },
+    { id: "checkin", label: "Check-in semanal" },
+    {
+      id: "history",
+      label: "Historial",
+      count: historyCount > 0 ? historyCount : undefined,
+    },
+  ];
+
   return (
     <section className="space-y-6 pb-8">
       <PageHeader
@@ -392,35 +403,13 @@ export function NutritionPage() {
         description="Gestiona tu Fase Nutricional activa, registra tu Check-in semanal y revisa las propuestas de ajuste del Coach."
       />
 
-      {/* Quick anchor strip on mobile */}
-      <nav aria-label="Secciones de Nutrición" className="flex flex-wrap gap-2 lg:hidden">
-        <a
-          href="#fase-activa"
-          className="inline-flex min-h-[44px] items-center rounded-control border border-line bg-surface px-3.5 py-2 text-xs font-medium text-ink-muted hover:text-ink"
-        >
-          Fase activa
-        </a>
-        {latestCheckIn && (
-          <a
-            href="#ajuste-coach"
-            className="inline-flex min-h-[44px] items-center rounded-control border border-line bg-surface px-3.5 py-2 text-xs font-medium text-ink-muted hover:text-ink"
-          >
-            Ajuste del Coach
-          </a>
-        )}
-        <a
-          href="#checkin-semanal"
-          className="inline-flex min-h-[44px] items-center rounded-control border border-line bg-surface px-3.5 py-2 text-xs font-medium text-ink-muted hover:text-ink"
-        >
-          Check-in semanal
-        </a>
-        <a
-          href="#historial-nutricion"
-          className="inline-flex min-h-[44px] items-center rounded-control border border-line bg-surface px-3.5 py-2 text-xs font-medium text-ink-muted hover:text-ink"
-        >
-          Historial
-        </a>
-      </nav>
+      <SegmentedTabs
+        items={tabs}
+        activeId={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="Vistas de Nutrición"
+        idPrefix="nutrition"
+      />
 
       {error && (
         <div ref={errorBannerRef}>
@@ -429,50 +418,77 @@ export function NutritionPage() {
       )}
       {statusMessage && <AlertBanner tone="success">{statusMessage}</AlertBanner>}
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        <div className="lg:col-span-5">
-          <ActivePhasePanel
-            activePhase={activePhase}
-            phaseForm={phaseForm}
-            phaseMode={phaseMode}
-            editorOpen={phaseEditorOpen}
-            savingPhase={savingPhase}
-            onChangeForm={(patch) => setPhaseForm((prev) => ({ ...prev, ...patch }))}
-            onOpenEditor={(nextMode) => {
-              setPhaseMode(nextMode);
-              setPhaseForm(
-                nextMode === "edit" && activePhase
-                  ? phaseToForm(activePhase)
-                  : createEmptyPhaseForm(),
-              );
-              setPhaseEditorOpen(true);
-            }}
-            onCloseEditor={() => setPhaseEditorOpen(false)}
-            onCompletePhase={() => void handleCompleteActivePhase()}
-            onSubmit={(e) => void handleSavePhase(e)}
-          />
-        </div>
+      <div
+        id={`nutrition-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`nutrition-tab-${activeTab}`}
+      >
+        {activeTab === "summary" && (
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+            <div className="lg:col-span-5">
+              <ActivePhasePanel
+                activePhase={activePhase}
+                phaseForm={phaseForm}
+                phaseMode={phaseMode}
+                editorOpen={phaseEditorOpen}
+                savingPhase={savingPhase}
+                onChangeForm={(patch) => setPhaseForm((prev) => ({ ...prev, ...patch }))}
+                onOpenEditor={(nextMode) => {
+                  setPhaseMode(nextMode);
+                  setPhaseForm(
+                    nextMode === "edit" && activePhase
+                      ? phaseToForm(activePhase)
+                      : createEmptyPhaseForm(),
+                  );
+                  setPhaseEditorOpen(true);
+                }}
+                onCloseEditor={() => setPhaseEditorOpen(false)}
+                onCompletePhase={() => void handleCompleteActivePhase()}
+                onSubmit={(e) => void handleSavePhase(e)}
+              />
+            </div>
 
-        <div className="space-y-6 lg:col-span-7">
-          {latestCheckIn && (
-            <CoachAdjustmentCard
-              latestCheckIn={latestCheckIn}
-              resolvingAdjustmentId={resolvingAdjustmentId}
-              onApply={(id) => void handleApplyAdjustment(id)}
-              onDismiss={(id) => void handleDismissAdjustment(id)}
-            />
-          )}
+            <div className="lg:col-span-7">
+              {latestCheckIn ? (
+                <CoachAdjustmentCard
+                  latestCheckIn={latestCheckIn}
+                  resolvingAdjustmentId={resolvingAdjustmentId}
+                  onApply={(id) => void handleApplyAdjustment(id)}
+                  onDismiss={(id) => void handleDismissAdjustment(id)}
+                />
+              ) : (
+                <Surface variant="inset" padded="md" className="space-y-3">
+                  <h2 className="heading-section text-lg text-ink">
+                    Análisis y ajuste del Coach
+                  </h2>
+                  <p className="max-w-[62ch] text-sm leading-relaxed text-ink-muted">
+                    Registra tu primer Check-in semanal para evaluar la tendencia de peso frente al
+                    ritmo objetivo y recibir propuestas de ajuste de calorías y macros.
+                  </p>
+                  <div>
+                    <Button variant="secondary" size="sm" onClick={() => setActiveTab("checkin")}>
+                      Ir a Check-in semanal
+                    </Button>
+                  </div>
+                </Surface>
+              )}
+            </div>
+          </div>
+        )}
 
+        {activeTab === "checkin" && (
           <WeeklyCheckInForm
             form={checkinForm}
             submitting={submittingCheckIn}
             onChange={(patch) => setCheckinForm((prev) => ({ ...prev, ...patch }))}
             onSubmit={(e) => void handleSubmitCheckIn(e)}
           />
-        </div>
-      </div>
+        )}
 
-      <NutritionHistorySection checkins={checkins} completedPhases={completedPhases} />
+        {activeTab === "history" && (
+          <NutritionHistorySection checkins={checkins} completedPhases={completedPhases} />
+        )}
+      </div>
     </section>
   );
 }

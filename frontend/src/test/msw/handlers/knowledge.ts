@@ -107,11 +107,20 @@ export const knowledgeHandlers = [
     const q = (url.searchParams.get("q") || "").toLowerCase();
     const level = url.searchParams.get("evidence_level");
     const validity = url.searchParams.get("validity_status");
+    const tags = url.searchParams
+      .getAll("tags")
+      .flatMap((t) => t.split(","))
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
 
     const allCards = [SAMPLE_ACTIVE_CARD, SAMPLE_SUPERSEDED_CARD];
     const filtered = allCards.filter((card) => {
       if (level && card.evidence_level !== level) return false;
       if (validity && card.validity_status !== validity) return false;
+      if (tags.length > 0) {
+        const cardTags = card.tags.map((t) => t.toLowerCase());
+        if (!tags.every((tag) => cardTags.includes(tag))) return false;
+      }
       if (q) {
         const hay = `${card.title} ${card.curated_text_es} ${card.key_terms_en.join(" ")} ${card.tags.join(" ")}`.toLowerCase();
         return hay.includes(q);
