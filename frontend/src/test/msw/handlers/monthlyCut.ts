@@ -104,17 +104,17 @@ export function resetMonthlyCutFixtures() {
 }
 
 export const monthlyCutHandlers = [
-  http.get("/api/v1/knowledge/trending-topics", () => {
+  http.get("*/api/v1/knowledge/trending-topics", () => {
     return HttpResponse.json({
       items: mockTopics.filter((t) => t.status === "approved_context"),
     });
   }),
 
-  http.get("/api/v1/curator/monthly-cuts", () => {
+  http.get("*/api/v1/curator/monthly-cuts", () => {
     return HttpResponse.json({ items: mockRuns });
   }),
 
-  http.post("/api/v1/curator/monthly-cuts", async ({ request }) => {
+  http.post("*/api/v1/curator/monthly-cuts", async ({ request }) => {
     const body = (await request.json()) as components["schemas"]["TriggerMonthlyCutRequest"];
     const created: MonthlyCutRun = {
       id: `run-manual-${mockRuns.length + 1}`,
@@ -139,7 +139,7 @@ export const monthlyCutHandlers = [
     return HttpResponse.json(created, { status: 201 });
   }),
 
-  http.post("/api/v1/curator/monthly-cuts/:runId/resume", ({ params }) => {
+  http.post("*/api/v1/curator/monthly-cuts/:runId/resume", ({ params }) => {
     const runId = String(params.runId);
     let updated: MonthlyCutRun | undefined;
     mockRuns = mockRuns.map((run) => {
@@ -160,7 +160,7 @@ export const monthlyCutHandlers = [
     return HttpResponse.json(updated);
   }),
 
-  http.post("/api/v1/curator/seed-batch", () => {
+  http.post("*/api/v1/curator/seed-batch", () => {
     const created_count = seedLoaded ? 0 : 16;
     const skipped_count = seedLoaded ? 16 : 0;
     seedLoaded = true;
@@ -175,14 +175,14 @@ export const monthlyCutHandlers = [
     );
   }),
 
-  http.get("/api/v1/curator/trending-topics", ({ request }) => {
+  http.get("*/api/v1/curator/trending-topics", ({ request }) => {
     const url = new URL(request.url);
     const status = url.searchParams.get("status");
     const items = status ? mockTopics.filter((t) => t.status === status) : mockTopics;
     return HttpResponse.json({ items });
   }),
 
-  http.post("/api/v1/curator/trending-topics/:topicId/review", async ({ params, request }) => {
+  http.post("*/api/v1/curator/trending-topics/:topicId/review", async ({ params, request }) => {
     const topicId = String(params.topicId);
     const body = (await request.json()) as components["schemas"]["ReviewTrendingTopicRequest"];
     let updated: TrendingTopic | undefined;
