@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../../app/App";
 import { seedSupabaseSession } from "../../test/authHelpers";
@@ -109,5 +109,214 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     expect(await screen.findByText(/descarga recomendada/i)).toBeInTheDocument();
     expect(screen.getByText(/pecho/i)).toBeInTheDocument();
     expect(screen.getByText(/Caída de rendimiento/i)).toBeInTheDocument();
+  });
+
+  it("starts from Hoy into a grouped exercise sheet with steppers, completion toggle, set/exercise actions, and PR achievement summary", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByRole("heading", { name: /sesión planificada: torso a/i });
+
+    // Start logging from Today tab
+    const startButtons = screen.getAllByRole("button", { name: /registrar esta sesión/i });
+    await user.click(startButtons[0]);
+
+    // Grouped by exercise: 2 exercise groups (not 6 separate flat exercise inputs)
+    const exerciseInputs = await screen.findAllByLabelText(/^Ejercicio$/i);
+    expect(exerciseInputs).toHaveLength(2);
+    expect(exerciseInputs[0]).toHaveValue("Press inclinado mancuernas");
+    expect(exerciseInputs[1]).toHaveValue("Remo en polea baja");
+
+    // Prescription and previous mark visible in the exercise header
+    const pressGroup = screen.getByRole("group", { name: /Press inclinado mancuernas/i });
+    expect(within(pressGroup).getByText(/3 series · 8–10 reps · RIR 1/i)).toBeInTheDocument();
+    expect(within(pressGroup).getByText(/Marca previa \(2026-11-18\): 32 kg × 9/i)).toBeInTheDocument();
+
+    // Load stepper +2.5 kg updates set 1 from 32 -> 34.5 (beats prior 32 kg PR)
+    const plusBtn = within(pressGroup).getByRole("button", { name: /sumar 2\.5 kg en serie 1/i });
+    await user.click(plusBtn);
+    const pressLoadInputs = within(pressGroup).getAllByLabelText(/carga \(kg\)/i);
+    expect(pressLoadInputs[0]).toHaveValue(34.5);
+
+    // Completion toggle on set 1
+    const completeBtn = within(pressGroup).getByRole("button", {
+      name: /marcar serie 1 completada/i,
+    });
+    expect(completeBtn).toHaveAttribute("aria-pressed", "false");
+    await user.click(completeBtn);
+    expect(completeBtn).toHaveAttribute("aria-pressed", "true");
+
+    // Duplicate last set -> Press now has 4 sets; then remove the 4th set -> back to 3
+    await user.click(within(pressGroup).getByRole("button", { name: /duplicar última serie/i }));
+    expect(within(pressGroup).getAllByLabelText(/carga \(kg\)/i)).toHaveLength(4);
+    await user.click(within(pressGroup).getByRole("button", { name: /quitar serie 4/i }));
+    expect(within(pressGroup).getAllByLabelText(/carga \(kg\)/i)).toHaveLength(3);
+
+    // Switch second exercise ("Remo en polea baja") to lb -> steppers switch to ±5 lb
+    const remoGroup = screen.getByRole("group", { name: /Remo en polea baja/i });
+    await user.selectOptions(within(remoGroup).getByLabelText(/unidad/i), "lb");
+    const plusLbBtn = within(remoGroup).getByRole("button", { name: /sumar 5 lb en serie 1/i });
+    await user.click(plusLbBtn);
+    const remoLoadInputs = within(remoGroup).getAllByLabelText(/carga \(lb\)/i);
+    expect(remoLoadInputs[0]).toHaveValue(5);
+
+    // Fill loads for Remo sets 2 & 3 so validation passes, or mark Remo sets
+    await user.type(remoLoadInputs[1], "110");
+    await user.type(remoLoadInputs[2], "110");
+
+    // Add an extra exercise block and remove it
+    await user.click(screen.getByRole("button", { name: /añadir ejercicio/i }));
+    expect(screen.getAllByLabelText(/^Ejercicio$/i)).toHaveLength(3);
+    const removeGroupButtons = screen.getAllByRole("button", { name: /quitar ejercicio/i });
+    await user.click(removeGroupButtons[removeGroupButtons.length - 1]);
+    expect(screen.getAllByLabelText(/^Ejercicio$/i)).toHaveLength(2);
+
+    // Save session and verify achievement summary with effective sets & PR on Press inclinado
+    await user.click(screen.getByRole("button", { name: /guardar sesión/i }));
+
+    const achievementRegion = await screen.findByRole("status", {
+      name: /resumen de la sesión guardada/i,
+    });
+    expect(achievementRegion).toHaveTextContent(/6 series efectivas/i);
+    expect(achievementRegion).toHaveTextContent(/récord personal/i);
+    expect(achievementRegion).toHaveTextContent(/Press inclinado mancuernas/i);
+    expect(achievementRegion).toHaveTextContent(/34\.5 kg/i);
+  });
+
+  it("validates missing load honestly unless Peso corporal is toggled explicitly", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    const exInput = screen.getByLabelText(/^Ejercicio$/i);
+    await user.type(exInput, "Dominadas estrictas");
+
+    // Attempt to save with empty load -> clear validation error, NOT saved silently as 0 kg
+    await user.click(screen.getByRole("button", { name: /guardar sesión/i }));
+    expect(
+      await screen.findByRole("alert"),
+    ).toHaveTextContent(/falta la carga.*Dominadas estrictas.*Peso corporal/i);
+
+    // Explicitly toggle Peso corporal -> saves cleanly with 0 kg
+    const bodyweightBtn = screen.getByRole("button", { name: /peso corporal/i });
+    await user.click(bodyweightBtn);
+    expect(bodyweightBtn).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: /guardar sesión/i }));
+    expect(
+      await screen.findByRole("status", { name: /resumen de la sesión guardada/i }),
+    ).toHaveTextContent(/1 series efectivas/i);
+  });
+
+  it("migrates legacy flat v1 localStorage drafts into grouped exercises and allows discarding draft with confirmation", async () => {
+    window.localStorage.setItem(
+      "fc-training-session-draft-v1",
+      JSON.stringify({
+        sessionDate: "2026-11-20",
+        sessionName: "Borrador antiguo",
+        sessionPlannedId: null,
+        fatigueNotes: "Hombro cargado",
+        startedFromToday: false,
+        setRows: [
+          {
+            exercise_name: "Curl bíceps barra",
+            muscle_group: "biceps",
+            secondary_muscle_groups: "",
+            reps: "10",
+            load: "30",
+            unit: "kg",
+            rir: "2",
+            rpe: "",
+          },
+          {
+            exercise_name: "Curl bíceps barra",
+            muscle_group: "biceps",
+            secondary_muscle_groups: "",
+            reps: "9",
+            load: "30",
+            unit: "kg",
+            rir: "1",
+            rpe: "",
+          },
+        ],
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Sesiones$/i }));
+
+    // Legacy 2 flat rows migrated into 1 grouped exercise with 2 sets
+    const exerciseInputs = screen.getAllByLabelText(/^Ejercicio$/i);
+    expect(exerciseInputs).toHaveLength(1);
+    expect(exerciseInputs[0]).toHaveValue("Curl bíceps barra");
+    expect(screen.getAllByLabelText(/carga \(kg\)/i)).toHaveLength(2);
+    expect(screen.getByLabelText(/nombre de la sesión/i)).toHaveValue("Borrador antiguo");
+
+    // Debounced autosave persists upgraded v2 grouped format to localStorage
+    await waitFor(() => {
+      const saved = JSON.parse(
+        window.localStorage.getItem("fc-training-session-draft-v1") ?? "{}",
+      ) as { version?: number; exerciseGroups?: unknown[] };
+      expect(saved.version).toBe(2);
+      expect(saved.exerciseGroups).toHaveLength(1);
+    });
+
+    // Discard draft with inline confirmation
+    await user.click(screen.getByRole("button", { name: /descartar borrador/i }));
+    await user.click(screen.getByRole("button", { name: /confirmar descarte/i }));
+
+    expect(screen.getByLabelText(/^Ejercicio$/i)).toHaveValue("");
+    expect(screen.getByLabelText(/nombre de la sesión/i)).toHaveValue("Sesión de Entrenamiento");
+    expect(window.localStorage.getItem("fc-training-session-draft-v1")).toBeNull();
+  });
+
+  it("edits planned sessions and exercises inside a Mesociclo and persists via PATCH", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /^Mesociclos$/i }));
+
+    // Open editor for the active Mesociclo
+    const editButtons = screen.getAllByRole("button", { name: /^editar$/i });
+    await user.click(editButtons[0]);
+
+    // Planned day 1 ("Torso A") shows its exercises
+    const day1Group = screen.getByRole("group", { name: /día 1: torso a/i });
+    const exNameInputs = within(day1Group).getAllByLabelText(/^Ejercicio$/i);
+    expect(exNameInputs).toHaveLength(2);
+    expect(exNameInputs[0]).toHaveValue("Press inclinado mancuernas");
+
+    // Update target sets and rep range on exercise 1
+    const targetSetsInputs = within(day1Group).getAllByLabelText(/series objetivo/i);
+    await user.clear(targetSetsInputs[0]);
+    await user.type(targetSetsInputs[0], "4");
+
+    // Add a new exercise to Day 1
+    await user.click(within(day1Group).getByRole("button", { name: /añadir ejercicio/i }));
+    const updatedExInputs = within(day1Group).getAllByLabelText(/^Ejercicio$/i);
+    expect(updatedExInputs).toHaveLength(3);
+    await user.type(updatedExInputs[2], "Elevaciones laterales");
+
+    // Remove exercise 2 ("Remo en polea baja") -> leaves 2 exercises
+    const removeButtons = within(day1Group).getAllByRole("button", {
+      name: /quitar ejercicio/i,
+    });
+    await user.click(removeButtons[1]);
+    expect(within(day1Group).getAllByLabelText(/^Ejercicio$/i)).toHaveLength(2);
+
+    // Save changes via PATCH
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    expect(await screen.findByText(/Mesociclo actualizado correctamente/i)).toBeInTheDocument();
+
+    // Switch back to Hoy tab and confirm updated prescription & new exercise appear
+    await user.click(screen.getByRole("tab", { name: /^Hoy$/i }));
+    expect(await screen.findByText(/Elevaciones laterales/i)).toBeInTheDocument();
+    expect(screen.getByText(/4 series · 8–10 reps/i)).toBeInTheDocument();
   });
 });

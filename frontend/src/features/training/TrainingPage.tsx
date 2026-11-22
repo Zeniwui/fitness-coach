@@ -5,19 +5,32 @@ import { PageHeader } from "../../ui/PageHeader";
 import { SegmentedTabs, type SegmentedTabItem } from "../../ui/SegmentedTabs";
 import { MesocycleConflictModal } from "./MesocycleConflictModal";
 import { MesocyclesTab } from "./MesocyclesTab";
+import { validateAndSanitizePlannedSessions } from "./mesocycleValidation";
+import {
+  evaluateSessionAchievements,
+  type SessionAchievementSummary,
+} from "./progression";
+import {
+  buildGroupsFromSession,
+  buildGroupsFromTodaySession,
+  clearPersistedSessionDraft,
+  createDefaultExerciseGroup,
+  hasSessionDraftContent,
+  readPersistedSessionDraft,
+  validateAndFlattenGroups,
+  writePersistedSessionDraft,
+} from "./sessionDraft";
 import { SessionsTab } from "./SessionsTab";
 import { TodaySessionTab } from "./TodaySessionTab";
-import {
-  defaultSetRow,
-  type ConflictModalState,
-  type EditableSetRow,
-  type MesocycleResponse,
-  type PlannedExerciseSchema,
-  type SessionSetInput,
-  type TodaySessionResponse,
-  type TrainingSessionResponse,
-  type TrainingTabKey,
-  type WeeklyVolumeSummaryResponse,
+import type {
+  ConflictModalState,
+  EditableExerciseGroup,
+  EditablePlannedSession,
+  MesocycleResponse,
+  TodaySessionResponse,
+  TrainingSessionResponse,
+  TrainingTabKey,
+  WeeklyVolumeSummaryResponse,
 } from "./types";
 import { VolumeDeloadTab } from "./VolumeDeloadTab";
 
@@ -27,37 +40,6 @@ const TRAINING_TABS: ReadonlyArray<SegmentedTabItem<TrainingTabKey>> = [
   { id: "mesocycles", label: "Mesociclos" },
   { id: "volume", label: "Volumen y Descarga" },
 ];
-
-const SESSION_DRAFT_KEY = "fc-training-session-draft-v1";
-
-interface PersistedSessionDraft {
-  sessionDate: string;
-  sessionName: string;
-  sessionPlannedId: string | null;
-  fatigueNotes: string;
-  setRows: EditableSetRow[];
-  startedFromToday: boolean;
-}
-
-function readPersistedDraft(): PersistedSessionDraft | null {
-  try {
-    const raw = window.localStorage.getItem(SESSION_DRAFT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistedSessionDraft;
-    if (!Array.isArray(parsed.setRows) || parsed.setRows.length === 0) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function clearPersistedDraft() {
-  try {
-    window.localStorage.removeItem(SESSION_DRAFT_KEY);
-  } catch {
-    // Ignore storage unavailability
-  }
-}
 
 export function TrainingPage() {
   const [activeTab, setActiveTab] = useState<TrainingTabKey>("today");
@@ -78,13 +60,11 @@ export function TrainingPage() {
   const [editMesoName, setEditMesoName] = useState("");
   const [editMesoGoal, setEditMesoGoal] = useState("");
   const [editMesoWeeks, setEditMesoWeeks] = useState("5");
-  const [editMesoSessions, setEditMesoSessions] = useState<
-    Array<{ day_order: number; name: string; exercises: PlannedExerciseSchema[] }>
-  >([]);
+  const [editMesoSessions, setEditMesoSessions] = useState<EditablePlannedSession[]>([]);
 
   const [conflictModal, setConflictModal] = useState<ConflictModalState | null>(null);
 
-  const [initialDraft] = useState(readPersistedDraft);
+  const [initialDraft] = useState(readPersistedSessionDraft);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [sessionDate, setSessionDate] = useState(
     () => initialDraft?.sessionDate ?? new Date().toISOString().slice(0, 10),
@@ -96,12 +76,14 @@ export function TrainingPage() {
     () => initialDraft?.sessionPlannedId ?? null,
   );
   const [fatigueNotes, setFatigueNotes] = useState(() => initialDraft?.fatigueNotes ?? "");
-  const [setRows, setSetRows] = useState<EditableSetRow[]>(
-    () => initialDraft?.setRows ?? [defaultSetRow()],
+  const [exerciseGroups, setExerciseGroups] = useState<EditableExerciseGroup[]>(
+    () => initialDraft?.exerciseGroups ?? [createDefaultExerciseGroup()],
   );
   const [startedFromToday, setStartedFromToday] = useState(
     () => initialDraft?.startedFromToday ?? false,
   );
+  const [achievementSummary, setAchievementSummary] =
+    useState<SessionAchievementSummary | null>(null);
 
   const loadAll = useCallback(async (plannedSessionId?: string) => {
     setLoading(true);
@@ -151,26 +133,20 @@ export function TrainingPage() {
 
   useEffect(() => {
     if (editingSessionId) return;
-    const hasContent =
-      setRows.some((r) => r.exercise_name.trim().length > 0) || fatigueNotes.trim().length > 0;
-    if (!hasContent) {
-      clearPersistedDraft();
+    if (!hasSessionDraftContent(exerciseGroups, fatigueNotes)) {
+      clearPersistedSessionDraft();
       return;
     }
     const timer = window.setTimeout(() => {
-      try {
-        const payload: PersistedSessionDraft = {
-          sessionDate,
-          sessionName,
-          sessionPlannedId,
-          fatigueNotes,
-          setRows,
-          startedFromToday,
-        };
-        window.localStorage.setItem(SESSION_DRAFT_KEY, JSON.stringify(payload));
-      } catch {
-        // Ignore storage quota/availability errors
-      }
+      writePersistedSessionDraft({
+        version: 2,
+        sessionDate,
+        sessionName,
+        sessionPlannedId,
+        fatigueNotes,
+        exerciseGroups,
+        startedFromToday,
+      });
     }, 300);
     return () => window.clearTimeout(timer);
   }, [
@@ -179,84 +155,45 @@ export function TrainingPage() {
     sessionName,
     sessionPlannedId,
     fatigueNotes,
-    setRows,
+    exerciseGroups,
     startedFromToday,
   ]);
+
+  function resetBlankSessionDraft() {
+    setEditingSessionId(null);
+    setSessionDate(new Date().toISOString().slice(0, 10));
+    setSessionName("Sesión de Entrenamiento");
+    setSessionPlannedId(null);
+    setFatigueNotes("");
+    setStartedFromToday(false);
+    setExerciseGroups([createDefaultExerciseGroup()]);
+    clearPersistedSessionDraft();
+  }
 
   function startLoggingTodaySession() {
     if (!todayData?.planned_session) return;
     setEditingSessionId(null);
+    setAchievementSummary(null);
+    setErrorMsg(null);
     setSessionDate(new Date().toISOString().slice(0, 10));
     setSessionName(todayData.planned_session.name);
     setSessionPlannedId(todayData.planned_session.id);
     setFatigueNotes("");
     setStartedFromToday(true);
-
-    const prefilled: EditableSetRow[] = [];
-    for (const item of todayData.exercises) {
-      const totalSets = Math.max(1, item.planned.target_sets || 1);
-      const targetHint = `${totalSets} series · ${item.planned.rep_range_min}–${item.planned.rep_range_max} reps${
-        item.planned.target_rir !== null && item.planned.target_rir !== undefined
-          ? ` · RIR ${item.planned.target_rir}`
-          : ""
-      }`;
-      const previousMarkHint = item.previous_mark
-        ? `Marca previa (${item.previous_mark.last_session_date}): ${item.previous_mark.best_load} ${item.previous_mark.best_unit} × ${item.previous_mark.best_reps}${
-            item.previous_mark.best_rir !== null && item.previous_mark.best_rir !== undefined
-              ? ` @ RIR ${item.previous_mark.best_rir}`
-              : ""
-          }`
-        : "Sin marcas previas registradas";
-
-      for (let s = 0; s < totalSets; s += 1) {
-        const prevSet = item.previous_mark?.last_sets?.[s];
-        prefilled.push({
-          exercise_name: item.planned.exercise_name,
-          muscle_group: item.planned.primary_muscle_group,
-          secondary_muscle_groups: (item.planned.secondary_muscle_groups ?? []).join(", "),
-          reps: String(
-            prevSet?.reps ?? item.previous_mark?.best_reps ?? item.planned.rep_range_min ?? 8,
-          ),
-          load:
-            prevSet?.load !== undefined
-              ? String(prevSet.load)
-              : item.previous_mark?.best_load !== undefined
-                ? String(item.previous_mark.best_load)
-                : "",
-          unit: ((prevSet?.unit ?? item.previous_mark?.best_unit) === "lb" ? "lb" : "kg") as
-            | "kg"
-            | "lb",
-          rir: String(prevSet?.rir ?? item.planned.target_rir ?? 2),
-          rpe: "",
-          targetHint: s === 0 ? targetHint : undefined,
-          previousMarkHint: s === 0 ? previousMarkHint : undefined,
-        });
-      }
-    }
-
-    setSetRows(prefilled.length > 0 ? prefilled : [defaultSetRow()]);
+    setExerciseGroups(buildGroupsFromTodaySession(todayData));
     setActiveTab("sessions");
   }
 
   function startEditingSession(session: TrainingSessionResponse) {
     setEditingSessionId(session.id);
+    setAchievementSummary(null);
+    setErrorMsg(null);
     setSessionDate(session.session_date);
     setSessionName(session.name);
     setSessionPlannedId(session.planned_session_id ?? null);
     setFatigueNotes(session.fatigue_notes ?? "");
     setStartedFromToday(false);
-    setSetRows(
-      session.sets.map((s) => ({
-        exercise_name: s.exercise_name,
-        muscle_group: s.muscle_group,
-        secondary_muscle_groups: (s.secondary_muscle_groups ?? []).join(", "),
-        reps: String(s.reps),
-        load: String(s.load),
-        unit: s.unit === "lb" ? "lb" : "kg",
-        rir: s.rir !== null && s.rir !== undefined ? String(s.rir) : "",
-        rpe: s.rpe !== null && s.rpe !== undefined ? String(s.rpe) : "",
-      })),
-    );
+    setExerciseGroups(buildGroupsFromSession(session));
     setActiveTab("sessions");
   }
 
@@ -265,34 +202,23 @@ export function TrainingPage() {
     setErrorMsg(null);
     setFeedbackMsg(null);
 
-    const parsedSets: SessionSetInput[] = setRows
-      .filter((r) => r.exercise_name.trim().length > 0)
-      .map((r, idx) => ({
-        exercise_name: r.exercise_name.trim(),
-        muscle_group: r.muscle_group.trim() || "pecho",
-        secondary_muscle_groups: r.secondary_muscle_groups
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-        set_order: idx + 1,
-        reps: Math.max(1, Number(r.reps) || 1),
-        load: Math.max(0, Number(r.load) || 0),
-        unit: r.unit,
-        rir: r.rir.trim() !== "" ? Number(r.rir) : null,
-        rpe: r.rpe.trim() !== "" ? Number(r.rpe) : null,
-      }));
-
-    if (parsedSets.length === 0) {
-      setErrorMsg("Añade al menos una serie con nombre de ejercicio.");
+    const { sets: parsedSets, error: validationError } =
+      validateAndFlattenGroups(exerciseGroups);
+    if (validationError) {
+      setErrorMsg(validationError);
       return;
     }
 
-    if (editingSessionId) {
+    const resolvedName = sessionName.trim() || "Sesión de Entrenamiento";
+    const priorSessionsSnapshot = sessions;
+    const editedId = editingSessionId;
+
+    if (editedId) {
       const res = await apiClient.PUT("/api/v1/training/sessions/{session_id}", {
-        params: { path: { session_id: editingSessionId } },
+        params: { path: { session_id: editedId } },
         body: {
           session_date: sessionDate,
-          name: sessionName.trim() || "Sesión de Entrenamiento",
+          name: resolvedName,
           planned_session_id: sessionPlannedId,
           fatigue_notes: fatigueNotes.trim() || null,
           sets: parsedSets,
@@ -309,7 +235,7 @@ export function TrainingPage() {
       const res = await apiClient.POST("/api/v1/training/sessions", {
         body: {
           session_date: sessionDate,
-          name: sessionName.trim() || "Sesión de Entrenamiento",
+          name: resolvedName,
           mesocycle_id: todayData?.active_mesocycle?.id ?? null,
           planned_session_id: sessionPlannedId,
           origin: "manual_form",
@@ -326,11 +252,14 @@ export function TrainingPage() {
       );
     }
 
-    setEditingSessionId(null);
-    setStartedFromToday(false);
-    setFatigueNotes("");
-    setSetRows([defaultSetRow()]);
-    clearPersistedDraft();
+    const summary = evaluateSessionAchievements(
+      parsedSets,
+      priorSessionsSnapshot,
+      resolvedName,
+      editedId,
+    );
+    setAchievementSummary(summary);
+    resetBlankSessionDraft();
     await loadAll();
   }
 
@@ -343,6 +272,7 @@ export function TrainingPage() {
       setErrorMsg("No se pudo eliminar la Sesión de Entrenamiento.");
       return;
     }
+    setAchievementSummary(null);
     setFeedbackMsg("Sesión de Entrenamiento eliminada.");
     await loadAll();
   }
@@ -376,7 +306,10 @@ export function TrainingPage() {
       meso.planned_sessions.map((ps) => ({
         day_order: ps.day_order,
         name: ps.name,
-        exercises: ps.exercises.map((ex) => ({ ...ex })),
+        exercises: ps.exercises.map((ex) => ({
+          ...ex,
+          secondary_muscle_groups: [...(ex.secondary_muscle_groups ?? [])],
+        })),
       })),
     );
   }
@@ -385,13 +318,21 @@ export function TrainingPage() {
     e.preventDefault();
     if (!editingMesoId) return;
     setErrorMsg(null);
+
+    const { sessions: sanitizedSessions, error: validationError } =
+      validateAndSanitizePlannedSessions(editMesoSessions);
+    if (validationError) {
+      setErrorMsg(validationError);
+      return;
+    }
+
     const res = await apiClient.PATCH("/api/v1/training/mesocycles/{mesocycle_id}", {
       params: { path: { mesocycle_id: editingMesoId } },
       body: {
         name: editMesoName.trim(),
         goal: editMesoGoal.trim(),
         duration_weeks: Number(editMesoWeeks) || 5,
-        planned_sessions: editMesoSessions,
+        planned_sessions: sanitizedSessions,
       },
     });
     if (res.error) {
@@ -499,17 +440,19 @@ export function TrainingPage() {
               sessionName={sessionName}
               sessionDate={sessionDate}
               fatigueNotes={fatigueNotes}
-              setRows={setRows}
+              exerciseGroups={exerciseGroups}
+              achievementSummary={achievementSummary}
+              onDismissAchievement={() => setAchievementSummary(null)}
               onSessionNameChange={setSessionName}
               onSessionDateChange={setSessionDate}
               onFatigueNotesChange={setFatigueNotes}
-              onSetRowsChange={setSetRows}
-              onCancelEdit={() => {
-                setEditingSessionId(null);
-                setStartedFromToday(false);
-                setSetRows([defaultSetRow()]);
-                clearPersistedDraft();
+              onExerciseGroupsChange={setExerciseGroups}
+              onDiscardDraft={() => {
+                resetBlankSessionDraft();
+                setErrorMsg(null);
+                setFeedbackMsg("Borrador local descartado.");
               }}
+              onCancelEdit={resetBlankSessionDraft}
               onSaveSession={(e) => void handleSaveSession(e)}
               onEditSession={startEditingSession}
               onDeleteSession={(id) => void handleDeleteSession(id)}
@@ -531,6 +474,7 @@ export function TrainingPage() {
               editMesoName={editMesoName}
               editMesoGoal={editMesoGoal}
               editMesoWeeks={editMesoWeeks}
+              editMesoSessions={editMesoSessions}
               onCoachFocusChange={setCoachFocus}
               onDraftWithCoach={() => void handleDraftWithCoach()}
               onStartEdit={startEditingMesocycle}
@@ -538,6 +482,7 @@ export function TrainingPage() {
               onEditNameChange={setEditMesoName}
               onEditGoalChange={setEditMesoGoal}
               onEditWeeksChange={setEditMesoWeeks}
+              onEditSessionsChange={setEditMesoSessions}
               onSaveEdit={(e) => void handleSaveMesocycleEdit(e)}
               onActivate={(m) => void handleActivateMesocycle(m)}
               onTransitionStatus={(id, st) => void handleTransitionStatus(id, st)}

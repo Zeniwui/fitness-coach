@@ -15,6 +15,9 @@ export interface ConflictModalState {
   activeMesocycleName: string;
 }
 
+/**
+ * Legacy flat set row format retained for safe migration of existing v1 localStorage drafts.
+ */
 export interface EditableSetRow {
   exercise_name: string;
   muscle_group: string;
@@ -26,6 +29,33 @@ export interface EditableSetRow {
   rpe: string;
   targetHint?: string;
   previousMarkHint?: string;
+}
+
+export interface EditableExerciseSet {
+  id: string;
+  reps: string;
+  load: string;
+  rir: string;
+  rpe: string;
+  completed: boolean;
+}
+
+export interface EditableExerciseGroup {
+  id: string;
+  exercise_name: string;
+  muscle_group: string;
+  secondary_muscle_groups: string;
+  unit: "kg" | "lb";
+  isBodyweight: boolean;
+  targetHint?: string;
+  previousMarkHint?: string;
+  sets: EditableExerciseSet[];
+}
+
+export interface EditablePlannedSession {
+  day_order: number;
+  name: string;
+  exercises: PlannedExerciseSchema[];
 }
 
 export function defaultSetRow(): EditableSetRow {
