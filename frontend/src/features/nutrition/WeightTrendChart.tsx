@@ -29,7 +29,7 @@ export function WeightTrendChart({ checkins, activePhase }: WeightTrendChartProp
   const ordered = [...checkins].sort((a, b) => {
     const byDate = a.checkin_date.localeCompare(b.checkin_date);
     if (byDate !== 0) return byDate;
-    return a.created_at.localeCompare(b.created_at);
+    return (a.created_at ?? "").localeCompare(b.created_at ?? "");
   });
 
   if (ordered.length < 2) {
