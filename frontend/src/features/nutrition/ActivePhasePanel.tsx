@@ -3,6 +3,7 @@ import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
 import { Input, Select } from "../../ui/Field";
+import { HelpTip } from "../../ui/HelpTip";
 import { Surface } from "../../ui/Surface";
 import {
   PHASE_TYPE_LABELS,
@@ -74,7 +75,7 @@ export function ActivePhasePanel({
             </p>
           )}
         </div>
-        {activePhase && (
+          {activePhase && (
           <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
@@ -108,6 +109,16 @@ export function ActivePhasePanel({
           </div>
         )}
       </div>
+
+      <HelpTip
+        term="TDEE"
+        triggerLabel="¿Qué es TDEE?"
+        title="Gasto energético total diario (TDEE)"
+      >
+        Es la estimación de calorías que consumes al día sumando metabolismo basal, actividad diaria
+        y entrenamiento. Con tus Check-ins semanales, el Coach recalibra tu TDEE real y propone
+        ajustes según tu ritmo semanal de peso.
+      </HelpTip>
 
       {activePhase && (
         <div className="space-y-3 rounded-panel border border-line bg-surface-muted/60 p-4">

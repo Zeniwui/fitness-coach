@@ -172,6 +172,11 @@ export function LoginPage() {
                 <Button type="submit" size="lg" fullWidth disabled={submitting}>
                   {submitting ? "Iniciando sesión…" : "Iniciar sesión"}
                 </Button>
+
+                <p className="border-t border-line pt-3.5 text-xs leading-relaxed text-ink-muted">
+                  ¿Problemas para entrar? Solicita un restablecimiento de contraseña o asistencia de
+                  acceso directamente a tu Curador.
+                </p>
               </form>
             )}
           </Surface>

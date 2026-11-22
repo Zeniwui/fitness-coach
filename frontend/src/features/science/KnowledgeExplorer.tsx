@@ -6,6 +6,7 @@ import { AlertBanner } from "../../ui/AlertBanner";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { Input, Select, Textarea } from "../../ui/Field";
+import { HelpTip } from "../../ui/HelpTip";
 import { Surface } from "../../ui/Surface";
 import {
   EVIDENCE_LEVEL_LABELS,
@@ -224,6 +225,18 @@ export function KnowledgeExplorer({ isCurator }: KnowledgeExplorerProps) {
                   </Button>
                 )}
               </div>
+            </div>
+            <div className="mt-2.5">
+              <HelpTip
+                term="rigor y actualización científica"
+                triggerLabel="¿Cómo leer los niveles?"
+                title="Niveles de evidencia y vigencia científica"
+              >
+                Los niveles ordenan el rigor metodológico (de metaanálisis y revisiones sistemáticas
+                hasta ensayos controlados y guías de posicionamiento). La vigencia indica si una
+                Ficha de Evidencia sigue vigente, matizada o superada por estudios posteriores
+                aprobados por el Curador.
+              </HelpTip>
             </div>
           </div>
 

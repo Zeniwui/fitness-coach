@@ -1,0 +1,610 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-22T20:26:00Z",
+  "title": "Design System: Fitness Coach — Cuaderno de Hierro",
+  "extensions": {
+    "colorMeta": {
+      "calibrated-brass": {
+        "role": "primary",
+        "displayName": "Calibrated Brass",
+        "canonical": "rgb(212 161 75)",
+        "tonalRamp": [
+          "oklch(22% 0.04 78)",
+          "oklch(32% 0.06 78)",
+          "oklch(44% 0.09 78)",
+          "oklch(56% 0.11 78)",
+          "oklch(68% 0.12 78)",
+          "oklch(76% 0.11 78)",
+          "oklch(86% 0.08 78)",
+          "oklch(94% 0.04 78)"
+        ]
+      },
+      "calibrated-brass-hover": {
+        "role": "primary",
+        "displayName": "Calibrated Brass Hover",
+        "canonical": "rgb(226 178 96)",
+        "tonalRamp": [
+          "oklch(24% 0.04 78)",
+          "oklch(36% 0.07 78)",
+          "oklch(48% 0.09 78)",
+          "oklch(60% 0.11 78)",
+          "oklch(72% 0.12 78)",
+          "oklch(80% 0.11 78)",
+          "oklch(88% 0.07 78)",
+          "oklch(95% 0.03 78)"
+        ]
+      },
+      "calibrated-brass-soft": {
+        "role": "primary",
+        "displayName": "Calibrated Brass Soft",
+        "canonical": "rgb(56 46 27)",
+        "tonalRamp": [
+          "oklch(18% 0.03 78)",
+          "oklch(25% 0.04 78)",
+          "oklch(34% 0.05 78)",
+          "oklch(46% 0.06 78)",
+          "oklch(60% 0.06 78)",
+          "oklch(74% 0.05 78)",
+          "oklch(86% 0.04 78)",
+          "oklch(95% 0.03 78)"
+        ]
+      },
+      "calibrated-brass-ink": {
+        "role": "primary",
+        "displayName": "Calibrated Brass Ink",
+        "canonical": "rgb(22 18 11)",
+        "tonalRamp": [
+          "oklch(16% 0.02 78)",
+          "oklch(24% 0.02 78)",
+          "oklch(35% 0.02 78)",
+          "oklch(48% 0.02 78)",
+          "oklch(62% 0.02 78)",
+          "oklch(76% 0.01 78)",
+          "oklch(88% 0.01 78)",
+          "oklch(96% 0.01 78)"
+        ]
+      },
+      "calibrated-brass-text": {
+        "role": "primary",
+        "displayName": "Calibrated Brass Text",
+        "canonical": "rgb(233 192 120)",
+        "tonalRamp": [
+          "oklch(24% 0.04 78)",
+          "oklch(36% 0.06 78)",
+          "oklch(48% 0.08 78)",
+          "oklch(60% 0.10 78)",
+          "oklch(72% 0.11 78)",
+          "oklch(82% 0.10 78)",
+          "oklch(90% 0.06 78)",
+          "oklch(96% 0.03 78)"
+        ]
+      },
+      "glacier-science": {
+        "role": "secondary",
+        "displayName": "Glacier Science",
+        "canonical": "rgb(99 164 219)",
+        "tonalRamp": [
+          "oklch(22% 0.05 245)",
+          "oklch(32% 0.07 245)",
+          "oklch(44% 0.09 245)",
+          "oklch(56% 0.11 245)",
+          "oklch(68% 0.11 245)",
+          "oklch(78% 0.09 245)",
+          "oklch(88% 0.06 245)",
+          "oklch(95% 0.02 245)"
+        ]
+      },
+      "glacier-science-soft": {
+        "role": "secondary",
+        "displayName": "Glacier Science Soft",
+        "canonical": "rgb(27 48 68)",
+        "tonalRamp": [
+          "oklch(18% 0.04 245)",
+          "oklch(27% 0.05 245)",
+          "oklch(36% 0.06 245)",
+          "oklch(48% 0.06 245)",
+          "oklch(62% 0.06 245)",
+          "oklch(76% 0.05 245)",
+          "oklch(88% 0.03 245)",
+          "oklch(95% 0.02 245)"
+        ]
+      },
+      "glacier-science-text": {
+        "role": "secondary",
+        "displayName": "Glacier Science Text",
+        "canonical": "rgb(144 196 238)",
+        "tonalRamp": [
+          "oklch(24% 0.05 245)",
+          "oklch(35% 0.07 245)",
+          "oklch(46% 0.09 245)",
+          "oklch(58% 0.10 245)",
+          "oklch(70% 0.10 245)",
+          "oklch(80% 0.08 245)",
+          "oklch(89% 0.05 245)",
+          "oklch(96% 0.02 245)"
+        ]
+      },
+      "emerald-signal": {
+        "role": "tertiary",
+        "displayName": "Emerald Signal",
+        "canonical": "rgb(83 191 135)",
+        "tonalRamp": [
+          "oklch(22% 0.05 155)",
+          "oklch(34% 0.08 155)",
+          "oklch(46% 0.10 155)",
+          "oklch(58% 0.12 155)",
+          "oklch(70% 0.12 155)",
+          "oklch(80% 0.10 155)",
+          "oklch(89% 0.06 155)",
+          "oklch(95% 0.02 155)"
+        ]
+      },
+      "emerald-signal-soft": {
+        "role": "tertiary",
+        "displayName": "Emerald Signal Soft",
+        "canonical": "rgb(23 56 41)",
+        "tonalRamp": [
+          "oklch(18% 0.04 155)",
+          "oklch(28% 0.05 155)",
+          "oklch(38% 0.06 155)",
+          "oklch(50% 0.06 155)",
+          "oklch(64% 0.06 155)",
+          "oklch(78% 0.05 155)",
+          "oklch(88% 0.03 155)",
+          "oklch(95% 0.02 155)"
+        ]
+      },
+      "emerald-signal-text": {
+        "role": "tertiary",
+        "displayName": "Emerald Signal Text",
+        "canonical": "rgb(135 224 176)",
+        "tonalRamp": [
+          "oklch(24% 0.05 155)",
+          "oklch(36% 0.07 155)",
+          "oklch(48% 0.09 155)",
+          "oklch(60% 0.11 155)",
+          "oklch(72% 0.11 155)",
+          "oklch(82% 0.09 155)",
+          "oklch(90% 0.05 155)",
+          "oklch(96% 0.02 155)"
+        ]
+      },
+      "amber-caution": {
+        "role": "tertiary",
+        "displayName": "Amber Caution",
+        "canonical": "rgb(227 151 74)",
+        "tonalRamp": [
+          "oklch(22% 0.05 62)",
+          "oklch(34% 0.08 62)",
+          "oklch(46% 0.10 62)",
+          "oklch(58% 0.12 62)",
+          "oklch(70% 0.13 62)",
+          "oklch(80% 0.10 62)",
+          "oklch(89% 0.06 62)",
+          "oklch(95% 0.03 62)"
+        ]
+      },
+      "amber-caution-soft": {
+        "role": "tertiary",
+        "displayName": "Amber Caution Soft",
+        "canonical": "rgb(63 40 19)",
+        "tonalRamp": [
+          "oklch(19% 0.04 62)",
+          "oklch(28% 0.05 62)",
+          "oklch(38% 0.06 62)",
+          "oklch(50% 0.07 62)",
+          "oklch(64% 0.06 62)",
+          "oklch(78% 0.05 62)",
+          "oklch(89% 0.03 62)",
+          "oklch(95% 0.02 62)"
+        ]
+      },
+      "amber-caution-text": {
+        "role": "tertiary",
+        "displayName": "Amber Caution Text",
+        "canonical": "rgb(245 190 129)",
+        "tonalRamp": [
+          "oklch(24% 0.05 62)",
+          "oklch(36% 0.07 62)",
+          "oklch(48% 0.09 62)",
+          "oklch(60% 0.11 62)",
+          "oklch(72% 0.11 62)",
+          "oklch(82% 0.09 62)",
+          "oklch(90% 0.05 62)",
+          "oklch(96% 0.02 62)"
+        ]
+      },
+      "crimson-alert": {
+        "role": "tertiary",
+        "displayName": "Crimson Alert",
+        "canonical": "rgb(227 98 108)",
+        "tonalRamp": [
+          "oklch(22% 0.06 18)",
+          "oklch(34% 0.10 18)",
+          "oklch(46% 0.13 18)",
+          "oklch(58% 0.15 18)",
+          "oklch(66% 0.15 18)",
+          "oklch(77% 0.11 18)",
+          "oklch(88% 0.06 18)",
+          "oklch(95% 0.02 18)"
+        ]
+      },
+      "crimson-alert-soft": {
+        "role": "tertiary",
+        "displayName": "Crimson Alert Soft",
+        "canonical": "rgb(66 26 33)",
+        "tonalRamp": [
+          "oklch(19% 0.05 18)",
+          "oklch(28% 0.06 18)",
+          "oklch(38% 0.07 18)",
+          "oklch(50% 0.07 18)",
+          "oklch(64% 0.06 18)",
+          "oklch(78% 0.05 18)",
+          "oklch(89% 0.03 18)",
+          "oklch(95% 0.02 18)"
+        ]
+      },
+      "crimson-alert-text": {
+        "role": "tertiary",
+        "displayName": "Crimson Alert Text",
+        "canonical": "rgb(247 161 168)",
+        "tonalRamp": [
+          "oklch(24% 0.06 18)",
+          "oklch(36% 0.09 18)",
+          "oklch(48% 0.11 18)",
+          "oklch(60% 0.13 18)",
+          "oklch(72% 0.11 18)",
+          "oklch(81% 0.09 18)",
+          "oklch(90% 0.05 18)",
+          "oklch(96% 0.02 18)"
+        ]
+      },
+      "steel-canvas": {
+        "role": "neutral",
+        "displayName": "Steel Canvas",
+        "canonical": "rgb(20 23 29)",
+        "tonalRamp": [
+          "oklch(16% 0.015 258)",
+          "oklch(22% 0.016 258)",
+          "oklch(30% 0.018 258)",
+          "oklch(42% 0.018 258)",
+          "oklch(56% 0.016 258)",
+          "oklch(72% 0.014 258)",
+          "oklch(86% 0.010 258)",
+          "oklch(95% 0.006 258)"
+        ]
+      },
+      "steel-surface": {
+        "role": "neutral",
+        "displayName": "Steel Surface",
+        "canonical": "rgb(28 33 43)",
+        "tonalRamp": [
+          "oklch(18% 0.018 258)",
+          "oklch(25% 0.020 258)",
+          "oklch(34% 0.020 258)",
+          "oklch(46% 0.018 258)",
+          "oklch(60% 0.016 258)",
+          "oklch(74% 0.013 258)",
+          "oklch(88% 0.009 258)",
+          "oklch(98% 0.004 258)"
+        ]
+      },
+      "steel-surface-muted": {
+        "role": "neutral",
+        "displayName": "Steel Surface Muted",
+        "canonical": "rgb(36 42 54)",
+        "tonalRamp": [
+          "oklch(20% 0.020 258)",
+          "oklch(28% 0.022 258)",
+          "oklch(37% 0.022 258)",
+          "oklch(49% 0.019 258)",
+          "oklch(63% 0.016 258)",
+          "oklch(76% 0.013 258)",
+          "oklch(88% 0.009 258)",
+          "oklch(94% 0.006 258)"
+        ]
+      },
+      "steel-surface-elevated": {
+        "role": "neutral",
+        "displayName": "Steel Surface Elevated",
+        "canonical": "rgb(34 40 52)",
+        "tonalRamp": [
+          "oklch(19% 0.020 258)",
+          "oklch(27% 0.022 258)",
+          "oklch(36% 0.022 258)",
+          "oklch(48% 0.019 258)",
+          "oklch(62% 0.016 258)",
+          "oklch(76% 0.013 258)",
+          "oklch(88% 0.009 258)",
+          "oklch(98% 0.004 258)"
+        ]
+      },
+      "steel-rail": {
+        "role": "neutral",
+        "displayName": "Steel Rail",
+        "canonical": "rgb(16 19 24)",
+        "tonalRamp": [
+          "oklch(14% 0.014 258)",
+          "oklch(21% 0.016 258)",
+          "oklch(30% 0.017 258)",
+          "oklch(42% 0.016 258)",
+          "oklch(56% 0.015 258)",
+          "oklch(71% 0.012 258)",
+          "oklch(85% 0.009 258)",
+          "oklch(93% 0.006 258)"
+        ]
+      },
+      "steel-rail-active": {
+        "role": "neutral",
+        "displayName": "Steel Rail Active",
+        "canonical": "rgb(48 42 29)",
+        "tonalRamp": [
+          "oklch(18% 0.025 78)",
+          "oklch(27% 0.032 78)",
+          "oklch(37% 0.035 78)",
+          "oklch(49% 0.035 78)",
+          "oklch(63% 0.030 78)",
+          "oklch(77% 0.022 78)",
+          "oklch(89% 0.014 78)",
+          "oklch(97% 0.006 78)"
+        ]
+      },
+      "chalk-ink": {
+        "role": "neutral",
+        "displayName": "Chalk Ink",
+        "canonical": "rgb(236 239 244)",
+        "tonalRamp": [
+          "oklch(20% 0.012 258)",
+          "oklch(32% 0.012 258)",
+          "oklch(45% 0.012 258)",
+          "oklch(58% 0.011 258)",
+          "oklch(71% 0.010 258)",
+          "oklch(82% 0.009 258)",
+          "oklch(91% 0.007 258)",
+          "oklch(96% 0.005 258)"
+        ]
+      },
+      "slate-ink-muted": {
+        "role": "neutral",
+        "displayName": "Slate Ink Muted",
+        "canonical": "rgb(164 173 187)",
+        "tonalRamp": [
+          "oklch(22% 0.018 258)",
+          "oklch(34% 0.018 258)",
+          "oklch(46% 0.018 258)",
+          "oklch(58% 0.017 258)",
+          "oklch(70% 0.016 258)",
+          "oklch(80% 0.013 258)",
+          "oklch(89% 0.009 258)",
+          "oklch(95% 0.005 258)"
+        ]
+      },
+      "slate-ink-subtle": {
+        "role": "neutral",
+        "displayName": "Slate Ink Subtle",
+        "canonical": "rgb(142 152 168)",
+        "tonalRamp": [
+          "oklch(22% 0.020 258)",
+          "oklch(34% 0.020 258)",
+          "oklch(46% 0.020 258)",
+          "oklch(57% 0.019 258)",
+          "oklch(68% 0.018 258)",
+          "oklch(78% 0.015 258)",
+          "oklch(88% 0.010 258)",
+          "oklch(95% 0.006 258)"
+        ]
+      },
+      "hairline-border": {
+        "role": "neutral",
+        "displayName": "Hairline Border",
+        "canonical": "rgb(48 56 71)",
+        "tonalRamp": [
+          "oklch(20% 0.022 258)",
+          "oklch(30% 0.024 258)",
+          "oklch(40% 0.024 258)",
+          "oklch(52% 0.022 258)",
+          "oklch(64% 0.019 258)",
+          "oklch(76% 0.015 258)",
+          "oklch(87% 0.011 258)",
+          "oklch(94% 0.007 258)"
+        ]
+      },
+      "control-border": {
+        "role": "neutral",
+        "displayName": "Control Border",
+        "canonical": "rgb(98 110 130)",
+        "tonalRamp": [
+          "oklch(22% 0.024 258)",
+          "oklch(33% 0.025 258)",
+          "oklch(44% 0.025 258)",
+          "oklch(54% 0.024 258)",
+          "oklch(66% 0.020 258)",
+          "oklch(78% 0.015 258)",
+          "oklch(88% 0.010 258)",
+          "oklch(95% 0.006 258)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page-level H1 titles in PageHeader and the login hero heading."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Primary panel titles such as active Fase Nutricional and Evidence Card titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Sub-section headings, Markdown headings in Coach replies, and modal titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Reading copy (max 65–70ch measure), form controls, and data tables."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels, status badges, segmented tab triggers, and compact metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel",
+        "value": "0 1px 2px rgb(0 0 0 / 0.32)",
+        "purpose": "Subtle grounding shadow under default surfaces and assistant message cards."
+      },
+      {
+        "name": "focal-accent",
+        "value": "inset 0 2px 0 rgb(212 161 75 / 0.78), 0 1px 2px rgb(0 0 0 / 0.32)",
+        "purpose": "Precision 2px top brass accent bar for the single focal panel on a screen."
+      },
+      {
+        "name": "elevated",
+        "value": "0 16px 36px -12px rgb(0 0 0 / 0.58)",
+        "purpose": "Modal dialogs, mobile bottom sheets, and the login focal container."
+      }
+    ],
+    "motion": [
+      {
+        "name": "transition-standard",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Color, border, and background transitions on buttons, fields, tabs, and disclosures."
+      },
+      {
+        "name": "transition-reduced",
+        "value": "120ms ease-out",
+        "purpose": "Clamped color/opacity transition applied when prefers-reduced-motion: reduce is active."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary Athlete action in Calibrated Brass with 44px mobile touch target.",
+      "html": "<button type=\"button\" class=\"ds-btn-primary\">Guardar Sesión</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 16px; border-radius: var(--radius-control, 6px); border: 1px solid transparent; background: rgb(var(--c-accent, 212 161 75)); color: rgb(var(--c-accent-ink, 22 18 11)); font-family: var(--font-sans, 'DM Sans', sans-serif); font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 150ms ease; } .ds-btn-primary:hover { background: rgb(var(--c-accent-hover, 226 178 96)); } .ds-btn-primary:focus-visible { outline: 2px solid rgb(var(--c-accent, 212 161 75)); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Calm steel-surface button for secondary actions, steppers, and cancel controls.",
+      "html": "<button type=\"button\" class=\"ds-btn-secondary\">Ajustar fase</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 16px; border-radius: var(--radius-control, 6px); border: 1px solid rgb(var(--c-line-strong, 98 110 130)); background: rgb(var(--c-surface, 28 33 43)); color: rgb(var(--c-ink, 236 239 244)); font-family: var(--font-sans, 'DM Sans', sans-serif); font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease; } .ds-btn-secondary:hover { background: rgb(var(--c-surface-muted, 36 42 54)); border-color: rgb(var(--c-ink, 236 239 244) / 0.4); } .ds-btn-secondary:focus-visible { outline: 2px solid rgb(var(--c-accent, 212 161 75)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Focal Surface Card",
+      "kind": "card",
+      "refersTo": "surface-panel",
+      "description": "Primary focal panel with precision 2px top Calibrated Brass accent bar.",
+      "html": "<section class=\"ds-surface-focal\"><h3 class=\"ds-surface-title\">Fase Nutricional activa</h3><p class=\"ds-surface-copy\">2350 kcal · Ritmo objetivo -0.4 kg/sem · Proteína 180 g</p></section>",
+      "css": ".ds-surface-focal { border-radius: var(--radius-panel, 8px); border: 1px solid rgb(var(--c-line, 48 56 71)); background: rgb(var(--c-surface, 28 33 43)); padding: 20px; box-shadow: inset 0 2px 0 rgb(var(--c-accent, 212 161 75) / 0.78), var(--shadow-panel, 0 1px 2px rgb(0 0 0 / 0.32)); } .ds-surface-title { margin: 0 0 6px; font-family: var(--font-display, 'Archivo', sans-serif); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; color: rgb(var(--c-ink, 236 239 244)); } .ds-surface-copy { margin: 0; font-family: var(--font-sans, 'DM Sans', sans-serif); font-size: 13px; font-variant-numeric: tabular-nums; color: rgb(var(--c-ink-muted, 164 173 187)); }"
+    },
+    {
+      "name": "Text Input Field",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "High-contrast form input with brass focus ring and tabular numeral support.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Peso base (kg)</span><input type=\"number\" class=\"ds-input\" value=\"82.5\" /></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-sans, 'DM Sans', sans-serif); } .ds-field-label { font-size: 12px; font-weight: 500; color: rgb(var(--c-ink-muted, 164 173 187)); } .ds-input { min-height: 44px; padding: 8px 12px; border-radius: var(--radius-control, 6px); border: 1px solid rgb(var(--c-line-strong, 98 110 130)); background: rgb(var(--c-surface, 28 33 43)); color: rgb(var(--c-ink, 236 239 244)); font-size: 14px; font-variant-numeric: tabular-nums; transition: border-color 150ms ease, box-shadow 150ms ease; } .ds-input:focus-visible { outline: 2px solid rgb(var(--c-accent, 212 161 75)); outline-offset: 0; border-color: rgb(var(--c-accent, 212 161 75)); box-shadow: 0 0 0 3px rgb(var(--c-accent, 212 161 75) / 0.25); }"
+    },
+    {
+      "name": "Evidence Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-secondary",
+      "description": "Glacier Science pill tag for methodological evidence grade on Fichas de Evidencia.",
+      "html": "<span class=\"ds-badge-science\">Metaanálisis · Vigente</span>",
+      "css": ".ds-badge-science { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 9999px; border: 1px solid rgb(var(--c-secondary, 99 164 219) / 0.35); background: rgb(var(--c-secondary-soft, 27 48 68)); color: rgb(var(--c-secondary-text, 144 196 238)); font-family: var(--font-sans, 'DM Sans', sans-serif); font-size: 12px; font-weight: 500; }"
+    },
+    {
+      "name": "Navigation Rail Item",
+      "kind": "nav",
+      "refersTo": "button-soft",
+      "description": "Desktop rail navigation item with 2px left brass indicator bar when active.",
+      "html": "<a href=\"#coach\" class=\"ds-nav-item ds-nav-item-active\" aria-current=\"page\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/></svg><span>Coach</span></a>",
+      "css": ".ds-nav-item { position: relative; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 10px 14px; border-radius: var(--radius-control, 6px); font-family: var(--font-sans, 'DM Sans', sans-serif); font-size: 14px; font-weight: 500; text-decoration: none; color: rgb(var(--c-rail-ink-muted, 152 162 178)); transition: background-color 150ms ease, color 150ms ease; } .ds-nav-item:hover { background: rgb(var(--c-rail-surface, 27 32 41)); color: rgb(var(--c-rail-ink, 236 239 244)); } .ds-nav-item-active { background: rgb(var(--c-rail-active-bg, 48 42 29)); color: rgb(var(--c-rail-active-ink, 226 181 102)); } .ds-nav-item-active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 9999px; background: rgb(var(--c-rail-active-ink, 226 181 102)); } .ds-nav-item:focus-visible { outline: 2px solid rgb(var(--c-accent, 212 161 75)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Segmented Tabs",
+      "kind": "custom",
+      "refersTo": "surface-panel",
+      "description": "Keyboard-navigable segmented control for multi-view workflows (Entrenamiento, Nutrición, Ciencia).",
+      "html": "<div role=\"tablist\" class=\"ds-tabs\"><button role=\"tab\" aria-selected=\"true\" class=\"ds-tab ds-tab-active\">Resumen y Ajuste <span class=\"ds-tab-dot\">Pendiente</span></button><button role=\"tab\" aria-selected=\"false\" class=\"ds-tab\">Check-in semanal</button><button role=\"tab\" aria-selected=\"false\" class=\"ds-tab\">Historial</button></div>",
+      "css": ".ds-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; border-radius: var(--radius-panel, 8px); border: 1px solid rgb(var(--c-line, 48 56 71)); background: rgb(var(--c-surface-muted, 36 42 54) / 0.7); font-family: var(--font-sans, 'DM Sans', sans-serif); } .ds-tab { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 8px 14px; border: none; border-radius: var(--radius-control, 6px); background: transparent; color: rgb(var(--c-ink-muted, 164 173 187)); font-size: 12px; font-weight: 600; cursor: pointer; transition: color 150ms ease, background-color 150ms ease; } .ds-tab:hover { color: rgb(var(--c-ink, 236 239 244)); } .ds-tab-active { background: rgb(var(--c-surface, 28 33 43)); color: rgb(var(--c-ink, 236 239 244)); box-shadow: 0 1px 2px rgb(0 0 0 / 0.25); } .ds-tab-dot { padding: 2px 8px; border-radius: 9999px; background: rgb(var(--c-accent-soft, 56 46 27)); color: rgb(var(--c-accent-text, 233 192 120)); font-size: 11px; } .ds-tab:focus-visible { outline: 2px solid rgb(var(--c-accent, 212 161 75)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Inline HelpTip Disclosure",
+      "kind": "custom",
+      "refersTo": "badge-secondary",
+      "description": "Zero-popper accessible inline glossary help trigger and Glacier Science note for RIR, TDEE, PEDs, and scientific validity.",
+      "html": "<div class=\"ds-helptip\"><button type=\"button\" aria-expanded=\"true\" class=\"ds-helptip-btn\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\"/><path d=\"M12 17h.01\"/></svg><span>¿Qué es RIR?</span></button><div role=\"note\" class=\"ds-helptip-note\"><strong>Repeticiones en recámara (RIR):</strong> Estima cuántas repeticiones válidas podrías haber completado antes del fallo muscular.</div></div>",
+      "css": ".ds-helptip { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 8px; font-family: var(--font-sans, 'DM Sans', sans-serif); } .ds-helptip-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 10px; border-radius: var(--radius-control, 6px); border: 1px solid rgb(var(--c-secondary, 99 164 219) / 0.45); background: rgb(var(--c-secondary-soft, 27 48 68)); color: rgb(var(--c-secondary-text, 144 196 238)); font-size: 12px; font-weight: 500; cursor: pointer; transition: background-color 150ms ease; } .ds-helptip-btn:hover { background: rgb(var(--c-secondary, 99 164 219) / 0.2); } .ds-helptip-btn:focus-visible { outline: 2px solid rgb(var(--c-accent, 212 161 75)); outline-offset: 2px; } .ds-helptip-note { max-width: 65ch; padding: 8px 12px; border-radius: var(--radius-control, 6px); border: 1px solid rgb(var(--c-secondary, 99 164 219) / 0.35); background: rgb(var(--c-secondary-soft, 27 48 68) / 0.65); color: rgb(var(--c-ink-muted, 164 173 187)); font-size: 12px; line-height: 1.5; } .ds-helptip-note strong { color: rgb(var(--c-secondary-text, 144 196 238)); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Cuaderno de Hierro",
+    "overview": "Fitness Coach is an Operate-mode training, nutrition, and sports-science workspace built like a calibrated steel training notebook. Its default dark appearance is engineered for dim gym floors and one-handed mobile logging, while a matched high-contrast light appearance serves bright desk reviews without altering hierarchy or spatial rhythm.\n\nEvery visual decision serves calm precision, rapid numerical scanning, and clear separation between personal tracking and curated scientific evidence. Rather than chasing fitness-app neon gradients or motivational clutter, the interface relies on disciplined slate-steel layers, warm calibrated brass for primary actions, cool glacier blue for scientific credibility, and crisp tabular numerals across loads, reps, RIR, calories, and progression charts.\n\nThe design system rejects decorative cards-within-cards, gradient text, eyebrow kickers above headings, hard neobrutalist block shadows, and emoji icon substitutes.",
+    "keyCharacteristics": [
+      "Dark-first architectural steel palette with an exact semantic light theme twin via html[data-theme=\"light\"].",
+      "Warm Calibrated Brass reserved strictly for primary actions, focal borders, and active selection states.",
+      "Glacier Science blue dedicated exclusively to curated evidence, inline contextual help, and Curador role markers.",
+      "Crisp mechanical geometry (6px controls, 8px panels) paired with tabular numerals and ≥44px mobile touch targets.",
+      "Progressive disclosure for secondary workflows (advanced search filters, inline glossary help, disposable onboarding, two-step destructive confirmations)."
+    ],
+    "rules": [
+      {
+        "name": "The Brass Budget Rule",
+        "body": "Calibrated Brass marks primary actions, current selection, focus rings, and at most one focal panel per screen. Never flood inactive controls or multiple competing banners with primary accent fills.",
+        "section": "colors"
+      },
+      {
+        "name": "The Epistemological Color Rule",
+        "body": "Glacier Science denotes curated evidence, scientific help, and Curador tools; Amber Caution denotes quarantined external sources or pending proposals. Never mix those semantic tones across boundaries.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Measurement Rule",
+        "body": "Every numeric measurement—loads (kg/lb), reps, RIR, e1RM, calories, macros, weight trends, and counts—must enable font-variant-numeric: tabular-nums so columns and steppers stay rock-steady during input.",
+        "section": "typography"
+      },
+      {
+        "name": "The Fixed-Scale Operate Rule",
+        "body": "Use fixed rem steps rather than fluid clamp() headings inside authenticated surfaces so hierarchy stays predictable across desktop rails and mobile viewports.",
+        "section": "typography"
+      },
+      {
+        "name": "The Single Focal Surface Rule",
+        "body": "Show at most one Surface variant=\"focal\" per screen so the Athlete immediately recognizes the primary work surface.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat-Inset Rule",
+        "body": "Recessed containers (Surface variant=\"inset\"), table shells, and grouped exercise rows stay flat with hairline borders—never nest elevated shadows inside another card.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve strict GLOSSARY.md Spanish terminology across every label, button, error, and help disclosure (Atleta, Coach, Curador, Perfil Vivo, Mesociclo, Sesión de Entrenamiento, Fase Nutricional, Check-in, Base de Conocimiento, Ficha de Evidencia, Estudio Candidato, Corte Mensual).",
+      "Do keep at most one Surface variant=\"focal\" visible per view and use Surface variant=\"inset\" for secondary or empty-state guidance.",
+      "Do enforce ≥44px minimum touch targets on mobile for every interactive button, stepper, link, and HelpTip trigger.",
+      "Do apply tabular-nums to all loads, reps, RIR, macro/calorie counts, chart axes, and table columns, and wrap Markdown tables in overflow-x-auto.",
+      "Do respect prefers-reduced-motion by keeping state transitions calm (120–200ms) and disabling pulse/spin animations when reduced motion is requested.",
+      "Do verify every color combination meets WCAG AA (≥4.5:1 body/placeholder text, ≥3:1 large text and interactive borders) in both dark and light themes."
+    ],
+    "donts": [
+      "Don't place eyebrow kickers, decorative section numbers (01 / 02 / 03), gradient text, or emoji stand-ins for icons anywhere in the interface.",
+      "Don't nest shadowed cards inside cards or add colored thick border-left / border-right stripes (>1px) to cards, list items, or callouts.",
+      "Don't use raw fetch() in frontend code or add heavy third-party charting/popper libraries; use apiClient and native semantic SVG/HTML primitives.",
+      "Don't reach for a modal when an inline disclosure (HelpTip, collapsible filters, ConfirmActionButton, inline thread rename) solves the task without interrupting flow.",
+      "Don't expose Curador navigation or endpoints to non-Curador Atletas or mix quarantined live search results with approved Fichas de Evidencia."
+    ]
+  }
+}

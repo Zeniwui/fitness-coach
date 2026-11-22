@@ -3,6 +3,7 @@ import { Button, type ButtonSize, type ButtonVariant } from "./Button";
 
 interface ConfirmActionButtonProps {
   label: string;
+  ariaLabel?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: ButtonVariant;
@@ -14,6 +15,7 @@ interface ConfirmActionButtonProps {
 
 export function ConfirmActionButton({
   label,
+  ariaLabel,
   confirmLabel = "Confirmar",
   cancelLabel = "Cancelar",
   variant = "danger",
@@ -30,6 +32,7 @@ export function ConfirmActionButton({
         variant={variant}
         size={size}
         disabled={disabled}
+        aria-label={ariaLabel}
         onClick={() => setConfirming(true)}
       >
         {label}
@@ -38,7 +41,11 @@ export function ConfirmActionButton({
   }
 
   return (
-    <span className="inline-flex flex-wrap items-center gap-1.5" role="group" aria-label={label}>
+    <span
+      className="inline-flex flex-wrap items-center gap-1.5"
+      role="group"
+      aria-label={ariaLabel ?? label}
+    >
       <Button
         variant={confirmVariant}
         size={size}

@@ -105,4 +105,21 @@ describe("Living Profile (Perfil Vivo) & Injuries UI (#3)", () => {
     expect(await within(banner).findByText(/sin lesiones activas/i)).toBeInTheDocument();
     expect(screen.queryByText(/molestia solo con mancuernas pesadas/i)).not.toBeInTheDocument();
   });
+
+  it("opens accessible inline contextual help for natural vs PEDs training approach", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/profile"]} />);
+
+    const helpBtn = await screen.findByRole("button", {
+      name: /ayuda sobre enfoque natural y peds/i,
+    });
+    expect(helpBtn).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(helpBtn);
+    expect(helpBtn).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/farmacología ni protocolos de sustancias/i)).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(helpBtn).toHaveAttribute("aria-expanded", "false");
+  });
 });
