@@ -5,9 +5,11 @@ import { Button } from "../../ui/Button";
 import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
 import { Input } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
+import { MesocycleEditor } from "./MesocycleEditor";
 import {
   statusBadgeLabel,
   statusBadgeTone,
+  type EditablePlannedSession,
   type MesocycleResponse,
 } from "./types";
 
@@ -19,6 +21,7 @@ interface MesocyclesTabProps {
   editMesoName: string;
   editMesoGoal: string;
   editMesoWeeks: string;
+  editMesoSessions: EditablePlannedSession[];
   onCoachFocusChange: (v: string) => void;
   onDraftWithCoach: () => void;
   onStartEdit: (meso: MesocycleResponse) => void;
@@ -26,6 +29,7 @@ interface MesocyclesTabProps {
   onEditNameChange: (v: string) => void;
   onEditGoalChange: (v: string) => void;
   onEditWeeksChange: (v: string) => void;
+  onEditSessionsChange: (sessions: EditablePlannedSession[]) => void;
   onSaveEdit: (e: FormEvent) => void;
   onActivate: (meso: MesocycleResponse) => void;
   onTransitionStatus: (mesoId: string, status: "deload" | "completed" | "archived") => void;
@@ -39,6 +43,7 @@ export function MesocyclesTab({
   editMesoName,
   editMesoGoal,
   editMesoWeeks,
+  editMesoSessions,
   onCoachFocusChange,
   onDraftWithCoach,
   onStartEdit,
@@ -46,6 +51,7 @@ export function MesocyclesTab({
   onEditNameChange,
   onEditGoalChange,
   onEditWeeksChange,
+  onEditSessionsChange,
   onSaveEdit,
   onActivate,
   onTransitionStatus,
@@ -84,51 +90,18 @@ export function MesocyclesTab({
       </Surface>
 
       {editingMesoId && (
-        <Surface variant="accent" padded="md">
-          <form onSubmit={onSaveEdit} className="space-y-4">
-            <h3 className="heading-section text-base text-accent-text">Editar Mesociclo</h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <label className="block space-y-1 text-xs font-medium text-ink-muted">
-                <span>Nombre del Mesociclo</span>
-                <Input
-                  type="text"
-                  value={editMesoName}
-                  onChange={(e) => onEditNameChange(e.target.value)}
-                  required
-                />
-              </label>
-              <label className="block space-y-1 text-xs font-medium text-ink-muted">
-                <span>Objetivo</span>
-                <Input
-                  type="text"
-                  value={editMesoGoal}
-                  onChange={(e) => onEditGoalChange(e.target.value)}
-                  required
-                />
-              </label>
-              <label className="block space-y-1 text-xs font-medium text-ink-muted">
-                <span>Duración (semanas)</span>
-                <Input
-                  type="number"
-                  min={2}
-                  max={16}
-                  value={editMesoWeeks}
-                  onChange={(e) => onEditWeeksChange(e.target.value)}
-                  required
-                  className="tabular-nums"
-                />
-              </label>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" size="sm">
-                Guardar cambios
-              </Button>
-              <Button variant="secondary" size="sm" onClick={onCancelEdit}>
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        </Surface>
+        <MesocycleEditor
+          name={editMesoName}
+          goal={editMesoGoal}
+          weeks={editMesoWeeks}
+          plannedSessions={editMesoSessions}
+          onNameChange={onEditNameChange}
+          onGoalChange={onEditGoalChange}
+          onWeeksChange={onEditWeeksChange}
+          onPlannedSessionsChange={onEditSessionsChange}
+          onSave={onSaveEdit}
+          onCancel={onCancelEdit}
+        />
       )}
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">

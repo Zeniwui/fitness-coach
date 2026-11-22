@@ -1,16 +1,15 @@
 import type { FormEvent } from "react";
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "../../ui/Button";
 import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
-import { Input, Select, Textarea } from "../../ui/Field";
-import { IconButton } from "../../ui/IconButton";
+import { Input, Textarea } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
 import { NaturalSessionLogger } from "../multimodal/NaturalSessionLogger";
-import {
-  defaultSetRow,
-  type EditableSetRow,
-  type TrainingSessionResponse,
-} from "./types";
+import { ExerciseGroupCard } from "./ExerciseGroupCard";
+import type { SessionAchievementSummary } from "./progression";
+import { SessionAchievementBanner } from "./SessionAchievementBanner";
+import { createDefaultExerciseGroup, hasSessionDraftContent } from "./sessionDraft";
+import type { EditableExerciseGroup, TrainingSessionResponse } from "./types";
 
 interface SessionsTabProps {
   activeMesocycleId: string | null;
@@ -20,11 +19,14 @@ interface SessionsTabProps {
   sessionName: string;
   sessionDate: string;
   fatigueNotes: string;
-  setRows: EditableSetRow[];
+  exerciseGroups: EditableExerciseGroup[];
+  achievementSummary: SessionAchievementSummary | null;
+  onDismissAchievement: () => void;
   onSessionNameChange: (v: string) => void;
   onSessionDateChange: (v: string) => void;
   onFatigueNotesChange: (v: string) => void;
-  onSetRowsChange: (rows: EditableSetRow[]) => void;
+  onExerciseGroupsChange: (groups: EditableExerciseGroup[]) => void;
+  onDiscardDraft: () => void;
   onCancelEdit: () => void;
   onSaveSession: (e: FormEvent) => void;
   onEditSession: (session: TrainingSessionResponse) => void;
@@ -40,44 +42,49 @@ export function SessionsTab({
   sessionName,
   sessionDate,
   fatigueNotes,
-  setRows,
+  exerciseGroups,
+  achievementSummary,
+  onDismissAchievement,
   onSessionNameChange,
   onSessionDateChange,
   onFatigueNotesChange,
-  onSetRowsChange,
+  onExerciseGroupsChange,
+  onDiscardDraft,
   onCancelEdit,
   onSaveSession,
   onEditSession,
   onDeleteSession,
   onNaturalSessionSaved,
 }: SessionsTabProps) {
-  function updateRow(idx: number, patch: Partial<EditableSetRow>) {
-    onSetRowsChange(setRows.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
+  const showDiscardDraft =
+    !editingSessionId && hasSessionDraftContent(exerciseGroups, fatigueNotes);
+
+  function updateGroup(idx: number, updated: EditableExerciseGroup) {
+    onExerciseGroupsChange(exerciseGroups.map((g, i) => (i === idx ? updated : g)));
   }
 
-  function duplicateRow(idx: number) {
-    const source = setRows[idx];
-    if (!source) return;
-    const copy: EditableSetRow = {
-      ...source,
-      targetHint: undefined,
-      previousMarkHint: undefined,
-    };
-    const next = [...setRows];
-    next.splice(idx + 1, 0, copy);
-    onSetRowsChange(next);
+  function removeGroup(idx: number) {
+    if (exerciseGroups.length <= 1) return;
+    onExerciseGroupsChange(exerciseGroups.filter((_, i) => i !== idx));
   }
 
-  function removeRow(idx: number) {
-    if (setRows.length <= 1) return;
-    onSetRowsChange(setRows.filter((_, i) => i !== idx));
+  function addExerciseGroup() {
+    onExerciseGroupsChange([...exerciseGroups, createDefaultExerciseGroup()]);
   }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-      {/* Left: Voice/NL logger + Manual quick gym log */}
+      {/* Left: Achievement summary + Voice/NL logger + Grouped gym sheet */}
       <div className="space-y-5 lg:col-span-7">
+        {achievementSummary && (
+          <SessionAchievementBanner
+            summary={achievementSummary}
+            onDismiss={onDismissAchievement}
+          />
+        )}
+
         <NaturalSessionLogger
+          key={startedFromToday ? "nl-collapsed" : "nl-default"}
           activeMesocycleId={activeMesocycleId}
           defaultCollapsed={startedFromToday}
           onSessionSaved={onNaturalSessionSaved}
@@ -85,7 +92,7 @@ export function SessionsTab({
 
         <Surface variant="focal" padded="md">
           <form onSubmit={onSaveSession} className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="space-y-0.5">
                 <h2 className="heading-section text-lg text-ink">
                   {editingSessionId
@@ -96,11 +103,23 @@ export function SessionsTab({
                   Tu borrador se guarda localmente mientras entrenas para no perder series.
                 </p>
               </div>
-              {editingSessionId && (
-                <Button variant="ghost" size="sm" onClick={onCancelEdit}>
-                  Cancelar edición
-                </Button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {editingSessionId && (
+                  <Button variant="ghost" size="sm" onClick={onCancelEdit}>
+                    Cancelar edición
+                  </Button>
+                )}
+                {showDiscardDraft && (
+                  <ConfirmActionButton
+                    label="Descartar borrador"
+                    confirmLabel="Confirmar descarte"
+                    variant="secondary"
+                    confirmVariant="danger"
+                    size="sm"
+                    onConfirm={onDiscardDraft}
+                  />
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -124,135 +143,21 @@ export function SessionsTab({
               </label>
             </div>
 
-            <div className="space-y-3">
-              {setRows.map((row, idx) => (
-                <div
-                  key={idx}
-                  className="space-y-2.5 rounded-panel border border-line bg-surface-muted/50 p-3.5"
-                >
-                  {(row.targetHint || row.previousMarkHint) && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-accent/25 bg-accent-soft/45 px-3 py-2 text-xs">
-                      {row.targetHint && (
-                        <span className="font-semibold text-accent-text tabular-nums">
-                          Objetivo: {row.targetHint}
-                        </span>
-                      )}
-                      {row.previousMarkHint && (
-                        <span className="text-secondary-text tabular-nums">
-                          {row.previousMarkHint}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-ink tabular-nums">
-                      Serie {idx + 1}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <IconButton
-                        onClick={() => duplicateRow(idx)}
-                        aria-label={`Duplicar serie ${idx + 1}`}
-                        title="Duplicar serie"
-                      >
-                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span className="hidden sm:inline">Duplicar</span>
-                      </IconButton>
-                      {setRows.length > 1 && (
-                        <IconButton
-                          tone="danger"
-                          onClick={() => removeRow(idx)}
-                          aria-label={`Quitar serie ${idx + 1}`}
-                          title="Quitar serie"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        </IconButton>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-6">
-                    <label className="col-span-2 block space-y-1 text-xs text-ink-muted">
-                      <span>Ejercicio</span>
-                      <Input
-                        compact
-                        type="text"
-                        value={row.exercise_name}
-                        onChange={(e) => updateRow(idx, { exercise_name: e.target.value })}
-                        placeholder="Ej. Press inclinado"
-                      />
-                    </label>
-                    <label className="col-span-2 block space-y-1 text-xs text-ink-muted sm:col-span-1">
-                      <span>Músculo</span>
-                      <Input
-                        compact
-                        type="text"
-                        value={row.muscle_group}
-                        onChange={(e) => updateRow(idx, { muscle_group: e.target.value })}
-                      />
-                    </label>
-                    <label className="col-span-2 block space-y-1 text-xs text-ink-muted sm:col-span-2">
-                      <span>Carga ({row.unit})</span>
-                      <div className="flex gap-1.5">
-                        <Input
-                          compact
-                          type="number"
-                          step="0.5"
-                          min={0}
-                          placeholder="0"
-                          value={row.load}
-                          onChange={(e) => updateRow(idx, { load: e.target.value })}
-                          className="min-w-0 flex-1 tabular-nums"
-                        />
-                        <Select
-                          compact
-                          aria-label={`Unidad serie ${idx + 1}`}
-                          value={row.unit}
-                          onChange={(e) =>
-                            updateRow(idx, { unit: e.target.value === "lb" ? "lb" : "kg" })
-                          }
-                          className="w-[4.25rem] shrink-0 px-2"
-                        >
-                          <option value="kg">kg</option>
-                          <option value="lb">lb</option>
-                        </Select>
-                      </div>
-                    </label>
-                    <label className="block space-y-1 text-xs text-ink-muted sm:col-span-1">
-                      <span>Repeticiones</span>
-                      <Input
-                        compact
-                        type="number"
-                        min={1}
-                        value={row.reps}
-                        onChange={(e) => updateRow(idx, { reps: e.target.value })}
-                        className="tabular-nums"
-                      />
-                    </label>
-                    <label className="block space-y-1 text-xs text-ink-muted sm:col-span-1">
-                      <span>RIR</span>
-                      <Input
-                        compact
-                        type="number"
-                        step="0.5"
-                        min={0}
-                        max={10}
-                        value={row.rir}
-                        onChange={(e) => updateRow(idx, { rir: e.target.value })}
-                        className="tabular-nums"
-                      />
-                    </label>
-                  </div>
-                </div>
+            <div className="space-y-4">
+              {exerciseGroups.map((group, idx) => (
+                <ExerciseGroupCard
+                  key={group.id}
+                  group={group}
+                  groupIndex={idx}
+                  canRemoveGroup={exerciseGroups.length > 1}
+                  onChange={(updated) => updateGroup(idx, updated)}
+                  onRemoveGroup={() => removeGroup(idx)}
+                />
               ))}
 
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => onSetRowsChange([...setRows, defaultSetRow()])}
-              >
+              <Button variant="secondary" size="sm" onClick={addExerciseGroup}>
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Añadir serie</span>
+                <span>Añadir ejercicio</span>
               </Button>
             </div>
 
