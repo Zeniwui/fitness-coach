@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fitness_coach.domain.coach import (
@@ -112,6 +112,36 @@ class SqlAlchemyCoachRepository:
             row.title = title
         row.updated_at = datetime.now(UTC)
         await self._session.flush()
+
+    async def update_conversation_title(
+        self, *, athlete_id: UUID, conversation_id: UUID, title: str
+    ) -> Conversation | None:
+        stmt = select(ConversationModel).where(
+            ConversationModel.id == conversation_id,
+            ConversationModel.athlete_id == athlete_id,
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        if row is None:
+            return None
+        row.title = title
+        row.updated_at = datetime.now(UTC)
+        await self._session.flush()
+        await self._session.refresh(row)
+        return _to_conversation(row)
+
+    async def delete_conversation(
+        self, *, athlete_id: UUID, conversation_id: UUID
+    ) -> bool:
+        stmt = (
+            delete(ConversationModel)
+            .where(
+                ConversationModel.id == conversation_id,
+                ConversationModel.athlete_id == athlete_id,
+            )
+            .returning(ConversationModel.id)
+        )
+        deleted_id = (await self._session.execute(stmt)).scalar_one_or_none()
+        return deleted_id is not None
 
     async def create_message(
         self,
