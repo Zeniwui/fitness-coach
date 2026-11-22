@@ -489,7 +489,9 @@ export function TrainingPage() {
             />
           )}
 
-          {activeTab === "volume" && <VolumeDeloadTab volumeSummary={volumeSummary} />}
+          {activeTab === "volume" && (
+            <VolumeDeloadTab volumeSummary={volumeSummary} sessions={sessions} />
+          )}
         </div>
       )}
 

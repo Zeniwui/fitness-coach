@@ -132,9 +132,14 @@ let mockMesocycles: MesocycleResponse[] = createDefaultMesocycles();
 let mockSessions: TrainingSessionResponse[] = createDefaultSessions();
 let idCounter = 10;
 
-export function resetMockTrainingState(): void {
-  mockMesocycles = createDefaultMesocycles();
-  mockSessions = createDefaultSessions();
+export function resetMockTrainingState(options?: {
+  mesocycles?: MesocycleResponse[];
+  sessions?: TrainingSessionResponse[];
+}): void {
+  mockMesocycles = options?.mesocycles
+    ? structuredClone(options.mesocycles)
+    : createDefaultMesocycles();
+  mockSessions = options?.sessions ? structuredClone(options.sessions) : createDefaultSessions();
   idCounter = 10;
 }
 

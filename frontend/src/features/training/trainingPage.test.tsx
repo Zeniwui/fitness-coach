@@ -319,4 +319,188 @@ describe("Training (Entrenamiento) UI (#7)", () => {
     expect(await screen.findByText(/Elevaciones laterales/i)).toBeInTheDocument();
     expect(screen.getByText(/4 series · 8–10 reps/i)).toBeInTheDocument();
   });
+
+  it("shows truthful insufficient-data states for multi-week volume and e1RM charts when history has fewer than 2 weeks/sessions", async () => {
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /volumen y descarga/i }));
+
+    // Default seed has only 1 session (1 week)
+    expect(
+      await screen.findByRole("heading", { name: /evolución multi-semana de volumen efectivo/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 semana más/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: /evolución multi-semana de volumen efectivo/i }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.getByRole("heading", { name: /progresión de fuerza estimada \(e1rm\)/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/al menos 2 sesiones de entrenamiento/i)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /progresión de fuerza/i })).not.toBeInTheDocument();
+  });
+
+  it("renders accessible multi-week volume bar chart with muscle filter and e1RM progression chart with exercise selector", async () => {
+    resetMockTrainingState({
+      sessions: [
+        {
+          id: "70000000-0000-0000-0000-000000000903",
+          mesocycle_id: "70000000-0000-0000-0000-000000000001",
+          planned_session_id: null,
+          session_date: "2026-11-18",
+          name: "Torso A",
+          origin: "manual_form",
+          fatigue_notes: null,
+          sets: [
+            {
+              id: "s903-1",
+              exercise_name: "Press inclinado mancuernas",
+              muscle_group: "pecho",
+              secondary_muscle_groups: ["hombros", "triceps"],
+              set_order: 1,
+              reps: 9,
+              load: 34,
+              unit: "kg",
+              rir: 1,
+              rpe: null,
+              notes: null,
+            },
+            {
+              id: "s903-2",
+              exercise_name: "Remo en polea baja",
+              muscle_group: "espalda",
+              secondary_muscle_groups: ["biceps"],
+              set_order: 2,
+              reps: 8,
+              load: 150,
+              unit: "lb",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+          ],
+          created_at: "2026-11-18T18:00:00Z",
+          updated_at: "2026-11-18T18:00:00Z",
+        },
+        {
+          id: "70000000-0000-0000-0000-000000000902",
+          mesocycle_id: "70000000-0000-0000-0000-000000000001",
+          planned_session_id: null,
+          session_date: "2026-11-11",
+          name: "Torso A",
+          origin: "manual_form",
+          fatigue_notes: null,
+          sets: [
+            {
+              id: "s902-1",
+              exercise_name: "Press inclinado mancuernas",
+              muscle_group: "pecho",
+              secondary_muscle_groups: ["triceps"],
+              set_order: 1,
+              reps: 8,
+              load: 32,
+              unit: "kg",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+            {
+              id: "s902-2",
+              exercise_name: "Press inclinado mancuernas",
+              muscle_group: "pecho",
+              secondary_muscle_groups: ["triceps"],
+              set_order: 2,
+              reps: 8,
+              load: 32,
+              unit: "kg",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+            {
+              id: "s902-3",
+              exercise_name: "Remo en polea baja",
+              muscle_group: "espalda",
+              secondary_muscle_groups: ["biceps"],
+              set_order: 3,
+              reps: 8,
+              load: 60,
+              unit: "kg",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+          ],
+          created_at: "2026-11-11T18:00:00Z",
+          updated_at: "2026-11-11T18:00:00Z",
+        },
+        {
+          id: "70000000-0000-0000-0000-000000000901",
+          mesocycle_id: "70000000-0000-0000-0000-000000000001",
+          planned_session_id: null,
+          session_date: "2026-11-04",
+          name: "Torso A",
+          origin: "manual_form",
+          fatigue_notes: null,
+          sets: [
+            {
+              id: "s901-1",
+              exercise_name: "Press inclinado mancuernas",
+              muscle_group: "pecho",
+              secondary_muscle_groups: ["triceps"],
+              set_order: 1,
+              reps: 8,
+              load: 30,
+              unit: "kg",
+              rir: 2,
+              rpe: null,
+              notes: null,
+            },
+          ],
+          created_at: "2026-11-04T18:00:00Z",
+          updated_at: "2026-11-04T18:00:00Z",
+        },
+      ],
+    });
+
+    const user = userEvent.setup();
+    render(<App initialEntries={["/training"]} />);
+
+    await screen.findByText(/Mesociclo Hipertrofia Torso-Pierna/i);
+    await user.click(screen.getByRole("tab", { name: /volumen y descarga/i }));
+
+    // Multi-week effective volume bar chart defaults to "Todos los grupos" across 3 weeks
+    const volumeChart = await screen.findByRole("img", {
+      name: /evolución multi-semana de volumen efectivo.*todos los grupos/i,
+    });
+    expect(volumeChart).toBeInTheDocument();
+    expect(volumeChart).toHaveAttribute("aria-label", expect.stringMatching(/3 semanas/i));
+
+    // Switch muscle-group selector to "pecho" -> chart aria-label updates
+    const muscleSelect = screen.getByLabelText(/filtrar volumen por grupo muscular/i);
+    await user.selectOptions(muscleSelect, "pecho");
+    expect(
+      screen.getByRole("img", { name: /evolución multi-semana de volumen efectivo.*pecho/i }),
+    ).toBeInTheDocument();
+
+    // e1RM & best-load progression chart defaults to Press inclinado mancuernas (3 sessions)
+    const e1rmChart = screen.getByRole("img", {
+      name: /progresión de fuerza.*press inclinado mancuernas/i,
+    });
+    expect(e1rmChart).toBeInTheDocument();
+    expect(e1rmChart).toHaveAttribute("aria-label", expect.stringMatching(/44\.2 kg/i));
+
+    // Switch exercise selector to "Remo en polea baja" (2 sessions, mixed kg & lb)
+    const exerciseSelect = screen.getByLabelText(/seleccionar ejercicio/i);
+    await user.selectOptions(exerciseSelect, "remo en polea baja");
+    const remoChart = screen.getByRole("img", {
+      name: /progresión de fuerza.*remo en polea baja/i,
+    });
+    expect(remoChart).toBeInTheDocument();
+    // 150 lb x 8 = 68.04 kg load, 86.18 kg e1RM
+    expect(remoChart).toHaveAttribute("aria-label", expect.stringMatching(/86\.2 kg|86\.18 kg/i));
+  });
 });
