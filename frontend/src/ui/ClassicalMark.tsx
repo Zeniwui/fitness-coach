@@ -1,6 +1,5 @@
 /**
- * Refined geometric mark blending an Ancient Greek pediment & barbell proportion.
- * Used as the single sculptural brand signature without cluttering functional screens.
+ * Calibrated barbell emblem for Fitness Coach (Cuaderno de Hierro).
  */
 export function ClassicalMark({ className = "h-7 w-7" }: { className?: string }) {
   return (
@@ -11,64 +10,45 @@ export function ClassicalMark({ className = "h-7 w-7" }: { className?: string })
       className={className}
     >
       <path
-        d="M8 14L20 7.5L32 14"
+        d="M5 20H35"
         stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.82"
-      />
-      <path
-        d="M6.5 21.5H33.5"
-        stroke="currentColor"
-        strokeWidth="2.2"
+        strokeWidth="2.6"
         strokeLinecap="round"
       />
-      <path
-        d="M12.5 16.5V26.5M27.5 16.5V26.5"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
+      <rect
+        x="10"
+        y="11"
+        width="4.5"
+        height="18"
+        rx="1.25"
+        fill="currentColor"
       />
-      <path
-        d="M8.5 18.5V24.5M31.5 18.5V24.5"
-        stroke="currentColor"
-        strokeWidth="1.65"
-        strokeLinecap="round"
-        opacity="0.78"
+      <rect
+        x="25.5"
+        y="11"
+        width="4.5"
+        height="18"
+        rx="1.25"
+        fill="currentColor"
       />
-      <path
-        d="M11 31.5H29"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        opacity="0.65"
+      <rect
+        x="5.5"
+        y="14.5"
+        width="3"
+        height="11"
+        rx="1"
+        fill="currentColor"
+        opacity="0.72"
+      />
+      <rect
+        x="31.5"
+        y="14.5"
+        width="3"
+        height="11"
+        rx="1"
+        fill="currentColor"
+        opacity="0.72"
       />
     </svg>
-  );
-}
-
-/**
- * Ultra-subtle architectural meander hairline — visible strictly in Ateneo mode
- * via `.classical-meander-strip` CSS rules.
- */
-export function ClassicalMeanderStrip({ className = "" }: { className?: string }) {
-  return (
-    <div aria-hidden="true" className={`classical-meander-strip overflow-hidden ${className}`}>
-      <svg className="h-full w-full" preserveAspectRatio="none">
-        <defs>
-          <pattern id="fc-meander" width="24" height="10" patternUnits="userSpaceOnUse">
-            <path
-              d="M0 8H8V2H18V6H12V4H14M18 8H24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.15"
-              strokeLinecap="square"
-            />
-          </pattern>
-        </defs>
-        <rect width="100%" height="10" fill="url(#fc-meander)" />
-      </svg>
-    </div>
   );
 }

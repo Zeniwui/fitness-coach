@@ -6,8 +6,7 @@ import {
   FlaskConical,
   UserCheck,
 } from "lucide-react";
-import { VISUAL_DIRECTIONS, useTheme } from "../theme/ThemeContext";
-import { ClassicalMark, ClassicalMeanderStrip } from "../ui/ClassicalMark";
+import { ClassicalMark } from "../ui/ClassicalMark";
 
 const NAV_ITEMS = [
   { to: "/coach", label: "Coach", icon: MessageSquare },
@@ -18,9 +17,6 @@ const NAV_ITEMS = [
 ] as const;
 
 export function BottomNav() {
-  const { direction } = useTheme();
-  const activeDirectionMeta = VISUAL_DIRECTIONS.find((d) => d.id === direction);
-
   return (
     <nav
       aria-label="Navegación principal"
@@ -28,23 +24,22 @@ export function BottomNav() {
     >
       {/* Desktop Brand Header inside the single semantic navigation rail */}
       <div className="hidden lg:block">
-        <ClassicalMeanderStrip className="text-secondary" />
-        <div className="px-6 pb-5 pt-6">
+        <div className="px-5 pb-5 pt-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-control border border-rail-border bg-rail-surface text-rail-active-ink">
               <ClassicalMark className="h-6 w-6" />
             </div>
             <div>
-              <p className="font-display text-xl font-semibold leading-none tracking-tight text-rail-ink">
+              <p className="font-display text-lg font-bold leading-none tracking-tight text-rail-ink">
                 Fitness Coach
               </p>
               <p className="mt-1 text-xs text-rail-muted">
-                Ciencia y rendimiento
+                Entrenamiento y ciencia
               </p>
             </div>
           </div>
         </div>
-        <div className="mx-6 mb-4 border-t border-rail-border" />
+        <div className="mx-5 mb-4 border-t border-rail-border" />
       </div>
 
       {/* Single set of navigation links: horizontal 5-col on mobile, vertical stack on desktop */}
@@ -77,13 +72,10 @@ export function BottomNav() {
         ))}
       </div>
 
-      {/* Subtle architectural colophon on desktop */}
-      <div className="hidden border-t border-rail-border px-6 py-4 lg:block">
-        <p className="text-xs font-medium text-rail-ink">
-          {activeDirectionMeta?.label}
-        </p>
+      <div className="hidden border-t border-rail-border px-5 py-4 lg:block">
+        <p className="text-xs font-semibold text-rail-ink">Evidencia y progresión</p>
         <p className="mt-0.5 text-[11px] leading-snug text-rail-muted">
-          {activeDirectionMeta?.description}
+          Hipertrofia, nutrición y literatura curada en un mismo cuaderno.
         </p>
       </div>
     </nav>

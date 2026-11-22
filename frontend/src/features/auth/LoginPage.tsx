@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { AppearanceControls } from "../../app/AppearanceControls";
 import { AlertBanner } from "../../ui/AlertBanner";
 import { Button } from "../../ui/Button";
-import { ClassicalMark, ClassicalMeanderStrip } from "../../ui/ClassicalMark";
+import { ClassicalMark } from "../../ui/ClassicalMark";
 import { Input } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
 import { ActivationPanel } from "./ActivationPanel";
@@ -29,20 +29,21 @@ export function LoginPage() {
     <div className="min-h-screen bg-canvas">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-control border border-line bg-surface text-secondary">
+          <div className="flex h-9 w-9 items-center justify-center rounded-control border border-line bg-surface text-accent-text">
             <ClassicalMark className="h-5 w-5" />
           </div>
-          <span className="font-display text-xl font-semibold text-ink">Fitness Coach</span>
+          <span className="font-display text-lg font-bold tracking-tight text-ink">
+            Fitness Coach
+          </span>
         </div>
-        <AppearanceControls compact />
+        <AppearanceControls />
       </div>
 
       <main className="mx-auto grid min-h-[calc(100vh-76px)] max-w-5xl grid-cols-1 items-center gap-8 px-4 py-8 sm:px-6 lg:grid-cols-12">
-        {/* Classical editorial framing column on desktop */}
         <section className="hidden space-y-6 lg:col-span-6 lg:block">
-          <ClassicalMeanderStrip className="max-w-xs text-secondary" />
+          <div className="h-1 w-12 rounded-full bg-accent" aria-hidden="true" />
           <div className="space-y-4">
-            <h2 className="heading-display text-4xl text-ink">
+            <h2 className="heading-display text-3xl text-ink sm:text-4xl">
               Entrenamiento de fuerza y nutrición guiados por evidencia curada
             </h2>
             <p className="max-w-md text-sm leading-relaxed text-ink-muted">
@@ -52,13 +53,13 @@ export function LoginPage() {
           </div>
           <dl className="grid max-w-md grid-cols-2 gap-4 border-t border-line pt-5 text-sm">
             <div>
-              <dt className="font-semibold text-ink">Base de Conocimiento</dt>
+              <dt className="font-semibold text-secondary-text">Base de Conocimiento</dt>
               <dd className="mt-1 text-xs leading-relaxed text-ink-muted">
                 Fichas de Evidencia verificadas con nivel metodológico y control de vigencia.
               </dd>
             </div>
             <div>
-              <dt className="font-semibold text-ink">Coaching persistente</dt>
+              <dt className="font-semibold text-accent-text">Coaching persistente</dt>
               <dd className="mt-1 text-xs leading-relaxed text-ink-muted">
                 Decisiones adaptadas a tu biometría, historial de sesiones y restricciones físicas.
               </dd>
@@ -66,11 +67,10 @@ export function LoginPage() {
           </dl>
         </section>
 
-        {/* Auth form surface */}
         <div className="mx-auto w-full max-w-md lg:col-span-6 lg:ml-auto lg:mr-0">
           <Surface variant="classical" padded="lg" className="shadow-elevated">
             <div className="classical-entablature pb-4">
-              <h1 className="heading-display text-2xl text-ink sm:text-3xl">
+              <h1 className="heading-display text-2xl text-ink">
                 Acceso privado por invitación
               </h1>
               <p className="mt-2 text-sm text-ink-muted">
