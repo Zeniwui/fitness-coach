@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,22 +18,18 @@ from fitness_coach.application.use_cases.coach import (
     AcceptProfileProposalUseCase,
     CoachContextAssembler,
     CreateConversationUseCase,
+    DeleteConversationUseCase,
     DismissProfileProposalUseCase,
     ListConversationsUseCase,
     ListMessagesUseCase,
     ListProfileProposalsUseCase,
     PromoteLiveSearchResultUseCase,
+    RenameConversationUseCase,
     SendCoachMessageStreamUseCase,
 )
 from fitness_coach.application.use_cases.nutrition import NutritionCoachContextProvider
 from fitness_coach.application.use_cases.training import TrainingCoachContextProvider
-from fitness_coach.domain.coach import (
-    CoachValidationError,
-    ConversationNotFoundError,
-    InvalidProposalStateError,
-    ProposalNotFoundError,
-    ProposalStatus,
-)
+from fitness_coach.domain.coach import ProposalStatus
 from fitness_coach.domain.identity import AuthContext
 from fitness_coach.domain.knowledge import (
     DuplicateActiveStudyError,
@@ -55,6 +51,7 @@ from fitness_coach.infrastructure.api.schemas.coach import (
     PromoteLiveSearchRequest,
     PromoteLiveSearchResponse,
     SendMessageRequest,
+    UpdateConversationRequest,
 )
 from fitness_coach.infrastructure.db.repositories.coach import SqlAlchemyCoachRepository
 from fitness_coach.infrastructure.db.repositories.knowledge import SqlAlchemyKnowledgeRepository
@@ -99,6 +96,42 @@ async def create_conversation(
     return ConversationResponse.from_domain(conv)
 
 
+@router.patch(
+    "/api/v1/coach/conversations/{conversation_id}",
+    response_model=ConversationResponse,
+)
+async def rename_conversation(
+    conversation_id: UUID,
+    body: UpdateConversationRequest,
+    auth: Annotated[AuthContext, Depends(get_current_auth)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ConversationResponse:
+    use_case = RenameConversationUseCase(SqlAlchemyCoachRepository(session))
+    conv = await use_case.execute(
+        auth=auth,
+        conversation_id=conversation_id,
+        title=body.title,
+    )
+    await session.commit()
+    return ConversationResponse.from_domain(conv)
+
+
+@router.delete(
+    "/api/v1/coach/conversations/{conversation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+async def delete_conversation(
+    conversation_id: UUID,
+    auth: Annotated[AuthContext, Depends(get_current_auth)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> Response:
+    use_case = DeleteConversationUseCase(SqlAlchemyCoachRepository(session))
+    await use_case.execute(auth=auth, conversation_id=conversation_id)
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get(
     "/api/v1/coach/conversations/{conversation_id}/messages",
     response_model=list[ChatMessageResponse],
@@ -109,10 +142,7 @@ async def list_messages(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> list[ChatMessageResponse]:
     use_case = ListMessagesUseCase(SqlAlchemyCoachRepository(session))
-    try:
-        messages = await use_case.execute(auth=auth, conversation_id=conversation_id)
-    except ConversationNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    messages = await use_case.execute(auth=auth, conversation_id=conversation_id)
     multimodal_repo = SqlAlchemyMultimodalRepository(session)
     att_by_msg = await multimodal_repo.list_attachments_for_messages(
         athlete_id=auth.athlete_id,
@@ -243,10 +273,6 @@ async def promote_live_search_result(
             pmid=body.pmid,
             published_year=body.published_year,
         )
-    except CoachValidationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
-        ) from exc
     except (DuplicateActiveStudyError, DuplicateRejectedStudyError) as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
@@ -289,13 +315,9 @@ async def accept_profile_proposal(
     )
     try:
         proposal, _ = await use_case.execute(auth=auth, proposal_id=proposal_id)
-    except ProposalNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except InvalidProposalStateError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ProfileValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
     await session.commit()
@@ -312,12 +334,6 @@ async def dismiss_profile_proposal(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ProfileProposalResponse:
     use_case = DismissProfileProposalUseCase(SqlAlchemyCoachRepository(session))
-    try:
-        proposal = await use_case.execute(auth=auth, proposal_id=proposal_id)
-    except ProposalNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except InvalidProposalStateError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-
+    proposal = await use_case.execute(auth=auth, proposal_id=proposal_id)
     await session.commit()
     return ProfileProposalResponse.from_domain(proposal)
