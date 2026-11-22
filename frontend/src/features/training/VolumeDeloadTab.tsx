@@ -1,13 +1,16 @@
 import { Badge } from "../../ui/Badge";
 import { MetricBar } from "../../ui/MetricBar";
 import { Surface } from "../../ui/Surface";
-import type { WeeklyVolumeSummaryResponse } from "./types";
+import { ExerciseE1rmChart } from "./ExerciseE1rmChart";
+import type { TrainingSessionResponse, WeeklyVolumeSummaryResponse } from "./types";
+import { VolumeTrendChart } from "./VolumeTrendChart";
 
 interface VolumeDeloadTabProps {
   volumeSummary: WeeklyVolumeSummaryResponse | null;
+  sessions?: TrainingSessionResponse[];
 }
 
-export function VolumeDeloadTab({ volumeSummary }: VolumeDeloadTabProps) {
+export function VolumeDeloadTab({ volumeSummary, sessions = [] }: VolumeDeloadTabProps) {
   if (!volumeSummary) return null;
 
   const { deload_assessment } = volumeSummary;
@@ -113,6 +116,10 @@ export function VolumeDeloadTab({ volumeSummary }: VolumeDeloadTabProps) {
           </div>
         )}
       </Surface>
+
+      <VolumeTrendChart sessions={sessions} />
+
+      <ExerciseE1rmChart sessions={sessions} />
     </div>
   );
 }
