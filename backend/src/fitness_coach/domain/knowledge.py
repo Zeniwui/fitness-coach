@@ -14,6 +14,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from urllib.parse import urlsplit
 from uuid import UUID
 
 PAYWALL_WARNING_LABEL = "Evaluado solo con abstract (texto completo de pago)"
@@ -159,6 +160,29 @@ def compute_content_hash(text: str) -> str:
     """Deterministic SHA-256 fingerprint of normalized study text for PDF deduplication."""
     normalized = " ".join(text.strip().lower().split())
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def validate_safe_http_url(url: str | None) -> str | None:
+    """Ensure optional external URLs use http(s) with a valid netloc; reject javascript:/data:."""
+    if url is None:
+        return None
+    cleaned = url.strip()
+    if not cleaned:
+        return None
+    parts = urlsplit(cleaned)
+    if parts.scheme.lower() not in ("http", "https") or not parts.netloc:
+        raise KnowledgeValidationError(
+            "El enlace de la fuente debe usar un esquema http:// o https:// válido."
+        )
+    return cleaned
+
+
+def validate_evidence_relation(*, source_card_id: UUID, target_card_id: UUID) -> None:
+    """Reject self-referential EvidenceCard relations."""
+    if source_card_id == target_card_id:
+        raise KnowledgeValidationError(
+            "Una Ficha de Evidencia no puede relacionarse consigo misma."
+        )
 
 
 @dataclass(frozen=True, slots=True)

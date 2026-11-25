@@ -90,7 +90,9 @@ export function CoachPage() {
             onJumpToBottom={coach.scrollToLatestMessage}
             onPickStarterPrompt={coach.setInputText}
             onSelectCitation={coach.setSelectedCitation}
-            onPromoteLiveHit={(hit) => void coach.handlePromoteLiveHit(hit)}
+            onPromoteLiveHit={(messageId, hit) =>
+              void coach.handlePromoteLiveHit(messageId, hit)
+            }
           />
 
           {coach.pendingSessionDraft && (

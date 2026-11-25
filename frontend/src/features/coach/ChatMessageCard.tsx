@@ -1,6 +1,7 @@
 import { BookOpen, ExternalLink, Paperclip, ShieldAlert } from "lucide-react";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
+import { getSafeHttpUrl } from "../../ui/safeUrl";
 import { EVIDENCE_LEVEL_LABELS, VALIDITY_LABELS } from "../science/labels";
 import { SimpleMarkdown } from "./SimpleMarkdown";
 import type { ChatMessageItem, CitationItem, QuarantinedLiveResultItem } from "./sse";
@@ -12,7 +13,7 @@ interface ChatMessageCardProps {
   promotedUrls: Record<string, boolean>;
   promotingUrl: string | null;
   onSelectCitation: (citation: CitationItem) => void;
-  onPromoteLiveHit: (hit: QuarantinedLiveResultItem) => void;
+  onPromoteLiveHit: (messageId: string, hit: QuarantinedLiveResultItem) => void;
 }
 
 export function ChatMessageCard({
@@ -111,15 +112,24 @@ export function ChatMessageCard({
                 <p className="text-xs font-semibold text-ink">{hit.title}</p>
                 <p className="text-xs leading-relaxed text-ink-muted">{hit.snippet}</p>
                 <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <a
-                    href={hit.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-warning-text underline sm:min-h-[32px]"
-                  >
-                    <span>Ver fuente externa</span>
-                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                  </a>
+                  {(() => {
+                    const safeUrl = getSafeHttpUrl(hit.url);
+                    return safeUrl ? (
+                      <a
+                        href={safeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-warning-text underline sm:min-h-[32px]"
+                      >
+                        <span>Ver fuente externa</span>
+                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                      </a>
+                    ) : (
+                      <span className="break-all font-mono text-xs text-ink-muted">
+                        {hit.url}
+                      </span>
+                    );
+                  })()}
                   {isPromoted ? (
                     <Badge tone="success">Enviado como Estudio Candidato pendiente</Badge>
                   ) : (
@@ -127,7 +137,7 @@ export function ChatMessageCard({
                       variant="warning"
                       size="sm"
                       disabled={promotingUrl === hit.url}
-                      onClick={() => onPromoteLiveHit(hit)}
+                      onClick={() => onPromoteLiveHit(msg.id, hit)}
                     >
                       Enviar a Estudios Candidatos
                     </Button>

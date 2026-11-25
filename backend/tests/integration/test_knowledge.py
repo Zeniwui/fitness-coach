@@ -780,3 +780,210 @@ async def test_controlled_reindex_updates_embeddings_when_model_changes(
     assert len(hits) == 1
     assert hits[0]["card"]["id"] == card["id"]
     assert hits[0]["vector_rank"] == 1
+
+
+@pytest.mark.asyncio
+async def test_curator_rejects_unsafe_source_url_and_self_referential_relation(
+    client: AsyncClient,
+    seed_accounts,
+    fake_scientific_sources: FakeScientificSources,
+) -> None:
+    _, curator_token = seed_accounts["curator"]
+
+    for idx, unsafe_url in enumerate(
+        ("javascript:alert(1)", "data:text/html,<script>alert(1)</script>")
+    ):
+        doi = f"10.9999/xss.{idx}.2025"
+        fake_scientific_sources.articles.append(
+            ScientificArticleRecord(
+                title="Unsafe URL study",
+                source_name="PubMed",
+                source_url=unsafe_url,
+                doi=doi,
+                pmid=f"9999000{idx}",
+                authors=["Attacker A"],
+                journal="Test Journal",
+                published_year=2025,
+                abstract="Abstract text",
+                is_open_access=False,
+            )
+        )
+        resp = await client.post(
+            "/api/v1/curator/candidates/from-doi",
+            headers=_auth_headers(curator_token),
+            json={"doi_or_url": doi},
+        )
+        assert resp.status_code in (400, 422)
+
+    # Create and approve a valid card, then attempt a self-referential relation -> 422
+    fake_scientific_sources.articles.append(
+        ScientificArticleRecord(
+            title="Valid Study for Self Relation Check",
+            source_name="PubMed",
+            source_url="https://pubmed.ncbi.nlm.nih.gov/99990002/",
+            doi="10.9999/valid.self.2025",
+            pmid="99990002",
+            authors=["Author V"],
+            journal="Sports Science",
+            published_year=2025,
+            abstract="Solid RCT abstract.",
+            is_open_access=False,
+        )
+    )
+    cand_resp = await client.post(
+        "/api/v1/curator/candidates/from-doi",
+        headers=_auth_headers(curator_token),
+        json={"doi_or_url": "10.9999/valid.self.2025"},
+    )
+    assert cand_resp.status_code == 201
+    cand_id = cand_resp.json()["id"]
+
+    card_resp = await client.post(
+        f"/api/v1/curator/candidates/{cand_id}/approve",
+        headers=_auth_headers(curator_token),
+        json={"evidence_level": "rct", "tags": ["self-check"]},
+    )
+    assert card_resp.status_code == 201
+    card_id = card_resp.json()["id"]
+
+    self_rel_resp = await client.patch(
+        f"/api/v1/curator/cards/{card_id}",
+        headers=_auth_headers(curator_token),
+        json={
+            "add_relations": [
+                {
+                    "target_card_id": card_id,
+                    "relation_type": "confirms",
+                    "rationale": "Self-reference must fail",
+                }
+            ]
+        },
+    )
+    assert self_rel_resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_reopen_rejected_candidate_overwrites_metadata_and_approves_cleanly(
+    client: AsyncClient,
+    seed_accounts,
+    fake_scientific_sources: FakeScientificSources,
+) -> None:
+    _, curator_token = seed_accounts["curator"]
+
+    fake_scientific_sources.articles.append(
+        ScientificArticleRecord(
+            title="Stale Poisoned Title",
+            source_name="PubMed",
+            source_url="https://example.com/stale",
+            doi="10.9999/reopen.meta.2025",
+            pmid="88880001",
+            pmcid=None,
+            authors=["Stale Author"],
+            journal="Old Journal",
+            published_year=2020,
+            abstract="Old abstract.",
+            is_open_access=False,
+        )
+    )
+    first_resp = await client.post(
+        "/api/v1/curator/candidates/from-doi",
+        headers=_auth_headers(curator_token),
+        json={"doi_or_url": "10.9999/reopen.meta.2025"},
+    )
+    assert first_resp.status_code == 201
+    candidate_id = first_resp.json()["id"]
+
+    rej_resp = await client.post(
+        f"/api/v1/curator/candidates/{candidate_id}/reject",
+        headers=_auth_headers(curator_token),
+        json={"rejection_reason": "Metadatos incompletos."},
+    )
+    assert rej_resp.status_code == 200
+
+    # Authoritative source now returns updated metadata
+    fake_scientific_sources.articles[:] = [
+        ScientificArticleRecord(
+            title="Authoritative Updated Study Title",
+            source_name="PubMed",
+            source_url="https://pubmed.ncbi.nlm.nih.gov/88880002/",
+            doi="10.9999/reopen.meta.2025",
+            pmid="88880002",
+            pmcid="PMC8888000",
+            authors=["Authoritative A", "Authoritative B"],
+            journal="Journal of Applied Physiology",
+            published_year=2025,
+            abstract="Updated full abstract with clean methodology.",
+            full_text="Updated full text with complete data.",
+            is_open_access=True,
+        )
+    ]
+    reopen_resp = await client.post(
+        "/api/v1/curator/candidates/from-doi",
+        headers=_auth_headers(curator_token),
+        json={"doi_or_url": "10.9999/reopen.meta.2025", "allow_reopen": True},
+    )
+    assert reopen_resp.status_code == 201
+    reopened = reopen_resp.json()
+    assert reopened["id"] == candidate_id
+    assert reopened["title"] == "Authoritative Updated Study Title"
+    assert reopened["source_url"] == "https://pubmed.ncbi.nlm.nih.gov/88880002/"
+    assert reopened["authors"] == ["Authoritative A", "Authoritative B"]
+    assert reopened["journal"] == "Journal of Applied Physiology"
+    assert reopened["published_year"] == 2025
+    assert reopened["pmid"] == "88880002"
+    assert reopened["pmcid"] == "PMC8888000"
+    assert reopened["origin"] == "manual_upload"
+
+    approve_resp = await client.post(
+        f"/api/v1/curator/candidates/{candidate_id}/approve",
+        headers=_auth_headers(curator_token),
+        json={"evidence_level": "rct", "tags": ["reopen"]},
+    )
+    assert approve_resp.status_code == 201
+    card = approve_resp.json()
+    assert card["title"] == "Authoritative Updated Study Title"
+    assert card["source_url"] == "https://pubmed.ncbi.nlm.nih.gov/88880002/"
+
+
+@pytest.mark.asyncio
+async def test_curator_pdf_uploads_use_canonical_keys_ignoring_traversal_filename(
+    client: AsyncClient,
+    seed_accounts,
+    fake_binary_storage,
+) -> None:
+    _, curator_token = seed_accounts["curator"]
+    pdf_bytes = _make_pdf_bytes(
+        "Canonical key verification study on hypertrophy and progressive overload."
+    )
+
+    from_pdf_resp = await client.post(
+        "/api/v1/curator/candidates/from-pdf",
+        headers=_auth_headers(curator_token),
+        files={"file": ("../../evil/a.pdf", pdf_bytes, "application/pdf")},
+        data={"title": "Canonical PDF Study"},
+    )
+    assert from_pdf_resp.status_code == 201
+    cand = from_pdf_resp.json()
+    assert cand["pdf_storage_path"] is not None
+    assert cand["pdf_storage_path"].startswith("curator-pdfs/manual/")
+    assert cand["pdf_storage_path"].endswith(".pdf")
+    assert "evil" not in cand["pdf_storage_path"]
+    assert ".." not in cand["pdf_storage_path"]
+    assert cand["pdf_storage_path"] in fake_binary_storage.curator_pdfs
+
+    # Now upload a new PDF to the pending candidate with traversal filename
+    updated_pdf = _make_pdf_bytes(
+        "Updated canonical key verification study with full protocol details."
+    )
+    upload_resp = await client.post(
+        f"/api/v1/curator/candidates/{cand['id']}/upload-pdf",
+        headers=_auth_headers(curator_token),
+        files={"file": ("../../evil/a.pdf", updated_pdf, "application/pdf")},
+    )
+    assert upload_resp.status_code == 200
+    updated_cand = upload_resp.json()
+    assert updated_cand["pdf_storage_path"].startswith(f"curator-pdfs/candidates/{cand['id']}/")
+    assert updated_cand["pdf_storage_path"].endswith(".pdf")
+    assert "evil" not in updated_cand["pdf_storage_path"]
+    assert ".." not in updated_cand["pdf_storage_path"]
+    assert updated_cand["pdf_storage_path"] in fake_binary_storage.curator_pdfs

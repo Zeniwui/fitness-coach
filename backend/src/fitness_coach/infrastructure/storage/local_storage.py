@@ -7,6 +7,16 @@ from uuid import UUID
 from fitness_coach.domain.identity import ForbiddenError
 
 
+def validate_storage_path_segments(path: str, *, error_message: str) -> str:
+    """Reject backslashes, null bytes, dot segments, and empty segments in a storage path."""
+    if "\\" in path or "\x00" in path:
+        raise ForbiddenError(error_message)
+    segments = path.split("/")
+    if not segments or any(seg in ("", ".", "..") for seg in segments):
+        raise ForbiddenError(error_message)
+    return path
+
+
 class InMemoryBinaryStorage:
     """Default local binary storage adapter with strict <athlete_id>/ prefix isolation."""
 
@@ -15,8 +25,11 @@ class InMemoryBinaryStorage:
         self._curator_pdfs: dict[str, bytes] = {}
 
     def _ensure_athlete_prefix(self, athlete_id: UUID, storage_path: str) -> None:
-        if not storage_path.startswith(f"{athlete_id}/") or ".." in storage_path:
+        if not storage_path.startswith(f"{athlete_id}/"):
             raise ForbiddenError("Acceso denegado al archivo de otro Atleta.")
+        validate_storage_path_segments(
+            storage_path, error_message="Acceso denegado al archivo de otro Atleta."
+        )
 
     async def put_athlete_object(
         self,
@@ -26,9 +39,9 @@ class InMemoryBinaryStorage:
         data: bytes,
         content_type: str,
     ) -> str:
-        clean_rel = relative_path.lstrip("/")
-        if ".." in clean_rel:
-            raise ForbiddenError("Ruta de archivo inválida.")
+        clean_rel = validate_storage_path_segments(
+            relative_path.lstrip("/"), error_message="Ruta de archivo inválida."
+        )
         key = f"{athlete_id}/{clean_rel}"
         self._athlete_objects[key] = (data, content_type)
         return key
@@ -44,14 +57,15 @@ class InMemoryBinaryStorage:
         self._athlete_objects.pop(storage_path, None)
 
     async def put_curator_pdf(self, *, relative_path: str, data: bytes) -> str:
-        clean_rel = relative_path.lstrip("/")
-        if ".." in clean_rel:
-            raise ForbiddenError("Ruta de PDF inválida.")
+        clean_rel = validate_storage_path_segments(
+            relative_path.lstrip("/"), error_message="Ruta de PDF inválida."
+        )
         key = f"curator-pdfs/{clean_rel}"
         self._curator_pdfs[key] = data
         return key
 
     async def get_curator_pdf(self, *, storage_path: str) -> bytes:
+        validate_storage_path_segments(storage_path, error_message="Ruta de PDF inválida.")
         if storage_path not in self._curator_pdfs:
             raise FileNotFoundError(storage_path)
         return self._curator_pdfs[storage_path]

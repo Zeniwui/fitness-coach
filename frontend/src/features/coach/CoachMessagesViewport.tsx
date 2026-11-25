@@ -25,7 +25,7 @@ interface CoachMessagesViewportProps {
   onJumpToBottom: () => void;
   onPickStarterPrompt: (prompt: string) => void;
   onSelectCitation: (citation: CitationItem) => void;
-  onPromoteLiveHit: (hit: QuarantinedLiveResultItem) => void;
+  onPromoteLiveHit: (messageId: string, hit: QuarantinedLiveResultItem) => void;
 }
 
 export function CoachMessagesViewport({

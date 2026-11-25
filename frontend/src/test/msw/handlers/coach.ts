@@ -272,7 +272,7 @@ export const coachHandlers = [
     return HttpResponse.json(
       {
         candidate_id: "dddd0000-0000-0000-0000-000000000001",
-        title: payload.title,
+        title: payload.result_url,
         origin: "live_search_promoted",
         status: "pending",
         access_level: "abstract_only_paywall",

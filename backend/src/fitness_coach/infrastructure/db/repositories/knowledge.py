@@ -26,6 +26,7 @@ from fitness_coach.domain.knowledge import (
     EvidenceSearchHit,
     RelationType,
     ValidityStatus,
+    validate_safe_http_url,
 )
 from fitness_coach.infrastructure.db.models.knowledge import (
     CandidateStudyModel,
@@ -154,12 +155,13 @@ class SqlAlchemyKnowledgeRepository:
         pdf_storage_path: str | None = None,
         monthly_cut_run_id: UUID | None = None,
     ) -> CandidateStudy:
+        safe_url = validate_safe_http_url(source_url)
         model = CandidateStudyModel(
             doi=doi,
             pmid=pmid,
             pmcid=pmcid,
             content_hash=content_hash,
-            source_url=source_url,
+            source_url=safe_url,
             title=title,
             authors=list(authors),
             journal=journal,
@@ -248,17 +250,36 @@ class SqlAlchemyKnowledgeRepository:
         self,
         *,
         candidate_id: UUID,
+        title: str,
+        source_url: str | None,
+        authors: list[str],
+        journal: str | None,
+        published_year: int | None,
+        doi: str | None,
+        pmid: str | None,
+        pmcid: str | None,
+        origin: CandidateOrigin,
         access_level: AccessLevel,
         critical_sheet: CriticalSheet6Blocks,
         pdf_storage_path: str | None,
         content_hash: str | None,
     ) -> CandidateStudy:
+        safe_url = validate_safe_http_url(source_url)
         result = await self._session.execute(
             select(CandidateStudyModel).where(CandidateStudyModel.id == candidate_id)
         )
         row = result.scalar_one_or_none()
         if row is None:
             raise CandidateNotFoundError("No se encontró el Estudio Candidato solicitado.")
+        row.title = title
+        row.source_url = safe_url
+        row.authors = list(authors)
+        row.journal = journal
+        row.published_year = published_year
+        row.doi = doi
+        row.pmid = pmid
+        row.pmcid = pmcid
+        row.origin = origin.value
         row.previous_critical_sheet = row.critical_sheet
         row.critical_sheet = critical_sheet.to_dict()
         row.access_level = access_level.value
@@ -324,6 +345,7 @@ class SqlAlchemyKnowledgeRepository:
         embedding: list[float],
         embedding_model: str,
     ) -> EvidenceCard:
+        safe_url = validate_safe_http_url(source_url)
         clean_tags = sorted({t.strip().lower() for t in tags if t.strip()})
         clean_terms = list(dict.fromkeys(t.strip() for t in key_terms_en if t.strip()))
         tsv_expr = _build_search_tsv_expression(
@@ -337,7 +359,7 @@ class SqlAlchemyKnowledgeRepository:
             candidate_study_id=candidate_study_id,
             doi=doi,
             pmid=pmid,
-            source_url=source_url,
+            source_url=safe_url,
             title=title,
             evidence_level=evidence_level.value,
             coverage=coverage.value,

@@ -59,7 +59,95 @@ describe("Coach Chat SSE, Citations, Live Search Quarantine & Profile Proposals 
 
     expect(await screen.findByText(/enviado como estudio candidato/i)).toBeInTheDocument();
     expect(getMockPromotedPayloads()).toHaveLength(1);
-    expect(getMockPromotedPayloads()[0]?.doi).toBe("10.51224/srxiv.999");
+    expect(getMockPromotedPayloads()[0]).toEqual({
+      message_id: expect.any(String),
+      result_url: "https://sportrxiv.org/preprint/999",
+    });
+  });
+
+  it("renders https:// live-search URLs as links and unsafe javascript:/data: URLs as plain text", async () => {
+    server.use(
+      http.post("*/api/v1/coach/conversations/:conversationId/messages", () => {
+        const safeUrl = "https://pubmed.ncbi.nlm.nih.gov/777111/";
+        const unsafeJsUrl = "javascript:alert(1)";
+        const unsafeDataUrl = "data:text/html,<script>alert(1)</script>";
+        const sseBody =
+          'event: token\ndata: {"delta":"Resultados de prueba"}\n\n' +
+          `event: live_search_quarantine\ndata: ${JSON.stringify({
+            quarantine_label: "fuente externa aún no verificada en Base de Conocimiento",
+            results: [
+              {
+                title: "Safe Hit",
+                url: safeUrl,
+                snippet: "Safe snippet",
+                quarantine_label: "fuente externa aún no verificada en Base de Conocimiento",
+              },
+              {
+                title: "Unsafe JS Hit",
+                url: unsafeJsUrl,
+                snippet: "JS snippet",
+                quarantine_label: "fuente externa aún no verificada en Base de Conocimiento",
+              },
+              {
+                title: "Unsafe Data Hit",
+                url: unsafeDataUrl,
+                snippet: "Data snippet",
+                quarantine_label: "fuente externa aún no verificada en Base de Conocimiento",
+              },
+            ],
+          })}\n\n` +
+          `event: done\ndata: ${JSON.stringify({
+            message: {
+              id: "m-xss-test",
+              conversation_id: "conv-1",
+              role: "assistant",
+              content: "Resultados de prueba",
+              citations: [],
+              live_search_results: [
+                {
+                  title: "Safe Hit",
+                  url: safeUrl,
+                  snippet: "Safe snippet",
+                  quarantine_label: "fuente externa aún no verificada en Base de Conocimiento",
+                },
+                {
+                  title: "Unsafe JS Hit",
+                  url: unsafeJsUrl,
+                  snippet: "JS snippet",
+                  quarantine_label: "fuente externa aún no verificada en Base de Conocimiento",
+                },
+                {
+                  title: "Unsafe Data Hit",
+                  url: unsafeDataUrl,
+                  snippet: "Data snippet",
+                  quarantine_label: "fuente externa aún no verificada en Base de Conocimiento",
+                },
+              ],
+              used_general_knowledge: false,
+              boundary_triggered: "none",
+              created_at: "2026-11-21T18:00:00Z",
+            },
+          })}\n\n`;
+        return new HttpResponse(sseBody, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<App initialEntries={["/coach"]} />);
+
+    const input = await screen.findByLabelText(/mensaje para el coach/i);
+    await user.click(screen.getByLabelText(/búsqueda en vivo/i));
+    await user.type(input, "Prueba URLs");
+    await user.click(screen.getByRole("button", { name: /enviar/i }));
+
+    const links = await screen.findAllByRole("link", { name: /ver fuente externa/i });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "https://pubmed.ncbi.nlm.nih.gov/777111/");
+    expect(screen.getByText(/javascript:alert\(1\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/data:text\/html/i)).toBeInTheDocument();
   });
 
   it("renders inline Living Profile update proposal card and lets Athlete accept or dismiss", async () => {

@@ -311,19 +311,15 @@ export function useCoachConversation() {
     }
   }
 
-  async function handlePromoteLiveHit(hit: QuarantinedLiveResultItem) {
+  async function handlePromoteLiveHit(messageId: string, hit: QuarantinedLiveResultItem) {
     if (promotingUrl || promotedUrls[hit.url]) return;
     setPromotingUrl(hit.url);
     setErrorMessage(null);
     try {
       const res = await apiClient.POST("/api/v1/coach/live-search/promote", {
         body: {
-          title: hit.title,
-          url: hit.url,
-          snippet: hit.snippet,
-          doi: hit.doi ?? null,
-          pmid: hit.pmid ?? null,
-          published_year: hit.published_year ?? null,
+          message_id: messageId,
+          result_url: hit.url,
         },
       });
       if (res.data) {

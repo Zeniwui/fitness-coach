@@ -316,6 +316,11 @@ async def update_evidence_card(
     except EvidenceCardNotFoundError as exc:
         await session.rollback()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except KnowledgeValidationError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
     return EvidenceCardDetailResponse.from_detail(detail)
 
 

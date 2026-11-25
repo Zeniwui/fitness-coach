@@ -14,7 +14,10 @@ import httpx
 from fitness_coach.application.ports.identity_storage import BinaryStoragePort
 from fitness_coach.domain.identity import ForbiddenError
 from fitness_coach.infrastructure.config import Settings
-from fitness_coach.infrastructure.storage.local_storage import InMemoryBinaryStorage
+from fitness_coach.infrastructure.storage.local_storage import (
+    InMemoryBinaryStorage,
+    validate_storage_path_segments,
+)
 
 
 class SupabaseBinaryStorageAdapter:
@@ -52,8 +55,11 @@ class SupabaseBinaryStorageAdapter:
 
     @staticmethod
     def _ensure_athlete_prefix(athlete_id: UUID, storage_path: str) -> None:
-        if not storage_path.startswith(f"{athlete_id}/") or ".." in storage_path:
+        if not storage_path.startswith(f"{athlete_id}/"):
             raise ForbiddenError("Acceso denegado al archivo de otro Atleta.")
+        validate_storage_path_segments(
+            storage_path, error_message="Acceso denegado al archivo de otro Atleta."
+        )
 
     def _object_url(self, bucket: str, object_path: str) -> str:
         encoded = quote(object_path.lstrip("/"), safe="/")
@@ -67,9 +73,9 @@ class SupabaseBinaryStorageAdapter:
         data: bytes,
         content_type: str,
     ) -> str:
-        clean_rel = relative_path.lstrip("/")
-        if ".." in clean_rel:
-            raise ForbiddenError("Ruta de archivo inválida.")
+        clean_rel = validate_storage_path_segments(
+            relative_path.lstrip("/"), error_message="Ruta de archivo inválida."
+        )
         key = f"{athlete_id}/{clean_rel}"
         async with self._client() as client:
             resp = await client.post(
@@ -103,9 +109,9 @@ class SupabaseBinaryStorageAdapter:
             resp.raise_for_status()
 
     async def put_curator_pdf(self, *, relative_path: str, data: bytes) -> str:
-        clean_rel = relative_path.lstrip("/")
-        if ".." in clean_rel:
-            raise ForbiddenError("Ruta de PDF inválida.")
+        clean_rel = validate_storage_path_segments(
+            relative_path.lstrip("/"), error_message="Ruta de PDF inválida."
+        )
         key = f"curator-pdfs/{clean_rel}"
         async with self._client() as client:
             resp = await client.post(
@@ -117,8 +123,7 @@ class SupabaseBinaryStorageAdapter:
         return key
 
     async def get_curator_pdf(self, *, storage_path: str) -> bytes:
-        if ".." in storage_path:
-            raise ForbiddenError("Ruta de PDF inválida.")
+        validate_storage_path_segments(storage_path, error_message="Ruta de PDF inválida.")
         async with self._client() as client:
             resp = await client.get(
                 self._object_url(self._curator_bucket, storage_path),

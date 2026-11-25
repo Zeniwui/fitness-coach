@@ -186,6 +186,16 @@ class SqlAlchemyCoachRepository:
         rows = (await self._session.execute(stmt)).scalars().all()
         return [_to_message(row) for row in rows]
 
+    async def get_message_by_id(
+        self, *, athlete_id: UUID, message_id: UUID
+    ) -> ChatMessage | None:
+        stmt = select(MessageModel).where(
+            MessageModel.id == message_id,
+            MessageModel.athlete_id == athlete_id,
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return _to_message(row) if row is not None else None
+
     async def create_proposal(
         self,
         *,

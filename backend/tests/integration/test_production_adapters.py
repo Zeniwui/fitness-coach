@@ -310,6 +310,24 @@ async def test_supabase_binary_storage_adapter_roundtrip_and_athlete_isolation()
     pdf_key = await storage.put_curator_pdf(relative_path="study.pdf", data=b"%PDF-1.4")
     assert await storage.get_curator_pdf(storage_path=pdf_key) == b"%PDF-1.4"
 
+    # Path segment validation rejects backslash, null bytes, dot segments, and empty segments
+    for bad_rel in ("..\\evil.pdf", "a\x00b.pdf", "./a.pdf", "a/../b.pdf", "a//b.pdf"):
+        with pytest.raises(ForbiddenError):
+            await storage.put_athlete_object(
+                athlete_id=athlete_a,
+                relative_path=bad_rel,
+                data=b"x",
+                content_type="text/plain",
+            )
+        with pytest.raises(ForbiddenError):
+            await storage.put_curator_pdf(relative_path=bad_rel, data=b"%PDF-1.4")
+        with pytest.raises(ForbiddenError):
+            await storage.get_curator_pdf(storage_path=f"curator-pdfs/{bad_rel}")
+    with pytest.raises(ForbiddenError):
+        await storage.get_athlete_object(
+            athlete_id=athlete_a, storage_path=f"{athlete_a}/a\\b.jpg"
+        )
+
 
 @pytest.mark.asyncio
 async def test_create_app_wires_production_adapters_by_default() -> None:

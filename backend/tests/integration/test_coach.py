@@ -398,6 +398,8 @@ class TestQuarantinedLiveSearchAndPromotion:
         assert resp.status_code == 200
         events = _parse_sse(resp.text)
         live_ev = next(p for name, p in events if name == "live_search_quarantine")
+        done_ev = next(p for name, p in events if name == "done")
+        assistant_msg_id = done_ev["message"]["id"]
         assert live_ev["quarantine_label"] == LIVE_SEARCH_QUARANTINE_LABEL
         assert len(live_ev["results"]) == 1
         hit = live_ev["results"][0]
@@ -416,17 +418,15 @@ class TestQuarantinedLiveSearchAndPromotion:
             "/api/v1/coach/live-search/promote",
             headers=_auth_headers(tok_a),
             json={
-                "title": hit["title"],
-                "url": hit["url"],
-                "snippet": hit["snippet"],
-                "doi": hit["doi"],
-                "published_year": hit["published_year"],
+                "message_id": assistant_msg_id,
+                "result_url": hit["url"],
             },
         )
         assert promote_resp.status_code == 201
         promoted = promote_resp.json()
         assert promoted["origin"] == "live_search_promoted"
         assert promoted["status"] == "pending"
+        assert promoted["title"] == hit["title"]
 
         # Still NOT in approved EvidenceCards until Curator approves
         kb_search_after = await client.get(
@@ -443,6 +443,105 @@ class TestQuarantinedLiveSearchAndPromotion:
         )
         assert inbox.status_code == 200
         assert any(c["id"] == promoted["candidate_id"] for c in inbox.json()["items"])
+
+    async def test_promote_live_search_rejects_foreign_message_missing_url_and_unsafe_urls(
+        self,
+        client: AsyncClient,
+        seed_accounts,
+        fake_ai: FakeAIProvider,
+        fake_scientific_sources: FakeScientificSources,
+    ) -> None:
+        _, tok_a = seed_accounts["athlete_a"]
+        _, tok_b = seed_accounts["athlete_b"]
+
+        fake_scientific_sources.live_hits.extend(
+            [
+                LiveSearchHit(
+                    title="Safe Live Hit",
+                    url="https://pubmed.ncbi.nlm.nih.gov/999001/",
+                    snippet="Safe snippet for promotion.",
+                    doi="10.5555/safe.live.2025",
+                    pmid="999001",
+                    published_year=2025,
+                ),
+                LiveSearchHit(
+                    title="Evil XSS Hit",
+                    url="javascript:alert(1)",
+                    snippet="Evil snippet.",
+                    doi="10.5555/xss.live.2025",
+                    pmid="999002",
+                    published_year=2025,
+                ),
+                LiveSearchHit(
+                    title="Evil Data Hit",
+                    url="data:text/html,<script>alert(1)</script>",
+                    snippet="Evil data snippet.",
+                    doi="10.5555/data.live.2025",
+                    pmid="999003",
+                    published_year=2025,
+                ),
+            ]
+        )
+
+        conv_id = (
+            await client.post(
+                "/api/v1/coach/conversations",
+                headers=_auth_headers(tok_a),
+                json={"title": "Live Search Security"},
+            )
+        ).json()["id"]
+
+        fake_ai.canned_responses.append(LLMResponse(text="Resultados en cuarentena."))
+        resp = await client.post(
+            f"/api/v1/coach/conversations/{conv_id}/messages",
+            headers=_auth_headers(tok_a),
+            json={
+                "content": "Busca un estudio reciente de 2025 sobre fuerza",
+                "enable_live_search": True,
+            },
+        )
+        assert resp.status_code == 200
+        events = _parse_sse(resp.text)
+        live_ev = next(p for name, p in events if name == "live_search_quarantine")
+        done_ev = next(p for name, p in events if name == "done")
+        msg_id = done_ev["message"]["id"]
+
+        # Unsafe javascript:/data: hits must be omitted from quarantined results
+        urls = [r["url"] for r in live_ev["results"]]
+        assert urls == ["https://pubmed.ncbi.nlm.nih.gov/999001/"]
+
+        # Athlete B cannot promote using Athlete A's message_id -> 404
+        foreign_resp = await client.post(
+            "/api/v1/coach/live-search/promote",
+            headers=_auth_headers(tok_b),
+            json={
+                "message_id": msg_id,
+                "result_url": "https://pubmed.ncbi.nlm.nih.gov/999001/",
+            },
+        )
+        assert foreign_resp.status_code == 404
+
+        # URL not present in message.live_search_results -> 422
+        missing_url_resp = await client.post(
+            "/api/v1/coach/live-search/promote",
+            headers=_auth_headers(tok_a),
+            json={
+                "message_id": msg_id,
+                "result_url": "https://evil.example.com/hijack-doi",
+            },
+        )
+        assert missing_url_resp.status_code == 422
+
+        # Unsafe URL that was stripped cannot be promoted either -> 422
+        unsafe_promote_resp = await client.post(
+            "/api/v1/coach/live-search/promote",
+            headers=_auth_headers(tok_a),
+            json={
+                "message_id": msg_id,
+                "result_url": "javascript:alert(1)",
+            },
+        )
+        assert unsafe_promote_resp.status_code == 422
 
 
 class TestCoachBoundaries:
