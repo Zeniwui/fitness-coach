@@ -485,3 +485,88 @@ async def test_coach_chat_receives_active_nutrition_phase_and_recent_checkins_co
     assert "sin lácteos" in system_prompt.lower()
 
 
+@pytest.mark.asyncio
+async def test_apply_checkin_adjustment_rejects_mismatched_active_phase(
+    client: AsyncClient,
+    seed_accounts: dict,
+) -> None:
+    _, token_a = seed_accounts["athlete_a"]
+
+    # Phase 1 active
+    p1 = await client.post(
+        "/api/v1/nutrition/phases",
+        headers=_auth_header(token_a),
+        json={
+            "phase_type": "cut",
+            "start_date": "2026-10-01",
+            "target_calories": 2400,
+            "protein_g": 180,
+            "fat_g": 65,
+            "carbs_g": 274,
+            "target_weekly_weight_change_kg": -0.5,
+        },
+    )
+    assert p1.status_code == 201
+
+    # Check-in 1 & Check-in 2 under Phase 1 -> Check-in 2 gets a 'proposed' adjustment
+    c1 = await client.post(
+        "/api/v1/nutrition/checkins",
+        headers=_auth_header(token_a),
+        json={
+            "checkin_date": "2026-10-08",
+            "idempotency_key": "mismatch-c1",
+            "average_weight_kg": 80.0,
+            "adherence_score": 9,
+            "sleep_quality": 8,
+            "energy_level": 7,
+            "hunger_level": 5,
+            "recovery_score": 8,
+            "perceived_fatigue": 4,
+        },
+    )
+    assert c1.status_code == 201
+
+    c2 = await client.post(
+        "/api/v1/nutrition/checkins",
+        headers=_auth_header(token_a),
+        json={
+            "checkin_date": "2026-10-15",
+            "idempotency_key": "mismatch-c2",
+            "average_weight_kg": 79.95,
+            "adherence_score": 9,
+            "sleep_quality": 4,
+            "energy_level": 4,
+            "hunger_level": 7,
+            "recovery_score": 3,
+            "perceived_fatigue": 9,
+        },
+    )
+    assert c2.status_code == 201
+    c2_data = c2.json()
+    assert c2_data["adjustment_status"] == "proposed"
+
+    # Activate Phase 2
+    p2 = await client.post(
+        "/api/v1/nutrition/phases",
+        headers=_auth_header(token_a),
+        json={
+            "phase_type": "bulk",
+            "start_date": "2026-10-16",
+            "target_calories": 3100,
+            "protein_g": 180,
+            "fat_g": 80,
+            "carbs_g": 415,
+            "target_weekly_weight_change_kg": 0.25,
+        },
+    )
+    assert p2.status_code == 201
+
+    # Applying Phase 1's Check-in adjustment while Phase 2 is active -> 409 Conflict
+    apply_resp = await client.post(
+        f"/api/v1/nutrition/checkins/{c2_data['id']}/apply-adjustment",
+        headers=_auth_header(token_a),
+    )
+    assert apply_resp.status_code == 409
+
+
+

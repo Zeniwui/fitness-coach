@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -76,6 +77,23 @@ class ConfigurableAIProvider:
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=self._timeout, transport=self._transport)
+
+    def _redact_secrets(self, text: str) -> str:
+        redacted = text
+        for secret in (self._api_key, self._embedding_api_key):
+            if secret:
+                redacted = redacted.replace(secret, "[REDACTED]")
+        return re.sub(r"key=[^&\s'\"]+", "key=[REDACTED]", redacted)
+
+    async def _post(self, url: str, **kwargs: Any) -> httpx.Response:
+        try:
+            async with self._client() as client:
+                return await client.post(url, **kwargs)
+        except httpx.HTTPError as exc:
+            detail = self._redact_secrets(str(exc))
+            raise RuntimeError(
+                f"Error de red al conectar con el proveedor de IA: {detail}"
+            ) from exc
 
     def resolve_model(self, tier: ModelTier) -> str:
         """Return the configured model identifier for fast_tier or reasoning_tier."""
@@ -152,7 +170,7 @@ class ConfigurableAIProvider:
         if self.embedding_provider in ("google_ai_studio", "gemini"):
             url = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{self.embedding_model}:batchEmbedContents?key={self._embedding_api_key}"
+                f"{self.embedding_model}:batchEmbedContents"
             )
             payload = {
                 "requests": [
@@ -163,8 +181,11 @@ class ConfigurableAIProvider:
                     for text in texts
                 ]
             }
-            async with self._client() as client:
-                resp = await client.post(url, json=payload)
+            resp = await self._post(
+                url,
+                headers={"x-goog-api-key": self._embedding_api_key},
+                json=payload,
+            )
             self._raise_for_status(resp)
             data = resp.json()
             return [
@@ -173,12 +194,11 @@ class ConfigurableAIProvider:
             ]
 
         base = self._embedding_base_url or "https://api.openai.com/v1"
-        async with self._client() as client:
-            resp = await client.post(
-                f"{base}/embeddings",
-                headers={"Authorization": f"Bearer {self._embedding_api_key}"},
-                json={"model": self.embedding_model, "input": texts},
-            )
+        resp = await self._post(
+            f"{base}/embeddings",
+            headers={"Authorization": f"Bearer {self._embedding_api_key}"},
+            json={"model": self.embedding_model, "input": texts},
+        )
         self._raise_for_status(resp)
         data = resp.json()
         return [
@@ -195,7 +215,7 @@ class ConfigurableAIProvider:
             model = self.resolve_model(ModelTier.FAST)
             url = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{model}:generateContent?key={self._api_key}"
+                f"{model}:generateContent"
             )
             encoded = base64.b64encode(audio_bytes).decode("ascii")
             body: dict[str, Any] = {
@@ -214,21 +234,23 @@ class ConfigurableAIProvider:
                     }
                 ]
             }
-            async with self._client() as client:
-                resp = await client.post(url, json=body)
+            resp = await self._post(
+                url,
+                headers={"x-goog-api-key": self._api_key},
+                json=body,
+            )
             self._raise_for_status(resp)
             data = resp.json()
             parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
             return "".join(str(p.get("text", "")) for p in parts).strip()
 
         base = self._base_url or "https://api.openai.com/v1"
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.post(
-                f"{base}/audio/transcriptions",
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                data={"model": "whisper-1", "language": "es"},
-                files={"file": ("audio.webm", audio_bytes, mime_type)},
-            )
+        resp = await self._post(
+            f"{base}/audio/transcriptions",
+            headers={"Authorization": f"Bearer {self._api_key}"},
+            data={"model": "whisper-1", "language": "es"},
+            files={"file": ("audio.webm", audio_bytes, mime_type)},
+        )
         self._raise_for_status(resp)
         return str(resp.json().get("text", "")).strip()
 
@@ -236,7 +258,7 @@ class ConfigurableAIProvider:
         if response.status_code == 429:
             raise RateLimitError("HTTP 429: cuota del proveedor de IA agotada temporalmente.")
         if response.is_error:
-            detail = self._extract_error_detail(response)
+            detail = self._redact_secrets(self._extract_error_detail(response))
             raise RuntimeError(
                 f"HTTP {response.status_code} del proveedor de IA: {detail}"
             )
@@ -267,7 +289,7 @@ class ConfigurableAIProvider:
     ) -> LLMResponse:
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{model}:generateContent?key={self._api_key}"
+            f"{model}:generateContent"
         )
         user_parts: list[dict[str, Any]] = [{"text": user_prompt}]
         for img_bytes, mime_type in images or []:
@@ -285,8 +307,11 @@ class ConfigurableAIProvider:
         }
         if json_schema is not None:
             body["generationConfig"] = {"responseMimeType": "application/json"}
-        async with self._client() as client:
-            resp = await client.post(url, json=body)
+        resp = await self._post(
+            url,
+            headers={"x-goog-api-key": self._api_key or ""},
+            json=body,
+        )
         self._raise_for_status(resp)
         data = resp.json()
         parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
@@ -324,12 +349,11 @@ class ConfigurableAIProvider:
         }
         if json_schema is not None:
             body["response_format"] = {"type": "json_object"}
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.post(
-                f"{base}/chat/completions",
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                json=body,
-            )
+        resp = await self._post(
+            f"{base}/chat/completions",
+            headers={"Authorization": f"Bearer {self._api_key}"},
+            json=body,
+        )
         self._raise_for_status(resp)
         data = resp.json()
         text = str(data["choices"][0]["message"]["content"]).strip()
@@ -368,20 +392,19 @@ class ConfigurableAIProvider:
                         },
                     }
                 )
-        async with self._client() as client:
-            resp = await client.post(
-                f"{base}/messages",
-                headers={
-                    "x-api-key": self._api_key or "",
-                    "anthropic-version": "2023-06-01",
-                },
-                json={
-                    "model": model,
-                    "max_tokens": 2048,
-                    "system": effective_system,
-                    "messages": [{"role": "user", "content": user_content}],
-                },
-            )
+        resp = await self._post(
+            f"{base}/messages",
+            headers={
+                "x-api-key": self._api_key or "",
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": model,
+                "max_tokens": 2048,
+                "system": effective_system,
+                "messages": [{"role": "user", "content": user_content}],
+            },
+        )
         self._raise_for_status(resp)
         data = resp.json()
         blocks = data.get("content", [])

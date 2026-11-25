@@ -189,4 +189,15 @@ export const identityHandlers = [
     };
     return HttpResponse.json(created, { status: 201 });
   }),
+
+  http.delete("*/api/v1/curator/invitations/:invitationId", ({ request }) => {
+    const auth = request.headers.get("authorization");
+    if (auth !== "Bearer tok-dual") {
+      return HttpResponse.json(
+        { detail: "Se requiere el rol de Curador para realizar esta acción." },
+        { status: 403 },
+      );
+    }
+    return new HttpResponse(null, { status: 204 });
+  }),
 ];

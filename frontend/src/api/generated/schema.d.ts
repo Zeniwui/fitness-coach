@@ -280,6 +280,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/curator/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Invitation */
+        delete: operations["revoke_invitation_api_v1_curator_invitations__invitation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/curator/monthly-cuts": {
         parameters: {
             query?: never;
@@ -2042,21 +2059,13 @@ export interface components {
         };
         /** PromoteLiveSearchRequest */
         PromoteLiveSearchRequest: {
-            /** Doi */
-            doi?: string | null;
-            /** Pmid */
-            pmid?: string | null;
-            /** Published Year */
-            published_year?: number | null;
             /**
-             * Snippet
-             * @default
+             * Message Id
+             * Format: uuid
              */
-            snippet: string;
-            /** Title */
-            title: string;
-            /** Url */
-            url: string;
+            message_id: string;
+            /** Result Url */
+            result_url: string;
         };
         /** PromoteLiveSearchResponse */
         PromoteLiveSearchResponse: {
@@ -3217,6 +3226,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CreateInvitationResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_invitation_api_v1_curator_invitations__invitation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

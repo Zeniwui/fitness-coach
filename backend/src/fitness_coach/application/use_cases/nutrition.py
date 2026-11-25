@@ -475,6 +475,10 @@ class ApplyCheckInAdjustmentUseCase:
             raise NutritionPhaseNotFoundError(
                 "No existe una Fase Nutricional activa a la que aplicar el ajuste."
             )
+        if checkin.nutrition_phase_id != active_phase.id:
+            raise InvalidAdjustmentStateError(
+                "Este Check-in pertenece a una Fase Nutricional anterior que ya no está activa."
+            )
 
         rec = checkin.coach_recommendations
         next_calories = int(rec.get("proposed_target_calories") or active_phase.target_calories)

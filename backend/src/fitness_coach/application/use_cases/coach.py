@@ -27,6 +27,7 @@ from fitness_coach.domain.coach import (
     GENERAL_KNOWLEDGE_DISCLOSURE_ES,
     LIVE_SEARCH_QUARANTINE_LABEL,
     PEDS_BOUNDARY_NOTICE_ES,
+    AttachmentAlreadyLinkedError,
     BoundaryKind,
     ChatMessage,
     Citation,
@@ -35,11 +36,13 @@ from fitness_coach.domain.coach import (
     Conversation,
     ConversationNotFoundError,
     InvalidProposalStateError,
+    MessageNotFoundError,
     MessageRole,
     ProfileUpdateProposal,
     ProposalNotFoundError,
     ProposalStatus,
     QuarantinedLiveResult,
+    ensure_attachments_unlinked,
     validate_conversation_title,
 )
 from fitness_coach.domain.identity import AuthContext
@@ -49,10 +52,12 @@ from fitness_coach.domain.knowledge import (
     CandidateStatus,
     CandidateStudy,
     EvidenceSearchHit,
+    KnowledgeValidationError,
     ValidityStatus,
     compute_content_hash,
     normalize_doi,
     normalize_pmid,
+    validate_safe_http_url,
 )
 from fitness_coach.domain.multimodal import (
     AttachmentMediaType,
@@ -173,6 +178,12 @@ class CoachContextAssembler:
             )
             filtered_live: list[QuarantinedLiveResult] = []
             for hit in raw_live:
+                try:
+                    safe_url = validate_safe_http_url(hit.url)
+                except KnowledgeValidationError:
+                    continue
+                if safe_url is None:
+                    continue
                 norm_doi = normalize_doi(hit.doi)
                 norm_pmid = normalize_pmid(hit.pmid)
                 if norm_doi or norm_pmid:
@@ -184,7 +195,7 @@ class CoachContextAssembler:
                 filtered_live.append(
                     QuarantinedLiveResult(
                         title=hit.title,
-                        url=hit.url,
+                        url=safe_url,
                         snippet=hit.snippet,
                         doi=hit.doi,
                         pmid=hit.pmid,
@@ -420,10 +431,44 @@ class RenameConversationUseCase:
 
 
 class DeleteConversationUseCase:
-    def __init__(self, repo: CoachRepositoryPort) -> None:
+    def __init__(
+        self,
+        repo: CoachRepositoryPort,
+        multimodal_repo: MultimodalRepositoryPort | None = None,
+        binary_storage: BinaryStoragePort | None = None,
+    ) -> None:
         self._repo = repo
+        self._multimodal_repo = multimodal_repo
+        self._binary_storage = binary_storage
 
     async def execute(self, *, auth: AuthContext, conversation_id: UUID) -> None:
+        conv = await self._repo.get_conversation(
+            athlete_id=auth.athlete_id,
+            conversation_id=conversation_id,
+        )
+        if conv is None:
+            raise ConversationNotFoundError("No se encontró la conversación solicitada.")
+
+        if self._multimodal_repo is not None:
+            attachments = await self._multimodal_repo.list_attachments_for_conversation(
+                athlete_id=auth.athlete_id,
+                conversation_id=conversation_id,
+            )
+            if attachments:
+                if self._binary_storage is not None:
+                    for att in attachments:
+                        try:
+                            await self._binary_storage.delete_athlete_object(
+                                athlete_id=auth.athlete_id,
+                                storage_path=att.storage_path,
+                            )
+                        except FileNotFoundError:
+                            pass
+                await self._multimodal_repo.delete_attachments_by_ids(
+                    athlete_id=auth.athlete_id,
+                    attachment_ids=[a.id for a in attachments],
+                )
+
         deleted = await self._repo.delete_conversation(
             athlete_id=auth.athlete_id,
             conversation_id=conversation_id,
@@ -498,6 +543,7 @@ class SendCoachMessageStreamUseCase:
             )
             if len(resolved_attachments) != len(unique_ids):
                 raise AttachmentNotFoundError("No se encontró el archivo adjunto solicitado.")
+            ensure_attachments_unlinked(resolved_attachments)
             image_attachments = [
                 a for a in resolved_attachments if a.media_type == AttachmentMediaType.IMAGE
             ]
@@ -527,11 +573,15 @@ class SendCoachMessageStreamUseCase:
             content=cleaned,
         )
         if resolved_attachments and self._multimodal_repo is not None:
-            await self._multimodal_repo.link_attachments_to_message(
+            linked_count = await self._multimodal_repo.link_attachments_to_message(
                 athlete_id=auth.athlete_id,
                 attachment_ids=[a.id for a in resolved_attachments],
                 message_id=user_msg.id,
             )
+            if linked_count != len(resolved_attachments):
+                raise AttachmentAlreadyLinkedError(
+                    "Uno o más archivos adjuntos ya están vinculados a otro mensaje."
+                )
 
         # Auto-title default conversations on first message
         next_title: str | None = None
@@ -677,9 +727,11 @@ class PromoteLiveSearchResultUseCase:
     def __init__(
         self,
         *,
+        coach_repo: CoachRepositoryPort,
         knowledge_repo: KnowledgeRepositoryPort,
         ai_provider: AIProviderPort,
     ) -> None:
+        self._coach_repo = coach_repo
         self._knowledge_repo = knowledge_repo
         self._ai_provider = ai_provider
 
@@ -687,21 +739,42 @@ class PromoteLiveSearchResultUseCase:
         self,
         *,
         auth: AuthContext,
-        title: str,
-        url: str,
-        snippet: str,
-        doi: str | None = None,
-        pmid: str | None = None,
-        published_year: int | None = None,
+        message_id: UUID,
+        result_url: str,
     ) -> CandidateStudy:
-        cleaned_title = title.strip()
-        cleaned_url = url.strip()
-        if not cleaned_title or not cleaned_url:
+        message = await self._coach_repo.get_message_by_id(
+            athlete_id=auth.athlete_id, message_id=message_id
+        )
+        if message is None:
+            raise MessageNotFoundError("No se encontró el mensaje del Coach solicitado.")
+
+        cleaned_target_url = result_url.strip()
+        matched = next(
+            (item for item in message.live_search_results if item.url == cleaned_target_url),
+            None,
+        )
+        if matched is None:
+            raise CoachValidationError(
+                "El enlace indicado no corresponde a ningún resultado en cuarentena "
+                "de este mensaje."
+            )
+
+        try:
+            safe_url = validate_safe_http_url(matched.url)
+        except KnowledgeValidationError as exc:
+            raise CoachValidationError(str(exc)) from exc
+        if safe_url is None:
+            raise CoachValidationError("El resultado en cuarentena no contiene un enlace válido.")
+
+        cleaned_title = matched.title.strip()
+        if not cleaned_title:
             raise CoachValidationError("Se requiere título y enlace del resultado para promoverlo.")
 
-        norm_doi = normalize_doi(doi)
-        norm_pmid = normalize_pmid(pmid)
-        content_hash = compute_content_hash(f"{cleaned_title}\n{cleaned_url}\n{snippet}")
+        norm_doi = normalize_doi(matched.doi)
+        norm_pmid = normalize_pmid(matched.pmid)
+        content_hash = compute_content_hash(
+            f"{cleaned_title}\n{safe_url}\n{matched.snippet}"
+        )
 
         # Respect existing deduplication invariants without bypassing Curator rejection history
         await check_existing_candidate_for_proposal(
@@ -712,16 +785,16 @@ class PromoteLiveSearchResultUseCase:
             allow_reopen=False,
         )
 
-        source_text = snippet.strip() or cleaned_title
+        source_text = matched.snippet.strip() or cleaned_title
         sheet = await generate_critical_sheet(
             ai_provider=self._ai_provider,
             title=cleaned_title,
             authors=[],
             journal=None,
-            published_year=published_year,
+            published_year=matched.published_year,
             doi=norm_doi,
             pmid=norm_pmid,
-            source_url=cleaned_url,
+            source_url=safe_url,
             access_level=AccessLevel.ABSTRACT_ONLY_PAYWALL,
             source_text=source_text,
         )
@@ -731,11 +804,11 @@ class PromoteLiveSearchResultUseCase:
             pmid=norm_pmid,
             pmcid=None,
             content_hash=content_hash,
-            source_url=cleaned_url,
+            source_url=safe_url,
             title=cleaned_title,
             authors=[],
             journal=None,
-            published_year=published_year,
+            published_year=matched.published_year,
             origin=CandidateOrigin.LIVE_SEARCH_PROMOTED,
             access_level=AccessLevel.ABSTRACT_ONLY_PAYWALL,
             critical_sheet=sheet,

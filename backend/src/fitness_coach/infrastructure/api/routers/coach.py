@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
@@ -29,7 +30,7 @@ from fitness_coach.application.use_cases.coach import (
 )
 from fitness_coach.application.use_cases.nutrition import NutritionCoachContextProvider
 from fitness_coach.application.use_cases.training import TrainingCoachContextProvider
-from fitness_coach.domain.coach import ProposalStatus
+from fitness_coach.domain.coach import ProposalStatus, ensure_attachments_unlinked
 from fitness_coach.domain.identity import AuthContext
 from fitness_coach.domain.knowledge import (
     DuplicateActiveStudyError,
@@ -61,6 +62,7 @@ from fitness_coach.infrastructure.db.repositories.profile import SqlAlchemyProfi
 from fitness_coach.infrastructure.db.repositories.training import SqlAlchemyTrainingRepository
 
 router = APIRouter(tags=["coach"])
+logger = logging.getLogger(__name__)
 
 
 def _format_sse(event: str, payload: dict) -> str:
@@ -125,8 +127,13 @@ async def delete_conversation(
     conversation_id: UUID,
     auth: Annotated[AuthContext, Depends(get_current_auth)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    binary_storage: Annotated[BinaryStoragePort, Depends(get_binary_storage)],
 ) -> Response:
-    use_case = DeleteConversationUseCase(SqlAlchemyCoachRepository(session))
+    use_case = DeleteConversationUseCase(
+        SqlAlchemyCoachRepository(session),
+        multimodal_repo=SqlAlchemyMultimodalRepository(session),
+        binary_storage=binary_storage,
+    )
     await use_case.execute(auth=auth, conversation_id=conversation_id)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -201,6 +208,7 @@ async def send_message_stream(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No se encontró el archivo adjunto solicitado.",
             )
+        ensure_attachments_unlinked(owned)
 
     assembler = CoachContextAssembler(
         profile_repo=SqlAlchemyProfileRepository(session),
@@ -233,9 +241,21 @@ async def send_message_stream(
             ):
                 yield _format_sse(event.event, event.data)
             await session.commit()
-        except Exception as exc:  # pragma: no cover - defensive SSE error boundary
+        except Exception:  # pragma: no cover - defensive SSE error boundary
             await session.rollback()
-            yield _format_sse("error", {"detail": str(exc)})
+            logger.exception(
+                "Error inesperado en stream SSE del Coach (conversation_id=%s)",
+                conversation_id,
+            )
+            yield _format_sse(
+                "error",
+                {
+                    "detail": (
+                        "Se produjo un error interno al generar la respuesta del Coach. "
+                        "Inténtalo de nuevo en unos instantes."
+                    )
+                },
+            )
 
     return StreamingResponse(
         event_generator(),
@@ -260,18 +280,15 @@ async def promote_live_search_result(
     ai_provider: Annotated[AIProviderPort, Depends(get_ai_provider)],
 ) -> PromoteLiveSearchResponse:
     use_case = PromoteLiveSearchResultUseCase(
+        coach_repo=SqlAlchemyCoachRepository(session),
         knowledge_repo=SqlAlchemyKnowledgeRepository(session),
         ai_provider=ai_provider,
     )
     try:
         candidate = await use_case.execute(
             auth=auth,
-            title=body.title,
-            url=body.url,
-            snippet=body.snippet,
-            doi=body.doi,
-            pmid=body.pmid,
-            published_year=body.published_year,
+            message_id=body.message_id,
+            result_url=body.result_url,
         )
     except (DuplicateActiveStudyError, DuplicateRejectedStudyError) as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

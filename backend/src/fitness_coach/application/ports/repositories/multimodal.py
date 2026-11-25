@@ -42,10 +42,18 @@ class MultimodalRepositoryPort(Protocol):
         self, *, athlete_id: UUID, message_ids: Sequence[UUID]
     ) -> dict[UUID, list[Attachment]]: ...
 
+    async def list_attachments_for_conversation(
+        self, *, athlete_id: UUID, conversation_id: UUID
+    ) -> list[Attachment]: ...
+
+    async def delete_attachments_by_ids(
+        self, *, athlete_id: UUID, attachment_ids: Sequence[UUID]
+    ) -> int: ...
+
     async def link_attachments_to_message(
         self,
         *,
         athlete_id: UUID,
         attachment_ids: Sequence[UUID],
         message_id: UUID,
-    ) -> None: ...
+    ) -> int: ...

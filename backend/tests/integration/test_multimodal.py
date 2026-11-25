@@ -434,5 +434,197 @@ async def test_coach_chat_label_supplement_and_scale_screenshot_categories(
     assert "check-in" in scale_prompt
 
 
+@pytest.mark.asyncio
+async def test_delete_coach_conversation_deletes_attachments_and_binaries(
+    client: AsyncClient,
+    seed_accounts: dict[str, tuple[Athlete, str]],
+    fake_binary_storage: FakeBinaryStorage,
+) -> None:
+    athlete_a, token_a = seed_accounts["athlete_a"]
+
+    up = await client.post(
+        "/api/v1/multimodal/attachments",
+        headers=_auth(token_a),
+        data={"category": "meal"},
+        files={"file": ("comida.png", SAMPLE_PNG_BYTES, "image/png")},
+    )
+    assert up.status_code == 201
+    att = up.json()
+    att_id = att["id"]
+    assert len(fake_binary_storage.athlete_objects) == 1
+
+    conv = await client.post(
+        "/api/v1/coach/conversations",
+        headers=_auth(token_a),
+        json={"title": "Conversación con adjunto"},
+    )
+    assert conv.status_code == 201
+    conv_id = conv.json()["id"]
+
+    msg_res = await client.post(
+        f"/api/v1/coach/conversations/{conv_id}/messages",
+        headers=_auth(token_a),
+        json={"content": "Revisa esta comida", "attachment_ids": [att_id]},
+    )
+    assert msg_res.status_code == 200
+
+    # Before deletion, attachment is accessible
+    get_before = await client.get(
+        f"/api/v1/multimodal/attachments/{att_id}",
+        headers=_auth(token_a),
+    )
+    assert get_before.status_code == 200
+
+    # Delete conversation -> 204, removes attachment from DB & binary storage
+    del_res = await client.delete(
+        f"/api/v1/coach/conversations/{conv_id}",
+        headers=_auth(token_a),
+    )
+    assert del_res.status_code == 204
+
+    get_after = await client.get(
+        f"/api/v1/multimodal/attachments/{att_id}",
+        headers=_auth(token_a),
+    )
+    assert get_after.status_code == 404
+    assert len(fake_binary_storage.athlete_objects) == 0
+
+
+@pytest.mark.asyncio
+async def test_relinking_already_attached_attachment_returns_409(
+    client: AsyncClient,
+    seed_accounts: dict[str, tuple[Athlete, str]],
+) -> None:
+    _, token_a = seed_accounts["athlete_a"]
+
+    up = await client.post(
+        "/api/v1/multimodal/attachments",
+        headers=_auth(token_a),
+        data={"category": "meal"},
+        files={"file": ("comida.png", SAMPLE_PNG_BYTES, "image/png")},
+    )
+    assert up.status_code == 201
+    att_id = up.json()["id"]
+
+    conv1 = await client.post(
+        "/api/v1/coach/conversations",
+        headers=_auth(token_a),
+        json={"title": "Chat 1"},
+    )
+    conv2 = await client.post(
+        "/api/v1/coach/conversations",
+        headers=_auth(token_a),
+        json={"title": "Chat 2"},
+    )
+    conv1_id = conv1.json()["id"]
+    conv2_id = conv2.json()["id"]
+
+    first = await client.post(
+        f"/api/v1/coach/conversations/{conv1_id}/messages",
+        headers=_auth(token_a),
+        json={"content": "Primer mensaje", "attachment_ids": [att_id]},
+    )
+    assert first.status_code == 200
+
+    # Reusing the same attachment in another message / conversation -> 409 Conflict
+    reuse_same_conv = await client.post(
+        f"/api/v1/coach/conversations/{conv1_id}/messages",
+        headers=_auth(token_a),
+        json={"content": "Segundo mensaje", "attachment_ids": [att_id]},
+    )
+    assert reuse_same_conv.status_code == 409
+
+    reuse_other_conv = await client.post(
+        f"/api/v1/coach/conversations/{conv2_id}/messages",
+        headers=_auth(token_a),
+        json={"content": "Otra conversación", "attachment_ids": [att_id]},
+    )
+    assert reuse_other_conv.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_oversized_image_and_audio_uploads_rejected_bounded(
+    client: AsyncClient,
+    seed_accounts: dict[str, tuple[Athlete, str]],
+) -> None:
+    from fastapi import HTTPException
+
+    from fitness_coach.domain.multimodal import MAX_AUDIO_SIZE_BYTES, MAX_IMAGE_SIZE_BYTES
+    from fitness_coach.infrastructure.api.uploads import read_upload_bounded
+
+    _, token_a = seed_accounts["athlete_a"]
+
+    # 1. Image > 10 MB rejected with 422
+    oversized_img = SAMPLE_PNG_BYTES + (b"0" * (MAX_IMAGE_SIZE_BYTES + 1024))
+    img_resp = await client.post(
+        "/api/v1/multimodal/attachments",
+        headers=_auth(token_a),
+        files={"file": ("huge.png", oversized_img, "image/png")},
+    )
+    assert img_resp.status_code == 422
+
+    # 2. Audio > 15 MB rejected with 422 on /transcribe
+    oversized_audio = b"OggS" + (b"0" * (MAX_AUDIO_SIZE_BYTES + 1024))
+    audio_resp = await client.post(
+        "/api/v1/multimodal/transcribe",
+        headers=_auth(token_a),
+        files={"file": ("huge.ogg", oversized_audio, "audio/ogg")},
+    )
+    assert audio_resp.status_code == 422
+
+    # 3. Verify read_upload_bounded stops reading once max_bytes is exceeded
+    class _CountingUploadFile:
+        def __init__(self) -> None:
+            self.chunks_read = 0
+
+        async def read(self, size: int = -1) -> bytes:
+            self.chunks_read += 1
+            return b"a" * (size if size > 0 else 1024)
+
+    fake_file = _CountingUploadFile()
+    with pytest.raises(HTTPException) as exc_info:
+        await read_upload_bounded(
+            fake_file,  # type: ignore[arg-type]
+            max_bytes=1024,
+            too_large_detail="Demasiado grande",
+            status_code=422,
+            chunk_size=512,
+        )
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "Demasiado grande"
+    # 2 chunks = 1024 bytes, 3rd chunk reads up to 1 byte (remaining + 1) -> stops at 3
+    assert fake_file.chunks_read == 3
+
+
+@pytest.mark.asyncio
+async def test_coach_rejects_more_than_four_attachment_ids_with_422(
+    client: AsyncClient,
+    seed_accounts: dict[str, tuple[Athlete, str]],
+) -> None:
+    from uuid import uuid4
+
+    _, token_a = seed_accounts["athlete_a"]
+    conv = await client.post(
+        "/api/v1/coach/conversations",
+        headers=_auth(token_a),
+        json={"title": "Límite de adjuntos"},
+    )
+    assert conv.status_code == 201
+    conv_id = conv.json()["id"]
+
+    resp = await client.post(
+        f"/api/v1/coach/conversations/{conv_id}/messages",
+        headers=_auth(token_a),
+        json={
+            "content": "Analiza estas 5 imágenes",
+            "attachment_ids": [str(uuid4()) for _ in range(5)],
+        },
+    )
+    assert resp.status_code == 422
+
+
+
+
+
 
 

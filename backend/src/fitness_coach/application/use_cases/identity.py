@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from fitness_coach.application.ports.identity_storage import VerifiedIdentity
 from fitness_coach.application.ports.repositories.identity import IdentityRepositoryPort
@@ -15,6 +16,8 @@ from fitness_coach.domain.identity import (
     ForbiddenError,
     InvalidInvitationError,
     Invitation,
+    InvitationAlreadyAcceptedError,
+    InvitationNotFoundError,
     Role,
 )
 
@@ -46,6 +49,8 @@ class CreateInvitationUseCase:
         if existing is not None:
             raise AthleteAlreadyExistsError("Ya existe una cuenta registrada con ese correo.")
 
+        await self._repo.delete_pending_invitations_for_email(normalized_email)
+
         raw_token = secrets.token_urlsafe(32)
         token_hash = hash_invitation_token(raw_token)
         expires_at = datetime.now(UTC) + timedelta(hours=self._ttl_hours)
@@ -69,6 +74,24 @@ class ListInvitationsUseCase:
     async def execute(self, *, auth: AuthContext) -> list[Invitation]:
         auth.require_curator()
         return await self._repo.list_invitations()
+
+
+class RevokeInvitationUseCase:
+    """Allows a Curator to revoke a pending invitation before it is redeemed."""
+
+    def __init__(self, repo: IdentityRepositoryPort) -> None:
+        self._repo = repo
+
+    async def execute(self, *, auth: AuthContext, invitation_id: UUID) -> None:
+        auth.require_curator()
+        invitation = await self._repo.get_invitation_by_id(invitation_id)
+        if invitation is None:
+            raise InvitationNotFoundError("La invitación no existe.")
+        if invitation.is_accepted:
+            raise InvitationAlreadyAcceptedError(
+                "No se puede revocar una invitación que ya fue aceptada."
+            )
+        await self._repo.delete_invitation(invitation_id)
 
 
 class RedeemInvitationUseCase:

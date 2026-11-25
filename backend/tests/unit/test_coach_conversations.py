@@ -15,6 +15,7 @@ from fitness_coach.application.use_cases.coach import (
 )
 from fitness_coach.domain.coach import (
     CONVERSATION_TITLE_MAX_LENGTH,
+    AttachmentAlreadyLinkedError,
     CoachValidationError,
     Conversation,
     ConversationNotFoundError,
@@ -59,6 +60,14 @@ class InMemoryCoachConversationRepo:
         )
         self.conversations[conv.id] = updated
         return updated
+
+    async def get_conversation(
+        self, *, athlete_id: UUID, conversation_id: UUID
+    ) -> Conversation | None:
+        conv = self.conversations.get(conversation_id)
+        if conv is None or conv.athlete_id != athlete_id:
+            return None
+        return conv
 
     async def delete_conversation(
         self, *, athlete_id: UUID, conversation_id: UUID
@@ -157,6 +166,7 @@ class TestConversationDeleteAndErrorTranslation:
             (ConversationNotFoundError("No encontrada"), 404),
             (ProposalNotFoundError("Propuesta no encontrada"), 404),
             (InvalidProposalStateError("Ya resuelta"), 409),
+            (AttachmentAlreadyLinkedError("Ya vinculada"), 409),
             (CoachValidationError("Título vacío"), 422),
         ],
     )

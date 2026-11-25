@@ -2,6 +2,7 @@ import { ExternalLink } from "lucide-react";
 import type { components } from "../../api/generated/schema";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
+import { SafeExternalLink } from "../../ui/SafeExternalLink";
 import { Select, Textarea } from "../../ui/Field";
 import {
   EVIDENCE_LEVEL_LABELS,
@@ -88,15 +89,13 @@ export function EvidenceCardItem({
         <div className="flex flex-wrap items-center gap-3 text-ink-muted">
           {card.doi && <span className="break-all font-mono text-xs">DOI: {card.doi}</span>}
           {card.source_url && (
-            <a
-              href={card.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
+            <SafeExternalLink
+              url={card.source_url}
               className="inline-flex min-h-[44px] items-center gap-1 font-semibold text-accent-text hover:underline sm:min-h-[32px]"
             >
               <span>Abrir DOI / PubMed</span>
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
-            </a>
+            </SafeExternalLink>
           )}
         </div>
 

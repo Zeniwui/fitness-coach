@@ -329,3 +329,145 @@ async def test_bootstrap_curator_refuses_open_bootstrap_when_unconfigured(
                 display_name="Intruso",
             )
         )
+
+
+@pytest.mark.asyncio
+async def test_curator_revokes_pending_invitation_and_rejects_accepted_or_missing(
+    client: AsyncClient,
+    seed_accounts,
+    fake_identity_verifier: FakeIdentityVerifier,
+) -> None:
+    import uuid
+
+    _, curator_token = seed_accounts["curator"]
+    _, athlete_a_token = seed_accounts["athlete_a"]
+
+    # Create a pending invitation
+    create_resp = await client.post(
+        "/api/v1/curator/invitations",
+        headers=_auth_headers(curator_token),
+        json={"email": "revocar@fitness.test", "roles": ["athlete"]},
+    )
+    assert create_resp.status_code == 201
+    created = create_resp.json()
+    invitation_id = created["id"]
+    invite_token = created["invitation_token"]
+
+    # Non-curator Athlete cannot revoke -> 403
+    forbidden_resp = await client.delete(
+        f"/api/v1/curator/invitations/{invitation_id}",
+        headers=_auth_headers(athlete_a_token),
+    )
+    assert forbidden_resp.status_code == 403
+
+    # Curator revokes pending invitation -> 204
+    revoke_resp = await client.delete(
+        f"/api/v1/curator/invitations/{invitation_id}",
+        headers=_auth_headers(curator_token),
+    )
+    assert revoke_resp.status_code == 204
+
+    # Subsequent redeem of revoked invitation fails -> 400
+    invited_token = fake_identity_verifier.register_token(
+        "tok-revocar",
+        auth_subject="sub-revocar",
+        email="revocar@fitness.test",
+    )
+    redeem_resp = await client.post(
+        "/api/v1/auth/invitations/redeem",
+        headers=_auth_headers(invited_token),
+        json={"token": invite_token, "display_name": "Revocado"},
+    )
+    assert redeem_resp.status_code == 400
+
+    # Revoking non-existent invitation -> 404
+    missing_resp = await client.delete(
+        f"/api/v1/curator/invitations/{uuid.uuid4()}",
+        headers=_auth_headers(curator_token),
+    )
+    assert missing_resp.status_code == 404
+
+    # Create and accept an invitation, then revoking it -> 409
+    accept_create = await client.post(
+        "/api/v1/curator/invitations",
+        headers=_auth_headers(curator_token),
+        json={"email": "aceptada@fitness.test", "roles": ["athlete"]},
+    )
+    assert accept_create.status_code == 201
+    accepted_inv = accept_create.json()
+    accepted_user_token = fake_identity_verifier.register_token(
+        "tok-aceptada",
+        auth_subject="sub-aceptada",
+        email="aceptada@fitness.test",
+    )
+    accept_redeem = await client.post(
+        "/api/v1/auth/invitations/redeem",
+        headers=_auth_headers(accepted_user_token),
+        json={"token": accepted_inv["invitation_token"], "display_name": "Aceptada"},
+    )
+    assert accept_redeem.status_code == 201
+
+    conflict_resp = await client.delete(
+        f"/api/v1/curator/invitations/{accepted_inv['id']}",
+        headers=_auth_headers(curator_token),
+    )
+    assert conflict_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_reinviting_same_email_invalidates_previous_pending_invitations(
+    client: AsyncClient,
+    seed_accounts,
+    fake_identity_verifier: FakeIdentityVerifier,
+) -> None:
+    _, curator_token = seed_accounts["curator"]
+
+    first_resp = await client.post(
+        "/api/v1/curator/invitations",
+        headers=_auth_headers(curator_token),
+        json={"email": "reinvitar@fitness.test", "roles": ["athlete"]},
+    )
+    assert first_resp.status_code == 201
+    first_inv = first_resp.json()
+
+    second_resp = await client.post(
+        "/api/v1/curator/invitations",
+        headers=_auth_headers(curator_token),
+        json={"email": "ReInvitar@fitness.test", "roles": ["athlete", "curator"]},
+    )
+    assert second_resp.status_code == 201
+    second_inv = second_resp.json()
+    assert second_inv["id"] != first_inv["id"]
+
+    # List should only contain the latest pending invitation for that email
+    list_resp = await client.get(
+        "/api/v1/curator/invitations",
+        headers=_auth_headers(curator_token),
+    )
+    assert list_resp.status_code == 200
+    matching = [
+        item for item in list_resp.json()["items"] if item["email"] == "reinvitar@fitness.test"
+    ]
+    assert len(matching) == 1
+    assert matching[0]["id"] == second_inv["id"]
+
+    # Old token can no longer be redeemed
+    invited_token = fake_identity_verifier.register_token(
+        "tok-reinvitar",
+        auth_subject="sub-reinvitar",
+        email="reinvitar@fitness.test",
+    )
+    old_redeem = await client.post(
+        "/api/v1/auth/invitations/redeem",
+        headers=_auth_headers(invited_token),
+        json={"token": first_inv["invitation_token"], "display_name": "Reinvitado"},
+    )
+    assert old_redeem.status_code == 400
+
+    # New token succeeds
+    new_redeem = await client.post(
+        "/api/v1/auth/invitations/redeem",
+        headers=_auth_headers(invited_token),
+        json={"token": second_inv["invitation_token"], "display_name": "Reinvitado"},
+    )
+    assert new_redeem.status_code == 201

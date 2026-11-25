@@ -58,6 +58,10 @@ class CoachRepositoryPort(Protocol):
         self, *, athlete_id: UUID, conversation_id: UUID, limit: int = 100
     ) -> list[ChatMessage]: ...
 
+    async def get_message_by_id(
+        self, *, athlete_id: UUID, message_id: UUID
+    ) -> ChatMessage | None: ...
+
     async def create_proposal(
         self,
         *,

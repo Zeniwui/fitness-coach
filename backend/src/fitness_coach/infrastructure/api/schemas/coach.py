@@ -133,16 +133,12 @@ class ChatMessageResponse(BaseModel):
 class SendMessageRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=6000)
     enable_live_search: bool = False
-    attachment_ids: list[UUID] = Field(default_factory=list)
+    attachment_ids: list[UUID] = Field(default_factory=list, max_length=4)
 
 
 class PromoteLiveSearchRequest(BaseModel):
-    title: str = Field(..., min_length=1, max_length=500)
-    url: str = Field(..., min_length=1, max_length=1000)
-    snippet: str = Field(default="", max_length=4000)
-    doi: str | None = None
-    pmid: str | None = None
-    published_year: int | None = None
+    message_id: UUID
+    result_url: str = Field(..., min_length=1, max_length=1000)
 
 
 class PromoteLiveSearchResponse(BaseModel):

@@ -25,6 +25,7 @@ from fitness_coach.application.use_cases.knowledge import (
 )
 from fitness_coach.domain.identity import AuthContext
 from fitness_coach.domain.knowledge import (
+    MAX_PDF_SIZE_BYTES,
     CandidateNotFoundError,
     CandidateStatus,
     DuplicateActiveStudyError,
@@ -53,6 +54,7 @@ from fitness_coach.infrastructure.api.schemas.knowledge import (
     RejectCandidateRequest,
     UpdateEvidenceCardRequest,
 )
+from fitness_coach.infrastructure.api.uploads import read_upload_bounded
 from fitness_coach.infrastructure.db.repositories.knowledge import SqlAlchemyKnowledgeRepository
 
 router = APIRouter(prefix="/api/v1/curator", tags=["curation"])
@@ -67,6 +69,15 @@ def _rejected_conflict_detail(exc: DuplicateRejectedStudyError) -> dict[str, obj
         "prior_title": prior.title,
         "prior_rejection_reason": prior.rejection_reason,
     }
+
+
+async def _read_pdf_upload(file: UploadFile) -> bytes:
+    return await read_upload_bounded(
+        file,
+        max_bytes=MAX_PDF_SIZE_BYTES,
+        too_large_detail="El archivo PDF supera el tamaño máximo permitido de 15 MB.",
+        status_code=status.HTTP_400_BAD_REQUEST,
+    )
 
 
 @router.get("/candidates", response_model=CandidateStudyListResponse)
@@ -152,7 +163,7 @@ async def propose_candidate_from_pdf(
     doi: Annotated[str | None, Form()] = None,
     allow_reopen: Annotated[bool, Form()] = False,
 ) -> CandidateStudyResponse:
-    pdf_bytes = await file.read()
+    pdf_bytes = await _read_pdf_upload(file)
     repo = SqlAlchemyKnowledgeRepository(session)
     use_case = ProposeCandidateFromPdfUseCase(
         repo=repo,
@@ -193,7 +204,7 @@ async def upload_candidate_pdf(
     ai_provider: Annotated[AIProviderPort, Depends(get_ai_provider)],
     file: Annotated[UploadFile, File(...)],
 ) -> CandidateStudyResponse:
-    pdf_bytes = await file.read()
+    pdf_bytes = await _read_pdf_upload(file)
     repo = SqlAlchemyKnowledgeRepository(session)
     use_case = UploadCandidatePdfUseCase(
         repo=repo,
@@ -316,6 +327,11 @@ async def update_evidence_card(
     except EvidenceCardNotFoundError as exc:
         await session.rollback()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except KnowledgeValidationError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
     return EvidenceCardDetailResponse.from_detail(detail)
 
 
