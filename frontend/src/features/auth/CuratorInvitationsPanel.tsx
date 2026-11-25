@@ -9,6 +9,7 @@ import type { components } from "../../api/generated/schema";
 import { AlertBanner } from "../../ui/AlertBanner";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
+import { ConfirmActionButton } from "../../ui/ConfirmActionButton";
 import { Input } from "../../ui/Field";
 import { Surface } from "../../ui/Surface";
 import { INVITATION_STATUS_LABELS } from "../science/labels";
@@ -23,6 +24,7 @@ export function CuratorInvitationsPanel() {
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const directInviteLink = generatedToken
@@ -66,7 +68,17 @@ export function CuratorInvitationsPanel() {
         setCopied(false);
         setEmail("");
         setGrantCurator(false);
-        setInvitations((prev) => [data, ...prev]);
+        const normalizedEmail = data.email.trim().toLowerCase();
+        setInvitations((prev) => [
+          data,
+          ...prev.filter(
+            (inv) =>
+              !(
+                inv.status === "pending" &&
+                inv.email.trim().toLowerCase() === normalizedEmail
+              ),
+          ),
+        ]);
       } else {
         setError(extractApiErrorDetail(apiError, "No se pudo generar la invitación."));
       }
@@ -76,6 +88,28 @@ export function CuratorInvitationsPanel() {
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleRevokeInvitation(invitationId: string) {
+    setRevokingId(invitationId);
+    setError(null);
+    try {
+      const { response, error: apiError } = await apiClient.DELETE(
+        "/api/v1/curator/invitations/{invitation_id}",
+        { params: { path: { invitation_id: invitationId } } },
+      );
+      if (response.ok) {
+        setInvitations((prev) => prev.filter((inv) => inv.id !== invitationId));
+      } else {
+        setError(extractApiErrorDetail(apiError, "No se pudo revocar la invitación."));
+      }
+    } catch (err) {
+      if (!(err instanceof DuplicateSubmissionError)) {
+        setError("Error de conexión al revocar la invitación.");
+      }
+    } finally {
+      setRevokingId(null);
     }
   }
 
@@ -181,11 +215,21 @@ export function CuratorInvitationsPanel() {
       ) : invitations.length > 0 ? (
         <ul className="divide-y divide-line border-t border-line pt-2 text-xs">
           {invitations.map((inv) => (
-            <li key={inv.id} className="flex items-center justify-between gap-2 py-2.5">
+            <li key={inv.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
               <span className="min-w-0 break-all font-medium text-ink">{inv.email}</span>
-              <Badge tone={inv.status === "pending" ? "accent" : "neutral"} className="shrink-0">
-                {INVITATION_STATUS_LABELS[inv.status] ?? inv.status}
-              </Badge>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge tone={inv.status === "pending" ? "accent" : "neutral"} className="shrink-0">
+                  {INVITATION_STATUS_LABELS[inv.status] ?? inv.status}
+                </Badge>
+                {inv.status === "pending" && (
+                  <ConfirmActionButton
+                    label="Revocar"
+                    ariaLabel={`Revocar invitación de ${inv.email}`}
+                    disabled={revokingId === inv.id}
+                    onConfirm={() => handleRevokeInvitation(inv.id)}
+                  />
+                )}
+              </div>
             </li>
           ))}
         </ul>

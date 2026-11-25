@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { apiClient, extractApiErrorDetail } from "../../api/client";
+import { apiClient, extractApiErrorDetail, resetApiClientState } from "../../api/client";
 import type { components } from "../../api/generated/schema";
 import {
   getMissingSupabaseEnvVars,
@@ -87,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPendingEmail(null);
       setStatus(nextStatus);
       wasAuthenticatedRef.current = false;
+      resetApiClientState();
       if (nextError !== undefined) {
         setError(nextError);
       }

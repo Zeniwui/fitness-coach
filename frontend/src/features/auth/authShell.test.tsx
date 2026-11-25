@@ -5,7 +5,7 @@ import { delay, http, HttpResponse } from "msw";
 import { App } from "../../app/App";
 import { server } from "../../test/msw/server";
 import { DUAL_ROLE_USER } from "../../test/msw/handlers/identity";
-import { configureApiClient } from "../../api/client";
+import { configureApiClient, getConnectionState } from "../../api/client";
 import { configureSupabaseAuth } from "./supabaseClient";
 import {
   buildSupabaseSessionPayload,
@@ -468,5 +468,97 @@ describe("Auth, Supabase Email/Password, Roles, PWA Shell & Cold-Start (#11)", (
       /no está autorizado para el arranque inicial de curador/i,
     );
     expect(screen.queryByRole("navigation", { name: /navegación principal/i })).not.toBeInTheDocument();
+  });
+
+  it("allows Curator to revoke a pending invitation with confirmation and replaces prior pending invite on re-invite", async () => {
+    seedSupabaseSession("tok-dual");
+    let deletedId: string | null = null;
+    server.use(
+      http.get("*/api/v1/curator/invitations", () => {
+        return HttpResponse.json({
+          items: [
+            {
+              id: "11111111-aaaa-1111-1111-111111111111",
+              email: "pendiente@fitness.test",
+              roles: ["athlete"],
+              status: "pending",
+              expires_at: "2026-12-01T00:00:00Z",
+              accepted_at: null,
+              created_at: "2026-11-21T17:00:00Z",
+            },
+            {
+              id: "22222222-bbbb-2222-2222-222222222222",
+              email: "aceptada@fitness.test",
+              roles: ["athlete"],
+              status: "accepted",
+              expires_at: "2026-12-01T00:00:00Z",
+              accepted_at: "2026-11-22T10:00:00Z",
+              created_at: "2026-11-21T16:00:00Z",
+            },
+          ],
+        });
+      }),
+      http.delete("*/api/v1/curator/invitations/:invitationId", ({ params }) => {
+        deletedId = String(params.invitationId);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<App initialEntries={["/invitaciones"]} />);
+
+    expect(await screen.findByText("pendiente@fitness.test")).toBeInTheDocument();
+    expect(screen.getByText("aceptada@fitness.test")).toBeInTheDocument();
+
+    // Only pending invitations have a Revocar button
+    const revokeButtons = screen.getAllByRole("button", { name: /revocar/i });
+    expect(revokeButtons).toHaveLength(1);
+
+    await user.click(revokeButtons[0]);
+    await user.click(screen.getByRole("button", { name: /confirmar/i }));
+
+    await waitFor(() => {
+      expect(deletedId).toBe("11111111-aaaa-1111-1111-111111111111");
+      expect(screen.queryByText("pendiente@fitness.test")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("aceptada@fitness.test")).toBeInTheDocument();
+
+    // Re-inviting an email with a pending invitation replaces the old pending entry locally
+    await user.type(screen.getByLabelText(/correo del atleta/i), "otra@fitness.test");
+    await user.click(screen.getByRole("button", { name: /generar invitación/i }));
+    expect(await screen.findByText("otra@fitness.test")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/correo del atleta/i), "OTRA@fitness.test");
+    await user.click(screen.getByRole("button", { name: /generar invitación/i }));
+    await waitFor(() => {
+      expect(screen.getAllByText(/otra@fitness\.test/i)).toHaveLength(1);
+    });
+  });
+
+  it("resets apiClient connection state when signing out", async () => {
+    configureApiClient({ coldStartThresholdMs: 30, retryDelayMs: 10, maxGetRetries: 0 });
+    seedSupabaseSession("tok-athlete");
+
+    const user = userEvent.setup();
+    render(<App initialEntries={["/coach"]} />);
+
+    expect(await screen.findByRole("navigation", { name: /navegación principal/i })).toBeInTheDocument();
+
+    // Trigger a network_error in apiClient after login
+    server.use(
+      http.get("*/api/v1/training/mesocycles", () => {
+        return HttpResponse.error();
+      }),
+    );
+    await user.click(screen.getByRole("link", { name: /entrenamiento/i }));
+
+    await waitFor(() => {
+      expect(getConnectionState().status).toBe("network_error");
+    });
+
+    // Logout must reset apiClient connection state back to idle
+    await user.click(screen.getByRole("button", { name: /salir/i }));
+    expect(await screen.findByLabelText(/correo electrónico/i)).toBeInTheDocument();
+    expect(getConnectionState()).toEqual({ status: "idle", message: null });
   });
 });

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fitness_coach.domain.identity import Athlete, Invitation, Role
@@ -101,6 +101,11 @@ class SqlAlchemyIdentityRepository:
         await self._session.refresh(model)
         return _to_invitation(model)
 
+    async def get_invitation_by_id(self, invitation_id: UUID) -> Invitation | None:
+        stmt = select(InvitationModel).where(InvitationModel.id == invitation_id)
+        model = (await self._session.execute(stmt)).scalar_one_or_none()
+        return _to_invitation(model) if model else None
+
     async def get_invitation_by_token_hash(self, token_hash: str) -> Invitation | None:
         stmt = select(InvitationModel).where(InvitationModel.token_hash == token_hash)
         model = (await self._session.execute(stmt)).scalar_one_or_none()
@@ -110,6 +115,22 @@ class SqlAlchemyIdentityRepository:
         stmt = select(InvitationModel).order_by(InvitationModel.created_at.desc())
         rows = (await self._session.execute(stmt)).scalars().all()
         return [_to_invitation(row) for row in rows]
+
+    async def delete_invitation(self, invitation_id: UUID) -> bool:
+        stmt = delete(InvitationModel).where(InvitationModel.id == invitation_id)
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return (result.rowcount or 0) > 0
+
+    async def delete_pending_invitations_for_email(self, email: str) -> int:
+        normalized_email = email.strip().lower()
+        stmt = delete(InvitationModel).where(
+            func.lower(InvitationModel.email) == normalized_email,
+            InvitationModel.accepted_at.is_(None),
+        )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return int(result.rowcount or 0)
 
     async def mark_invitation_accepted(
         self,
