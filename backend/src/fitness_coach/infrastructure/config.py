@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     ]
 
     # Auth (Supabase Auth JWT verification; public signup disabled)
-    supabase_jwt_secret: str = DEFAULT_INSECURE_JWT_SECRET
+    supabase_jwt_secret: str | None = None
     supabase_jwt_audience: str = "authenticated"
     invitation_ttl_hours: int = 72
 
@@ -58,14 +58,25 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _validate_security_invariants(self) -> Settings:
         env = self.environment.strip().lower()
-        if env not in ("development", "test"):
-            if (
-                not self.supabase_jwt_secret
-                or self.supabase_jwt_secret == DEFAULT_INSECURE_JWT_SECRET
-            ):
+        secret = self.supabase_jwt_secret
+        if secret is not None:
+            stripped_secret = secret.strip()
+            if not stripped_secret or stripped_secret == DEFAULT_INSECURE_JWT_SECRET:
                 raise ValueError(
-                    "supabase_jwt_secret must be explicitly configured outside "
-                    "development/test environments."
+                    "supabase_jwt_secret must not be empty or use the insecure default literal."
+                )
+        if env != "test":
+            has_supabase_url = bool(self.supabase_url and self.supabase_url.strip())
+            stripped_secret = secret.strip() if secret is not None else ""
+            if secret is not None and len(stripped_secret) < 16:
+                raise ValueError(
+                    "supabase_jwt_secret must be at least 16 characters outside test environments."
+                )
+            has_valid_secret = len(stripped_secret) >= 16
+            if not has_supabase_url and not has_valid_secret:
+                raise ValueError(
+                    "Configure supabase_url (JWKS) or an explicit supabase_jwt_secret "
+                    "(>= 16 chars) outside test environments."
                 )
         return self
 

@@ -15,11 +15,33 @@ Esta guía explica cómo desplegar **Fitness Coach** manteniendo el coste en **$
    - **Project API key (`anon` / `public` / `publishable`)** → `VITE_SUPABASE_ANON_KEY`.
 
 > **Nota de seguridad sobre `VITE_SUPABASE_ANON_KEY`:**
-> Esta clave está diseñada por Supabase para ser pública en el navegador. Es segura en el bundle de la PWA siempre que el registro público esté deshabilitado en Supabase Auth y toda la lógica de autorización y aislamiento por Atleta se aplique en el backend FastAPI y en las políticas privadas de Storage. **Nunca** coloques `SUPABASE_SERVICE_ROLE_KEY` en el frontend.
+> Esta clave está diseñada por Supabase para ser pública en el navegador. Es segura en el bundle de la PWA siempre que el registro público esté deshabilitado en Supabase Auth, **Row-Level Security (RLS)** esté activado en todas las tablas de `public` y toda la lógica de autorización y aislamiento por Atleta se aplique en el backend FastAPI y en las políticas privadas de Storage. **Nunca** coloques `SUPABASE_SERVICE_ROLE_KEY` en el frontend.
+
+### Verificación obligatoria de RLS y Data API en Supabase
+
+Antes de abrir el despliegue en producción:
+
+1. Ejecuta las migraciones de Alembic (`alembic upgrade head`): la migración `0009_enable_rls_security_hardening` activa **Row-Level Security** en todas las tablas del esquema `public` (incluida `alembic_version`) y revoca los permisos directos de los roles `anon` y `authenticated`.
+2. En el panel de Supabase, ve a **Table Editor** (o **Database → Tables**) y comprueba que **todas** las tablas del esquema `public` muestran el indicador **RLS enabled** (sin tablas sin proteger).
+3. En **Project Settings → Data API** (opcionalmente), verifica que la Data API no expone registros a `anon` ni `authenticated` (al estar RLS activo sin políticas permisivas y los privilegios revocados, cualquier consulta directa PostgREST devuelve vacío o error de permiso).
 
 ---
 
-## 2. Variables de entorno del frontend (PWA)
+## 2. Variables de entorno del backend (Render / producción)
+
+El backend FastAPI valida al arrancar que la autenticación JWT esté configurada de forma segura fuera de entornos de prueba (`ENVIRONMENT=test`):
+
+| Variable | Obligatoria | Descripción |
+| :--- | :--- | :--- |
+| `ENVIRONMENT` | Sí | Establece `production` en Render (rechaza secretos por defecto o vacíos). |
+| `DATABASE_URL` | Sí | Cadena PostgreSQL async (`postgresql+asyncpg://...`) hacia Supabase. |
+| `SUPABASE_URL` | Sí (recomendado) | URL del proyecto (`https://<ref>.supabase.co`). Activa la verificación asimétrica **JWKS** (`ES256`/`RS256`) y valida estrictamente el emisor (`iss`). Cuando está configurada, el backend rechaza tokens `HS256` legados. |
+| `SUPABASE_JWT_SECRET` | Solo legado | Secreto `HS256` explícito (mínimo 16 caracteres, distinto del literal de desarrollo). Solo debe usarse si aún no usas JWKS (`SUPABASE_URL` sin configurar). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Sí (producción) | Clave privada para los buckets aislados de Storage (`athlete-private` y `curator-pdfs`). **Solo backend.** |
+
+---
+
+## 3. Variables de entorno del frontend (PWA)
 
 La PWA necesita estas variables públicas en tiempo de compilación:
 
@@ -55,7 +77,7 @@ VITE_API_BASE_URL=http://localhost:8000
 
 ---
 
-## 3. Arranque inicial del primer Curador (sin `curl`)
+## 4. Arranque inicial del primer Curador (sin `curl`)
 
 Cuando despliegues Fitness Coach por primera vez con la base vacía:
 
@@ -68,7 +90,7 @@ Cuando despliegues Fitness Coach por primera vez con la base vacía:
 
 ---
 
-## 4. Dar de alta a un nuevo Atleta (correo, contraseña y enlace directo)
+## 5. Dar de alta a un nuevo Atleta (correo, contraseña y enlace directo)
 
 El alta de nuevos Atletas es siempre controlada por un Curador:
 

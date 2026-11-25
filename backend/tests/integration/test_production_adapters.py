@@ -34,6 +34,7 @@ async def test_ai_provider_decouples_embedding_api_key_from_chat_provider() -> N
 
     # Chat = Anthropic, Embeddings = Google AI Studio (Gemini)
     settings_gem = Settings(
+        environment="test",
         ai_provider="anthropic",
         anthropic_api_key="ant-secret-key",
         embedding_provider="google_ai_studio",
@@ -49,6 +50,7 @@ async def test_ai_provider_decouples_embedding_api_key_from_chat_provider() -> N
 
     # Chat = Anthropic, Embeddings = OpenAI
     settings_oai = Settings(
+        environment="test",
         ai_provider="anthropic",
         anthropic_api_key="ant-secret-key",
         embedding_provider="openai",
@@ -85,6 +87,7 @@ async def test_anthropic_generate_supports_json_schema_and_structured_data() -> 
 
     transport = httpx.MockTransport(handler)
     settings = Settings(
+        environment="test",
         ai_provider="anthropic",
         ai_fast_model="claude-3-5-haiku-latest",
         ai_reasoning_model="claude-3-7-sonnet-latest",
@@ -317,7 +320,7 @@ async def test_create_app_wires_production_adapters_by_default() -> None:
     from fitness_coach.infrastructure.storage.local_storage import InMemoryBinaryStorage
     from fitness_coach.infrastructure.storage.supabase_storage import SupabaseBinaryStorageAdapter
 
-    dev_app = create_app(settings=Settings(environment="development"))
+    dev_app = create_app(settings=Settings(environment="test", _env_file=None))
     assert isinstance(dev_app.state.scientific_sources, HttpScientificSourcesAdapter)
     assert isinstance(dev_app.state.binary_storage, InMemoryBinaryStorage)
 
@@ -334,7 +337,7 @@ async def test_create_app_wires_production_adapters_by_default() -> None:
 
 
 def test_settings_default_google_models_are_current() -> None:
-    settings = Settings(_env_file=None)
+    settings = Settings(environment="test", _env_file=None)
     assert settings.ai_provider == "google_ai_studio"
     assert settings.ai_fast_model == "gemini-3.6-flash"
     assert settings.ai_reasoning_model == "gemini-4-hydrogen"
@@ -357,6 +360,7 @@ async def test_google_ai_studio_error_redacts_api_key_and_surfaces_detail() -> N
 
     transport = httpx.MockTransport(handler)
     settings = Settings(
+        environment="test",
         _env_file=None,
         ai_provider="google_ai_studio",
         ai_reasoning_model="gemini-3.1-pro",
