@@ -987,3 +987,54 @@ async def test_curator_pdf_uploads_use_canonical_keys_ignoring_traversal_filenam
     assert "evil" not in updated_cand["pdf_storage_path"]
     assert ".." not in updated_cand["pdf_storage_path"]
     assert updated_cand["pdf_storage_path"] in fake_binary_storage.curator_pdfs
+
+
+@pytest.mark.asyncio
+async def test_curator_rejects_pdf_exceeding_max_pages_and_max_size_on_from_pdf(
+    client: AsyncClient,
+    seed_accounts,
+) -> None:
+    import pymupdf
+
+    from fitness_coach.domain.knowledge import MAX_PDF_PAGES, MAX_PDF_SIZE_BYTES
+    from fitness_coach.infrastructure.scientific.pdf_extractor import extract_pdf_text
+
+    _, curator_token = seed_accounts["curator"]
+
+    # 1. PDF with > MAX_PDF_PAGES pages -> 400
+    doc = pymupdf.open()
+    for i in range(MAX_PDF_PAGES + 1):
+        page = doc.new_page()
+        if i == 0:
+            page.insert_textbox(pymupdf.Rect(50, 50, 540, 750), "Study page 1 text content.")
+    too_many_pages_pdf = doc.tobytes()
+    doc.close()
+
+    pages_resp = await client.post(
+        "/api/v1/curator/candidates/from-pdf",
+        headers=_auth_headers(curator_token),
+        files={"file": ("many_pages.pdf", too_many_pages_pdf, "application/pdf")},
+    )
+    assert pages_resp.status_code == 400
+    assert str(MAX_PDF_PAGES) in pages_resp.json()["detail"]
+
+    # 2. PDF > 15 MB on /from-pdf -> 400 with "tamaño" in detail
+    oversized_pdf = b"%PDF-1.4\n" + (b"0" * (MAX_PDF_SIZE_BYTES + 1024))
+    size_resp = await client.post(
+        "/api/v1/curator/candidates/from-pdf",
+        headers=_auth_headers(curator_token),
+        files={"file": ("huge.pdf", oversized_pdf, "application/pdf")},
+    )
+    assert size_resp.status_code == 400
+    assert "tamaño" in size_resp.json()["detail"].lower()
+
+    # 3. Character cap stops extraction at max_chars
+    long_doc = pymupdf.open()
+    for _ in range(3):
+        p = long_doc.new_page()
+        p.insert_textbox(pymupdf.Rect(50, 50, 540, 750), "A" * 200)
+    long_pdf = long_doc.tobytes()
+    long_doc.close()
+
+    capped = extract_pdf_text(long_pdf, max_chars=250)
+    assert len(capped) <= 250

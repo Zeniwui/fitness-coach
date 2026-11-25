@@ -4,10 +4,21 @@ from __future__ import annotations
 
 import pymupdf
 
-from fitness_coach.domain.knowledge import MAX_PDF_SIZE_BYTES, InvalidPdfError
+from fitness_coach.domain.knowledge import (
+    MAX_PDF_EXTRACTED_CHARS,
+    MAX_PDF_PAGES,
+    MAX_PDF_SIZE_BYTES,
+    InvalidPdfError,
+)
 
 
-def extract_pdf_text(pdf_bytes: bytes, *, max_size_bytes: int = MAX_PDF_SIZE_BYTES) -> str:
+def extract_pdf_text(
+    pdf_bytes: bytes,
+    *,
+    max_size_bytes: int = MAX_PDF_SIZE_BYTES,
+    max_pages: int = MAX_PDF_PAGES,
+    max_chars: int = MAX_PDF_EXTRACTED_CHARS,
+) -> str:
     """Extract text from a PDF document using PyMuPDF.
 
     Raises InvalidPdfError with a clear Spanish message if the file is empty,
@@ -31,7 +42,28 @@ def extract_pdf_text(pdf_bytes: bytes, *, max_size_bytes: int = MAX_PDF_SIZE_BYT
     try:
         if doc.page_count == 0:
             raise InvalidPdfError("El archivo PDF no contiene páginas.")
-        pages_text = [page.get_text("text").strip() for page in doc]
+        if doc.page_count > max_pages:
+            raise InvalidPdfError(
+                f"El archivo PDF supera el límite máximo permitido de {max_pages} páginas."
+            )
+        pages_text: list[str] = []
+        total_chars = 0
+        for page in doc:
+            page_text = page.get_text("text").strip()
+            if not page_text:
+                continue
+            separator_len = 2 if pages_text else 0
+            remaining = max_chars - total_chars - separator_len
+            if remaining <= 0:
+                break
+            if len(page_text) > remaining:
+                pages_text.append(page_text[:remaining])
+                total_chars += separator_len + remaining
+                break
+            pages_text.append(page_text)
+            total_chars += separator_len + len(page_text)
+            if total_chars >= max_chars:
+                break
     except InvalidPdfError:
         raise
     except Exception as exc:  # noqa: BLE001

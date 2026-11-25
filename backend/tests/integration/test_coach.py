@@ -983,3 +983,38 @@ class TestConversationManagementAndIsolation:
         matching = [p for p in proposals.json() if p["id"] == proposal_id]
         assert len(matching) == 1
         assert matching[0]["message_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_coach_sse_error_event_sanitizes_internal_exception_details(
+    client: AsyncClient,
+    seed_accounts,
+    fake_ai: FakeAIProvider,
+) -> None:
+    _, tok_a = seed_accounts["athlete_a"]
+    conv_resp = await client.post(
+        "/api/v1/coach/conversations",
+        headers=_auth_headers(tok_a),
+        json={"title": "Prueba error interno"},
+    )
+    assert conv_resp.status_code == 201
+    conv_id = conv_resp.json()["id"]
+
+    fake_ai.simulate_error = RuntimeError("internal-secret-dsn=postgres://user:pass@db/prod")
+    stream_resp = await client.post(
+        f"/api/v1/coach/conversations/{conv_id}/messages",
+        headers=_auth_headers(tok_a),
+        json={"content": "¿Cómo entreno hoy?"},
+    )
+    assert stream_resp.status_code == 200
+    events = _parse_sse(stream_resp.text)
+    error_events = [payload for name, payload in events if name == "error"]
+    assert len(error_events) == 1
+    detail = error_events[0]["detail"]
+    assert "internal-secret-dsn" not in detail
+    assert "postgres://" not in detail
+    assert detail == (
+        "Se produjo un error interno al generar la respuesta del Coach. "
+        "Inténtalo de nuevo en unos instantes."
+    )
+

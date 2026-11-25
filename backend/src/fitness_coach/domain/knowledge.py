@@ -19,6 +19,8 @@ from uuid import UUID
 
 PAYWALL_WARNING_LABEL = "Evaluado solo con abstract (texto completo de pago)"
 MAX_PDF_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB
+MAX_PDF_PAGES = 150
+MAX_PDF_EXTRACTED_CHARS = 250_000
 
 
 class CandidateOrigin(StrEnum):

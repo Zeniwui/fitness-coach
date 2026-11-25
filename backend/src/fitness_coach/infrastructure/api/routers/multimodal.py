@@ -18,6 +18,8 @@ from fitness_coach.application.use_cases.multimodal import (
 )
 from fitness_coach.domain.identity import AuthContext
 from fitness_coach.domain.multimodal import (
+    MAX_AUDIO_SIZE_BYTES,
+    MAX_IMAGE_SIZE_BYTES,
     AttachmentNotFoundError,
     ImageAnalysisCategory,
     MultimodalValidationError,
@@ -34,6 +36,7 @@ from fitness_coach.infrastructure.api.schemas.multimodal import (
     TrainingSessionDraftResponse,
     TranscribeAudioResponse,
 )
+from fitness_coach.infrastructure.api.uploads import read_upload_bounded
 from fitness_coach.infrastructure.db.repositories.multimodal import SqlAlchemyMultimodalRepository
 
 router = APIRouter(tags=["multimodal"])
@@ -51,8 +54,20 @@ async def upload_attachment(
     file: Annotated[UploadFile, File(...)],
     category: Annotated[ImageAnalysisCategory | None, Form()] = None,
 ) -> AttachmentResponse:
-    raw_bytes = await file.read()
     mime_type = file.content_type or "application/octet-stream"
+    is_image = mime_type.lower().startswith("image/")
+    max_bytes = MAX_IMAGE_SIZE_BYTES if is_image else MAX_AUDIO_SIZE_BYTES
+    too_large_detail = (
+        "La imagen supera el tamaño máximo permitido de 10 MB."
+        if is_image
+        else "El archivo de audio supera el tamaño máximo permitido de 15 MB."
+    )
+    raw_bytes = await read_upload_bounded(
+        file,
+        max_bytes=max_bytes,
+        too_large_detail=too_large_detail,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+    )
     use_case = UploadAttachmentUseCase(
         repo=SqlAlchemyMultimodalRepository(session),
         binary_storage=binary_storage,
@@ -83,8 +98,13 @@ async def transcribe_audio(
     ai_provider: Annotated[AIProviderPort, Depends(get_ai_provider)],
     file: Annotated[UploadFile, File(...)],
 ) -> TranscribeAudioResponse:
-    raw_bytes = await file.read()
     mime_type = file.content_type or "application/octet-stream"
+    raw_bytes = await read_upload_bounded(
+        file,
+        max_bytes=MAX_AUDIO_SIZE_BYTES,
+        too_large_detail="El archivo de audio supera el tamaño máximo permitido de 15 MB.",
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+    )
     use_case = TranscribeAudioUseCase(ai_provider=ai_provider)
     try:
         transcript = await use_case.execute(
