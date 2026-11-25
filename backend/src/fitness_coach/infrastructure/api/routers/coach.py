@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
@@ -61,6 +62,7 @@ from fitness_coach.infrastructure.db.repositories.profile import SqlAlchemyProfi
 from fitness_coach.infrastructure.db.repositories.training import SqlAlchemyTrainingRepository
 
 router = APIRouter(tags=["coach"])
+logger = logging.getLogger(__name__)
 
 
 def _format_sse(event: str, payload: dict) -> str:
@@ -243,9 +245,21 @@ async def send_message_stream(
             ):
                 yield _format_sse(event.event, event.data)
             await session.commit()
-        except Exception as exc:  # pragma: no cover - defensive SSE error boundary
+        except Exception:  # pragma: no cover - defensive SSE error boundary
             await session.rollback()
-            yield _format_sse("error", {"detail": str(exc)})
+            logger.exception(
+                "Error inesperado en stream SSE del Coach (conversation_id=%s)",
+                conversation_id,
+            )
+            yield _format_sse(
+                "error",
+                {
+                    "detail": (
+                        "Se produjo un error interno al generar la respuesta del Coach. "
+                        "Inténtalo de nuevo en unos instantes."
+                    )
+                },
+            )
 
     return StreamingResponse(
         event_generator(),

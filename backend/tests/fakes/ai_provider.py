@@ -66,8 +66,11 @@ class FakeAIProvider:
         self.transcribe_calls: list[str] = []
         self.canned_responses: list[LLMResponse] = []
         self.canned_transcript: str = "Press inclinado mancuernas 3x8 con 32 kg a RIR 1"
+        self.simulate_error: Exception | None = None
 
     def _check_rate_limit(self) -> None:
+        if self.simulate_error is not None:
+            raise self.simulate_error
         if (
             self.simulate_rate_limit_after is not None
             and len(self.generate_calls) >= self.simulate_rate_limit_after

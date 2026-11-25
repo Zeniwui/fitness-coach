@@ -133,7 +133,7 @@ class ChatMessageResponse(BaseModel):
 class SendMessageRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=6000)
     enable_live_search: bool = False
-    attachment_ids: list[UUID] = Field(default_factory=list)
+    attachment_ids: list[UUID] = Field(default_factory=list, max_length=4)
 
 
 class PromoteLiveSearchRequest(BaseModel):

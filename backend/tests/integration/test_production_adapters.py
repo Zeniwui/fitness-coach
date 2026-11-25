@@ -45,7 +45,9 @@ async def test_ai_provider_decouples_embedding_api_key_from_chat_provider() -> N
     embs_gem = await provider_gem.embed_texts(["hipertrofia"])
     assert len(embs_gem) == 1
     assert embs_gem[0].vector == [0.1, 0.2, 0.3]
-    assert "key=gem-secret-key" in str(captured_requests[-1].url)
+    assert captured_requests[-1].headers.get("x-goog-api-key") == "gem-secret-key"
+    assert "key=" not in str(captured_requests[-1].url)
+    assert "gem-secret-key" not in str(captured_requests[-1].url)
     assert "ant-secret-key" not in str(captured_requests[-1].url)
 
     # Chat = Anthropic, Embeddings = OpenAI
@@ -384,5 +386,82 @@ async def test_google_ai_studio_error_redacts_api_key_and_surfaces_detail() -> N
         await provider.embed_texts(["Hola"])
     assert "super-secret-google-key" not in str(emb_exc.value)
     assert "404" in str(emb_exc.value)
+
+
+@pytest.mark.asyncio
+async def test_google_ai_studio_uses_header_not_query_param_and_redacts_network_errors() -> None:
+    captured_requests: list[httpx.Request] = []
+
+    def ok_handler(request: httpx.Request) -> httpx.Response:
+        captured_requests.append(request)
+        url = str(request.url)
+        if "batchEmbedContents" in url:
+            return httpx.Response(200, json={"embeddings": [{"values": [0.1, 0.2]}]})
+        return httpx.Response(
+            200,
+            json={"candidates": [{"content": {"parts": [{"text": "Transcripción ok"}]}}]},
+        )
+
+    settings = Settings(
+        environment="test",
+        _env_file=None,
+        ai_provider="google_ai_studio",
+        ai_fast_model="gemini-3.6-flash",
+        ai_reasoning_model="gemini-4-hydrogen",
+        embedding_provider="google_ai_studio",
+        embedding_model="gemini-embedding-001",
+        google_api_key="gem-top-secret-123",
+    )
+    provider = build_ai_provider(settings, transport=httpx.MockTransport(ok_handler))
+
+    await provider.generate(tier=ModelTier.FAST, system_prompt="sys", user_prompt="usr")
+    await provider.embed_texts(["hola"])
+    transcript = await provider.transcribe_audio(b"audio-bytes", "audio/webm")
+    assert transcript == "Transcripción ok"
+    assert len(captured_requests) == 3
+    for req in captured_requests:
+        assert req.headers.get("x-goog-api-key") == "gem-top-secret-123"
+        assert "key=" not in str(req.url)
+        assert "gem-top-secret-123" not in str(req.url)
+
+    # HTTP error containing secret and key=<token> must be redacted
+    def secret_error_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            500,
+            json={
+                "error": {
+                    "message": (
+                        "Upstream failed for gem-top-secret-123 at "
+                        "https://example.test?key=another-secret-token"
+                    )
+                }
+            },
+        )
+
+    err_provider = build_ai_provider(
+        settings, transport=httpx.MockTransport(secret_error_handler)
+    )
+    with pytest.raises(RuntimeError) as http_exc:
+        await err_provider.generate(tier=ModelTier.FAST, system_prompt="s", user_prompt="u")
+    assert "gem-top-secret-123" not in str(http_exc.value)
+    assert "another-secret-token" not in str(http_exc.value)
+    assert "[REDACTED]" in str(http_exc.value)
+
+    # Network exception (httpx.ConnectError) leaking secret or key=<token> must be redacted
+    def connect_error_handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError(
+            "Failed connecting with gem-top-secret-123 and key=net-secret-xyz",
+            request=request,
+        )
+
+    net_provider = build_ai_provider(
+        settings, transport=httpx.MockTransport(connect_error_handler)
+    )
+    with pytest.raises(RuntimeError) as net_exc:
+        await net_provider.generate(tier=ModelTier.FAST, system_prompt="s", user_prompt="u")
+    assert "gem-top-secret-123" not in str(net_exc.value)
+    assert "net-secret-xyz" not in str(net_exc.value)
+    assert "[REDACTED]" in str(net_exc.value)
+
 
 

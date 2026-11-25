@@ -542,6 +542,89 @@ async def test_relinking_already_attached_attachment_returns_409(
     assert reuse_other_conv.status_code == 409
 
 
+@pytest.mark.asyncio
+async def test_oversized_image_and_audio_uploads_rejected_bounded(
+    client: AsyncClient,
+    seed_accounts: dict[str, tuple[Athlete, str]],
+) -> None:
+    from fastapi import HTTPException
+
+    from fitness_coach.domain.multimodal import MAX_AUDIO_SIZE_BYTES, MAX_IMAGE_SIZE_BYTES
+    from fitness_coach.infrastructure.api.uploads import read_upload_bounded
+
+    _, token_a = seed_accounts["athlete_a"]
+
+    # 1. Image > 10 MB rejected with 422
+    oversized_img = SAMPLE_PNG_BYTES + (b"0" * (MAX_IMAGE_SIZE_BYTES + 1024))
+    img_resp = await client.post(
+        "/api/v1/multimodal/attachments",
+        headers=_auth(token_a),
+        files={"file": ("huge.png", oversized_img, "image/png")},
+    )
+    assert img_resp.status_code == 422
+
+    # 2. Audio > 15 MB rejected with 422 on /transcribe
+    oversized_audio = b"OggS" + (b"0" * (MAX_AUDIO_SIZE_BYTES + 1024))
+    audio_resp = await client.post(
+        "/api/v1/multimodal/transcribe",
+        headers=_auth(token_a),
+        files={"file": ("huge.ogg", oversized_audio, "audio/ogg")},
+    )
+    assert audio_resp.status_code == 422
+
+    # 3. Verify read_upload_bounded stops reading once max_bytes is exceeded
+    class _CountingUploadFile:
+        def __init__(self) -> None:
+            self.chunks_read = 0
+
+        async def read(self, size: int = -1) -> bytes:
+            self.chunks_read += 1
+            return b"a" * (size if size > 0 else 1024)
+
+    fake_file = _CountingUploadFile()
+    with pytest.raises(HTTPException) as exc_info:
+        await read_upload_bounded(
+            fake_file,  # type: ignore[arg-type]
+            max_bytes=1024,
+            too_large_detail="Demasiado grande",
+            status_code=422,
+            chunk_size=512,
+        )
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "Demasiado grande"
+    # 2 chunks = 1024 bytes, 3rd chunk reads up to 1 byte (remaining + 1) -> stops at 3
+    assert fake_file.chunks_read == 3
+
+
+@pytest.mark.asyncio
+async def test_coach_rejects_more_than_four_attachment_ids_with_422(
+    client: AsyncClient,
+    seed_accounts: dict[str, tuple[Athlete, str]],
+) -> None:
+    from uuid import uuid4
+
+    _, token_a = seed_accounts["athlete_a"]
+    conv = await client.post(
+        "/api/v1/coach/conversations",
+        headers=_auth(token_a),
+        json={"title": "Límite de adjuntos"},
+    )
+    assert conv.status_code == 201
+    conv_id = conv.json()["id"]
+
+    resp = await client.post(
+        f"/api/v1/coach/conversations/{conv_id}/messages",
+        headers=_auth(token_a),
+        json={
+            "content": "Analiza estas 5 imágenes",
+            "attachment_ids": [str(uuid4()) for _ in range(5)],
+        },
+    )
+    assert resp.status_code == 422
+
+
+
+
 
 
 

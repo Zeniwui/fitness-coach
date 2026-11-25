@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -383,7 +384,7 @@ class ProposeCandidateFromPdfUseCase:
         allow_reopen: bool = False,
     ) -> CandidateStudy:
         auth.require_curator()
-        extracted_text = extract_pdf_text(pdf_bytes)
+        extracted_text = await asyncio.to_thread(extract_pdf_text, pdf_bytes)
         normalized_doi = normalize_doi(doi)
         content_hash = compute_content_hash(extracted_text)
 
@@ -480,7 +481,7 @@ class UploadCandidatePdfUseCase:
         candidate.ensure_pending()
 
         # Validate & extract BEFORE mutating storage or DB so errors never corrupt prior state
-        extracted_text = extract_pdf_text(pdf_bytes)
+        extracted_text = await asyncio.to_thread(extract_pdf_text, pdf_bytes)
         content_hash = compute_content_hash(extracted_text)
 
         sheet = await generate_critical_sheet(
