@@ -77,15 +77,21 @@ class SupabaseJWTVerifier:
     def _find_matching_jwk(
         self, keys: list[dict[str, Any]], *, kid: str | None, alg: str
     ) -> dict[str, Any] | None:
+        eligible = [
+            key
+            for key in keys
+            if key.get("use") in (None, "sig")
+            and (key.get("alg") is None or key.get("alg") == alg)
+        ]
+        if not eligible:
+            return None
         if kid:
-            for key in keys:
+            for key in eligible:
                 if key.get("kid") == kid:
                     return key
             return None
-        for key in keys:
-            key_alg = key.get("alg")
-            if key_alg is None or key_alg == alg:
-                return key
+        if len(eligible) == 1:
+            return eligible[0]
         return None
 
     async def _decode_asymmetric(self, token: str, *, alg: str, kid: str | None) -> dict[str, Any]:
@@ -99,11 +105,16 @@ class SupabaseJWTVerifier:
 
         try:
             public_key = jwt.PyJWK.from_dict(matched).key
+            decode_kwargs: dict[str, Any] = {
+                "algorithms": [alg],
+                "audience": self._audience,
+            }
+            if self._supabase_origin:
+                decode_kwargs["issuer"] = f"{self._supabase_origin}/auth/v1"
             return jwt.decode(
                 token,
                 public_key,
-                algorithms=[alg],
-                audience=self._audience,
+                **decode_kwargs,
             )
         except jwt.PyJWTError as exc:
             raise UnauthorizedError("Token de autenticación inválido o expirado.") from exc
@@ -116,7 +127,7 @@ class SupabaseJWTVerifier:
 
         alg = header.get("alg")
         if alg == "HS256":
-            if not self._jwt_secret:
+            if self._supabase_origin is not None or not self._jwt_secret:
                 raise UnauthorizedError("Token de autenticación inválido o expirado.")
             try:
                 payload = jwt.decode(

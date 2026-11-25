@@ -105,9 +105,11 @@ async def app(
     fake_binary_storage: FakeBinaryStorage,
 ):
     settings = Settings(
+        environment="test",
         database_url=test_database_url,
         bootstrap_curator_email="bootstrap@fitness.test",
         bootstrap_curator_subject="sub-bootstrap",
+        _env_file=None,
     )
     application = create_app(
         settings=settings,

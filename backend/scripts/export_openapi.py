@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from fitness_coach.infrastructure.api.main import create_app
+from fitness_coach.infrastructure.config import Settings
 
 
 def main() -> None:
@@ -18,7 +19,7 @@ def main() -> None:
         help="Destination path for openapi.json",
     )
     args = parser.parse_args()
-    app = create_app()
+    app = create_app(settings=Settings(environment="test", _env_file=None))
     schema = app.openapi()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
