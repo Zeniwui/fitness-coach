@@ -2059,21 +2059,13 @@ export interface components {
         };
         /** PromoteLiveSearchRequest */
         PromoteLiveSearchRequest: {
-            /** Doi */
-            doi?: string | null;
-            /** Pmid */
-            pmid?: string | null;
-            /** Published Year */
-            published_year?: number | null;
             /**
-             * Snippet
-             * @default
+             * Message Id
+             * Format: uuid
              */
-            snippet: string;
-            /** Title */
-            title: string;
-            /** Url */
-            url: string;
+            message_id: string;
+            /** Result Url */
+            result_url: string;
         };
         /** PromoteLiveSearchResponse */
         PromoteLiveSearchResponse: {

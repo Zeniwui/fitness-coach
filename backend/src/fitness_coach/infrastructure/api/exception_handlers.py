@@ -10,11 +10,13 @@ from fitness_coach.domain.coach import (
     CoachValidationError,
     ConversationNotFoundError,
     InvalidProposalStateError,
+    MessageNotFoundError,
     ProposalNotFoundError,
 )
 
 _COACH_ERROR_STATUS: dict[type[CoachError], int] = {
     ConversationNotFoundError: status.HTTP_404_NOT_FOUND,
+    MessageNotFoundError: status.HTTP_404_NOT_FOUND,
     ProposalNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidProposalStateError: status.HTTP_409_CONFLICT,
     CoachValidationError: status.HTTP_422_UNPROCESSABLE_CONTENT,

@@ -270,18 +270,15 @@ async def promote_live_search_result(
     ai_provider: Annotated[AIProviderPort, Depends(get_ai_provider)],
 ) -> PromoteLiveSearchResponse:
     use_case = PromoteLiveSearchResultUseCase(
+        coach_repo=SqlAlchemyCoachRepository(session),
         knowledge_repo=SqlAlchemyKnowledgeRepository(session),
         ai_provider=ai_provider,
     )
     try:
         candidate = await use_case.execute(
             auth=auth,
-            title=body.title,
-            url=body.url,
-            snippet=body.snippet,
-            doi=body.doi,
-            pmid=body.pmid,
-            published_year=body.published_year,
+            message_id=body.message_id,
+            result_url=body.result_url,
         )
     except (DuplicateActiveStudyError, DuplicateRejectedStudyError) as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

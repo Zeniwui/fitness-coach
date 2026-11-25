@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { App } from "../../app/App";
 import { seedSupabaseSession } from "../../test/authHelpers";
+import { server } from "../../test/msw/server";
 import {
   SAMPLE_ACTIVE_CARD,
   lastApprovePayload,
@@ -204,5 +206,116 @@ describe("Ciencia — Base de Conocimiento y Bandeja del Curador (#4)", () => {
 
     await user.keyboard("{Escape}");
     expect(helpBtn).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("renders https:// source_url as clickable link and blocks javascript:/data: links in KB and Curator inbox", async () => {
+    seedSupabaseSession("tok-dual");
+    server.use(
+      http.get("*/api/v1/knowledge/search", () =>
+        HttpResponse.json({
+          items: [
+            {
+              card: {
+                id: "card-safe",
+                title: "Safe KB Card",
+                doi: "10.1000/safe",
+                pmid: "1",
+                source_url: "https://pubmed.ncbi.nlm.nih.gov/1/",
+                evidence_level: "rct",
+                coverage: "full_text",
+                curated_text_es: "Texto seguro",
+                key_terms_en: ["safe"],
+                tags: ["fuerza"],
+                curator_notes: null,
+                validity_status: "active",
+                embedding_model: "fake",
+                created_at: "2026-11-20T00:00:00Z",
+                updated_at: "2026-11-20T00:00:00Z",
+              },
+              score: 0.9,
+              vector_rank: 1,
+              fts_rank: 1,
+              updated_by_cards: [],
+            },
+            {
+              card: {
+                id: "card-unsafe",
+                title: "Unsafe KB Card",
+                doi: "10.1000/unsafe",
+                pmid: "2",
+                source_url: "javascript:alert(1)",
+                evidence_level: "rct",
+                coverage: "full_text",
+                curated_text_es: "Texto con url insegura",
+                key_terms_en: ["unsafe"],
+                tags: ["fuerza"],
+                curator_notes: null,
+                validity_status: "active",
+                embedding_model: "fake",
+                created_at: "2026-11-20T00:00:00Z",
+                updated_at: "2026-11-20T00:00:00Z",
+              },
+              score: 0.8,
+              vector_rank: 2,
+              fts_rank: 2,
+              updated_by_cards: [],
+            },
+          ],
+          total: 2,
+        }),
+      ),
+      http.get("*/api/v1/curator/candidates", () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: "cand-unsafe",
+              doi: "10.1000/cand-unsafe",
+              pmid: null,
+              pmcid: null,
+              source_url: "data:text/html,<script>alert(1)</script>",
+              title: "Unsafe Candidate",
+              authors: ["A"],
+              journal: "J",
+              published_year: 2025,
+              origin: "manual_upload",
+              access_level: "abstract_only_paywall",
+              status: "pending",
+              rejection_reason: null,
+              curator_notes: null,
+              paywall_warning: null,
+              pdf_storage_path: null,
+              critical_sheet: {
+                block_1_identification: "1",
+                block_2_design_and_evidence_level: "2",
+                block_3_population_and_protocol: "3",
+                block_4_key_findings_and_applicability: "4",
+                block_5_limitations_and_conflicts: "5",
+                block_6_impact_vs_existing_kb: "6",
+                suggested_evidence_level: "rct",
+                suggested_tags: [],
+                key_terms_en: [],
+                curated_summary_es: "",
+              },
+              previous_critical_sheet: null,
+              created_at: "2026-11-20T00:00:00Z",
+              updated_at: "2026-11-20T00:00:00Z",
+            },
+          ],
+        }),
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(<App initialEntries={["/science"]} />);
+
+    const kbLinks = await screen.findAllByRole("link", { name: /abrir doi \/ pubmed/i });
+    expect(kbLinks).toHaveLength(1);
+    expect(kbLinks[0]).toHaveAttribute("href", "https://pubmed.ncbi.nlm.nih.gov/1/");
+    expect(screen.getByText(/javascript:alert\(1\)/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /bandeja del curador/i }));
+    expect(await screen.findByText(/Unsafe Candidate/i)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /ver fuente original/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/data:text\/html/i)).toBeInTheDocument();
   });
 });

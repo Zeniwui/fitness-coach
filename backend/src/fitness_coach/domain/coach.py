@@ -67,6 +67,10 @@ class ConversationNotFoundError(CoachError):
     """Raised when a conversation does not exist or does not belong to the Athlete."""
 
 
+class MessageNotFoundError(CoachError):
+    """Raised when a chat message does not exist or does not belong to the Athlete."""
+
+
 class ProposalNotFoundError(CoachError):
     """Raised when a Living Profile update proposal does not exist for the Athlete."""
 

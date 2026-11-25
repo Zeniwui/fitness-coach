@@ -33,6 +33,8 @@ from fitness_coach.domain.knowledge import (
     compute_content_hash,
     normalize_doi,
     normalize_pmid,
+    validate_evidence_relation,
+    validate_safe_http_url,
 )
 from fitness_coach.infrastructure.scientific.pdf_extractor import extract_pdf_text
 
@@ -285,6 +287,7 @@ class ProposeCandidateFromDoiUseCase:
 
         doi = normalize_doi(article.doi) or normalized_doi
         pmid = normalize_pmid(article.pmid)
+        safe_url = validate_safe_http_url(article.source_url)
         existing_rejected = await check_existing_candidate_for_proposal(
             repo=self._repo,
             doi=doi,
@@ -310,12 +313,21 @@ class ProposeCandidateFromDoiUseCase:
                 published_year=article.published_year,
                 doi=doi,
                 pmid=pmid,
-                source_url=article.source_url,
+                source_url=safe_url,
                 access_level=access_level,
                 source_text=source_text,
             )
             return await self._repo.reopen_rejected_candidate(
                 candidate_id=existing_rejected.id,
+                title=article.title,
+                source_url=safe_url,
+                authors=list(article.authors),
+                journal=article.journal,
+                published_year=article.published_year,
+                doi=doi,
+                pmid=pmid,
+                pmcid=article.pmcid,
+                origin=CandidateOrigin.MANUAL_UPLOAD,
                 access_level=access_level,
                 critical_sheet=sheet,
                 pdf_storage_path=None,
@@ -340,7 +352,7 @@ class ProposeCandidateFromDoiUseCase:
             published_year=article.published_year,
             doi=doi,
             pmid=pmid,
-            source_url=article.source_url,
+            source_url=safe_url,
             access_level=access_level,
             source_text=source_text,
         )
@@ -349,7 +361,7 @@ class ProposeCandidateFromDoiUseCase:
             pmid=pmid,
             pmcid=article.pmcid,
             content_hash=compute_content_hash(source_text),
-            source_url=article.source_url,
+            source_url=safe_url,
             title=article.title,
             authors=list(article.authors),
             journal=article.journal,
@@ -393,37 +405,48 @@ class ProposeCandidateFromPdfUseCase:
             content_hash=content_hash,
             allow_reopen=allow_reopen,
         )
+        resolved_title = (title or "").strip() or extracted_text.splitlines()[0][:180] or filename
+        source_url = f"https://doi.org/{normalized_doi}" if normalized_doi else None
+        canonical_key = f"manual/{content_hash}.pdf"
+
         if existing_rejected is not None:
             storage_path = await self._binary_storage.put_curator_pdf(
-                relative_path=f"manual/{content_hash[:12]}-{filename}",
+                relative_path=canonical_key,
                 data=pdf_bytes,
             )
             sheet = await generate_critical_sheet(
                 ai_provider=self._ai_provider,
-                title=title or existing_rejected.title,
-                authors=list(existing_rejected.authors),
-                journal=existing_rejected.journal,
-                published_year=existing_rejected.published_year,
-                doi=normalized_doi or existing_rejected.doi,
-                pmid=existing_rejected.pmid,
-                source_url=existing_rejected.source_url,
+                title=resolved_title,
+                authors=[],
+                journal=None,
+                published_year=None,
+                doi=normalized_doi,
+                pmid=None,
+                source_url=source_url,
                 access_level=AccessLevel.FULL_TEXT_UPLOADED_PDF,
                 source_text=extracted_text,
             )
             return await self._repo.reopen_rejected_candidate(
                 candidate_id=existing_rejected.id,
+                title=resolved_title,
+                source_url=source_url,
+                authors=[],
+                journal=None,
+                published_year=None,
+                doi=normalized_doi,
+                pmid=None,
+                pmcid=None,
+                origin=CandidateOrigin.MANUAL_UPLOAD,
                 access_level=AccessLevel.FULL_TEXT_UPLOADED_PDF,
                 critical_sheet=sheet,
                 pdf_storage_path=storage_path,
                 content_hash=content_hash,
             )
 
-        resolved_title = (title or "").strip() or extracted_text.splitlines()[0][:180] or filename
         storage_path = await self._binary_storage.put_curator_pdf(
-            relative_path=f"manual/{content_hash[:12]}-{filename}",
+            relative_path=canonical_key,
             data=pdf_bytes,
         )
-        source_url = f"https://doi.org/{normalized_doi}" if normalized_doi else None
         sheet = await generate_critical_sheet(
             ai_provider=self._ai_provider,
             title=resolved_title,
@@ -496,7 +519,7 @@ class UploadCandidatePdfUseCase:
             source_text=extracted_text,
         )
         storage_path = await self._binary_storage.put_curator_pdf(
-            relative_path=f"candidates/{candidate.id}/{filename}",
+            relative_path=f"candidates/{candidate.id}/{content_hash[:12]}.pdf",
             data=pdf_bytes,
         )
         return await self._repo.update_candidate_pdf_analysis(
@@ -683,6 +706,9 @@ class UpdateEvidenceCardUseCase:
         existing = await self._repo.get_evidence_card_by_id(card_id)
         if existing is None:
             raise EvidenceCardNotFoundError("No se encontró la Ficha de Evidencia solicitada.")
+
+        for rel in add_relations or []:
+            validate_evidence_relation(source_card_id=card_id, target_card_id=rel.target_card_id)
 
         new_embedding: list[float] | None = None
         new_embedding_model: str | None = None

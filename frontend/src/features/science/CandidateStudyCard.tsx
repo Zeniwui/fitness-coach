@@ -3,6 +3,7 @@ import { AlertTriangle, ChevronDown, ChevronUp, ExternalLink, FileUp, Link2 } fr
 import type { components } from "../../api/generated/schema";
 import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button";
+import { getSafeHttpUrl } from "../../ui/safeUrl";
 import { Input, Select } from "../../ui/Field";
 import { FileUploadButton } from "../../ui/FileUploadButton";
 import { EVIDENCE_LEVEL_LABELS, RELATION_LABELS } from "./labels";
@@ -118,17 +119,24 @@ export function CandidateStudyCard({
             {cand.journal && <span className="font-medium text-ink">{cand.journal}</span>}
             {cand.published_year && <span className="tabular-nums">{cand.published_year}</span>}
             {cand.doi && <span className="break-all font-mono text-xs">DOI: {cand.doi}</span>}
-            {cand.source_url && (
-              <a
-                href={cand.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-[44px] items-center gap-1 font-semibold text-accent-text hover:underline sm:min-h-[32px]"
-              >
-                <span>Ver fuente original (DOI/PubMed)</span>
-                <ExternalLink className="h-3 w-3" aria-hidden="true" />
-              </a>
-            )}
+            {cand.source_url && (() => {
+              const safeUrl = getSafeHttpUrl(cand.source_url);
+              return safeUrl ? (
+                <a
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-[44px] items-center gap-1 font-semibold text-accent-text hover:underline sm:min-h-[32px]"
+                >
+                  <span>Ver fuente original (DOI/PubMed)</span>
+                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                </a>
+              ) : (
+                <span className="break-all font-mono text-xs text-ink-muted">
+                  {cand.source_url}
+                </span>
+              );
+            })()}
           </div>
         </div>
 

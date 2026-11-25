@@ -137,12 +137,8 @@ class SendMessageRequest(BaseModel):
 
 
 class PromoteLiveSearchRequest(BaseModel):
-    title: str = Field(..., min_length=1, max_length=500)
-    url: str = Field(..., min_length=1, max_length=1000)
-    snippet: str = Field(default="", max_length=4000)
-    doi: str | None = None
-    pmid: str | None = None
-    published_year: int | None = None
+    message_id: UUID
+    result_url: str = Field(..., min_length=1, max_length=1000)
 
 
 class PromoteLiveSearchResponse(BaseModel):
