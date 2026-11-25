@@ -28,6 +28,7 @@ from fitness_coach.domain.training import (
     TodaySessionView,
     TrainingSession,
     TrainingSessionNotFoundError,
+    TrainingValidationError,
     WeeklyVolumeSummary,
     build_previous_exercise_mark,
     calculate_effective_weekly_volume,
@@ -238,6 +239,97 @@ def _build_default_sessions_for_profile(
     )
 
 
+_MESOCYCLE_DRAFT_JSON_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "title": "MesocycleDraft",
+    "required": [
+        "name",
+        "goal",
+        "duration_weeks",
+        "progression_criteria",
+        "deload_criteria",
+        "planned_sessions",
+    ],
+    "properties": {
+        "name": {"type": "string"},
+        "goal": {"type": "string"},
+        "duration_weeks": {"type": "integer", "minimum": 2, "maximum": 16},
+        "progression_criteria": {"type": "string"},
+        "deload_criteria": {"type": "string"},
+        "planned_sessions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "required": ["day_order", "name", "exercises"],
+                "properties": {
+                    "day_order": {"type": "integer", "minimum": 1, "maximum": 14},
+                    "name": {"type": "string"},
+                    "exercises": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "exercise_name",
+                                "primary_muscle_group",
+                                "target_sets",
+                                "rep_range_min",
+                                "rep_range_max",
+                            ],
+                            "properties": {
+                                "exercise_name": {"type": "string"},
+                                "primary_muscle_group": {"type": "string"},
+                                "secondary_muscle_groups": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "target_sets": {"type": "integer", "minimum": 1, "maximum": 20},
+                                "rep_range_min": {"type": "integer", "minimum": 1, "maximum": 100},
+                                "rep_range_max": {"type": "integer", "minimum": 1, "maximum": 100},
+                                "target_rir": {"type": ["number", "null"]},
+                                "target_rpe": {"type": ["number", "null"]},
+                                "notes": {"type": ["string", "null"]},
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
+
+
+def _parse_llm_planned_sessions(raw_sessions: object) -> tuple[PlannedSession, ...]:
+    """Parse and validate LLM-generated planned sessions; return empty tuple on any invalid item."""
+    if not isinstance(raw_sessions, list) or not raw_sessions:
+        return ()
+    try:
+        sessions_buf: list[PlannedSession] = []
+        for idx, ps_raw in enumerate(raw_sessions, start=1):
+            if not isinstance(ps_raw, dict):
+                raise TypeError("Planned session must be an object")
+            exs_raw = ps_raw.get("exercises")
+            if not isinstance(exs_raw, list) or not exs_raw:
+                raise ValueError("Planned session must include exercises")
+            exs = []
+            for ex in exs_raw:
+                if not isinstance(ex, dict):
+                    raise TypeError("Exercise must be an object")
+                exs.append(PlannedExercise.from_dict(ex))
+            session_obj = PlannedSession(
+                id=None,
+                day_order=int(ps_raw.get("day_order", idx)),
+                name=str(ps_raw.get("name", f"Sesión {idx}")).strip(),
+                exercises=tuple(exs),
+            )
+            session_obj.validate()
+            sessions_buf.append(session_obj)
+        return tuple(sessions_buf)
+    except (TrainingValidationError, ValueError, TypeError, KeyError):
+        return ()
+
+
 class DraftMesocycleWithCoachUseCase:
     """Generates a personalized draft Mesocycle using Living Profile, active injuries, and KB."""
 
@@ -329,30 +421,12 @@ class DraftMesocycleWithCoachUseCase:
             tier=ModelTier.REASONING,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            json_schema={"type": "object", "title": "MesocycleDraft"},
+            json_schema=_MESOCYCLE_DRAFT_JSON_SCHEMA,
         )
 
         # Parse structured output if LLM returned a valid mesocycle; else build tailored split
         data = llm_resp.structured_data if isinstance(llm_resp.structured_data, dict) else {}
-        parsed_sessions: tuple[PlannedSession, ...] = ()
-        if isinstance(data.get("planned_sessions"), list) and data["planned_sessions"]:
-            sessions_buf: list[PlannedSession] = []
-            for idx, ps_raw in enumerate(data["planned_sessions"], start=1):
-                if not isinstance(ps_raw, dict):
-                    continue
-                exs_raw = ps_raw.get("exercises") or []
-                exs = tuple(PlannedExercise.from_dict(ex) for ex in exs_raw if isinstance(ex, dict))
-                if exs:
-                    sessions_buf.append(
-                        PlannedSession(
-                            id=None,
-                            day_order=int(ps_raw.get("day_order", idx)),
-                            name=str(ps_raw.get("name", f"Sesión {idx}")).strip(),
-                            exercises=exs,
-                        )
-                    )
-            parsed_sessions = tuple(sessions_buf)
-
+        parsed_sessions = _parse_llm_planned_sessions(data.get("planned_sessions"))
         if not parsed_sessions:
             parsed_sessions = _build_default_sessions_for_profile(
                 days_per_week=days,
@@ -360,26 +434,50 @@ class DraftMesocycleWithCoachUseCase:
                 active_injuries=active_injuries,
             )
 
-        name = str(data.get("name") or f"Mesociclo {goal_label} ({days} días)").strip()
-        goal = str(data.get("goal") or goal_label).strip()
-        resolved_weeks = int(data.get("duration_weeks") or target_weeks)
+        default_name = f"Mesociclo {goal_label} ({days} días)"
+        raw_name = data.get("name")
+        name = raw_name.strip() if isinstance(raw_name, str) and raw_name.strip() else default_name
+        raw_goal = data.get("goal")
+        goal = raw_goal.strip() if isinstance(raw_goal, str) and raw_goal.strip() else goal_label
+
+        raw_weeks = data.get("duration_weeks")
+        try:
+            if isinstance(raw_weeks, bool) or raw_weeks is None:
+                resolved_weeks = target_weeks
+            else:
+                resolved_weeks = int(raw_weeks)
+        except (ValueError, TypeError):
+            resolved_weeks = target_weeks
         resolved_weeks = max(2, min(resolved_weeks, 16))
+
         default_progression = (
             "Doble progresión: al completar el techo de repeticiones con RIR objetivo "
             "en todas las series, subir 2.5–5% la carga."
         )
-        progression = str(data.get("progression_criteria") or default_progression).strip()
+        raw_prog = data.get("progression_criteria")
+        progression = (
+            raw_prog.strip()
+            if isinstance(raw_prog, str) and raw_prog.strip()
+            else default_progression
+        )
         default_deload = (
             f"Semana {resolved_weeks} o ante caída de rendimiento en ≥2 ejercicios / "
             "fatiga persistente: reducir series al 50–60% manteniendo RIR 3–4."
         )
-        deload = str(data.get("deload_criteria") or default_deload).strip()
+        raw_deload = data.get("deload_criteria")
+        deload = (
+            raw_deload.strip()
+            if isinstance(raw_deload, str) and raw_deload.strip()
+            else default_deload
+        )
         notes = focus_notes.strip() if focus_notes and focus_notes.strip() else None
         if active_injuries:
             inj_note = f"Adaptado a restricciones activas: {inj_summary}."
             notes = f"{notes} {inj_note}".strip() if notes else inj_note
 
-        created = await self._training_repo.create_mesocycle(
+        now = datetime.now(UTC)
+        draft = Mesocycle(
+            id=UUID(int=0),
             athlete_id=auth.athlete_id,
             name=name,
             goal=goal,
@@ -389,6 +487,43 @@ class DraftMesocycleWithCoachUseCase:
             deload_criteria=deload,
             notes=notes,
             planned_sessions=parsed_sessions,
+            created_at=now,
+            updated_at=now,
+        )
+        try:
+            draft.validate()
+        except TrainingValidationError:
+            safe_weeks = max(2, min(target_weeks, 16))
+            draft = Mesocycle(
+                id=UUID(int=0),
+                athlete_id=auth.athlete_id,
+                name=default_name,
+                goal=goal_label,
+                duration_weeks=safe_weeks,
+                status=MesocycleStatus.DRAFT,
+                progression_criteria=default_progression,
+                deload_criteria=default_deload,
+                notes=notes,
+                planned_sessions=_build_default_sessions_for_profile(
+                    days_per_week=days,
+                    equipment=profile.equipment,
+                    active_injuries=active_injuries,
+                ),
+                created_at=now,
+                updated_at=now,
+            )
+            draft.validate()
+
+        created = await self._training_repo.create_mesocycle(
+            athlete_id=auth.athlete_id,
+            name=draft.name,
+            goal=draft.goal,
+            duration_weeks=draft.duration_weeks,
+            status=MesocycleStatus.DRAFT,
+            progression_criteria=draft.progression_criteria,
+            deload_criteria=draft.deload_criteria,
+            notes=draft.notes,
+            planned_sessions=draft.planned_sessions,
         )
 
         rationale = llm_resp.text.strip() or (
@@ -640,6 +775,20 @@ class ListTrainingSessionsUseCase:
         )
 
 
+def _ensure_planned_session_belongs_to_mesocycle(
+    mesocycle: Mesocycle | None, planned_session_id: UUID | None
+) -> None:
+    """Validate that planned_session_id belongs to the resolved Mesocycle."""
+    if planned_session_id is None:
+        return
+    if mesocycle is None or planned_session_id not in {
+        ps.id for ps in mesocycle.planned_sessions
+    }:
+        raise TrainingValidationError(
+            "La sesión planificada indicada no pertenece al Mesociclo seleccionado."
+        )
+
+
 class CreateTrainingSessionUseCase:
     def __init__(self, repo: TrainingRepositoryPort) -> None:
         self._repo = repo
@@ -656,6 +805,7 @@ class CreateTrainingSessionUseCase:
         origin: SessionOrigin = SessionOrigin.MANUAL_FORM,
         fatigue_notes: str | None = None,
     ) -> TrainingSession:
+        meso: Mesocycle | None = None
         resolved_mesocycle_id = mesocycle_id
         if resolved_mesocycle_id is not None:
             meso = await self._repo.get_mesocycle(
@@ -666,7 +816,10 @@ class CreateTrainingSessionUseCase:
         else:
             current = await self._repo.get_current_mesocycle(athlete_id=auth.athlete_id)
             if current is not None:
+                meso = current
                 resolved_mesocycle_id = current.id
+
+        _ensure_planned_session_belongs_to_mesocycle(meso, planned_session_id)
 
         now = datetime.now(UTC)
         candidate = TrainingSession(
@@ -721,6 +874,7 @@ class UpdateTrainingSessionUseCase:
             )
 
         resolved_meso_id = mesocycle_id if mesocycle_id is not None else existing.mesocycle_id
+        meso: Mesocycle | None = None
         if resolved_meso_id is not None:
             meso = await self._repo.get_mesocycle(
                 athlete_id=auth.athlete_id, mesocycle_id=resolved_meso_id
@@ -728,15 +882,18 @@ class UpdateTrainingSessionUseCase:
             if meso is None:
                 raise MesocycleNotFoundError("El Mesociclo indicado no pertenece a tu cuenta.")
 
+        resolved_planned_session_id = (
+            planned_session_id
+            if planned_session_id is not None
+            else existing.planned_session_id
+        )
+        _ensure_planned_session_belongs_to_mesocycle(meso, resolved_planned_session_id)
+
         candidate = TrainingSession(
             id=existing.id,
             athlete_id=existing.athlete_id,
             mesocycle_id=resolved_meso_id,
-            planned_session_id=(
-                planned_session_id
-                if planned_session_id is not None
-                else existing.planned_session_id
-            ),
+            planned_session_id=resolved_planned_session_id,
             session_date=session_date,
             name=name,
             origin=existing.origin,
