@@ -717,3 +717,255 @@ async def test_coach_chat_incorporates_active_mesocycle_and_sessions_with_isolat
     prompt_b = fake_ai.generate_calls[-1]["system_prompt"]
     assert "Mesociclo Fuerza-Hipertrofia Invierno" not in prompt_b
     assert "Fatiga notable en hombros" not in prompt_b
+
+
+@pytest.mark.asyncio
+async def test_training_session_rejects_foreign_or_mismatched_planned_session(
+    client: AsyncClient,
+    seed_accounts: dict,
+) -> None:
+    _, token_a = seed_accounts["athlete_a"]
+    _, token_b = seed_accounts["athlete_b"]
+
+    meso_a1 = (
+        await client.post(
+            "/api/v1/training/mesocycles",
+            headers=_auth_header(token_a),
+            json={
+                "name": "Meso A1",
+                "goal": "Hipertrofia",
+                "duration_weeks": 4,
+                "planned_sessions": [
+                    {
+                        "day_order": 1,
+                        "name": "Día A1",
+                        "exercises": [
+                            {
+                                "exercise_name": "Press banca",
+                                "primary_muscle_group": "pecho",
+                                "target_sets": 3,
+                                "rep_range_min": 8,
+                                "rep_range_max": 12,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+    ).json()
+    meso_a2 = (
+        await client.post(
+            "/api/v1/training/mesocycles",
+            headers=_auth_header(token_a),
+            json={
+                "name": "Meso A2",
+                "goal": "Hipertrofia",
+                "duration_weeks": 4,
+                "planned_sessions": [
+                    {
+                        "day_order": 1,
+                        "name": "Día A2",
+                        "exercises": [
+                            {
+                                "exercise_name": "Sentadilla",
+                                "primary_muscle_group": "cuadriceps",
+                                "target_sets": 3,
+                                "rep_range_min": 8,
+                                "rep_range_max": 12,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+    ).json()
+    meso_b = (
+        await client.post(
+            "/api/v1/training/mesocycles",
+            headers=_auth_header(token_b),
+            json={
+                "name": "Meso B",
+                "goal": "Fuerza",
+                "duration_weeks": 4,
+                "planned_sessions": [
+                    {
+                        "day_order": 1,
+                        "name": "Día B",
+                        "exercises": [
+                            {
+                                "exercise_name": "Peso muerto",
+                                "primary_muscle_group": "isquios",
+                                "target_sets": 3,
+                                "rep_range_min": 5,
+                                "rep_range_max": 8,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+    ).json()
+
+    ps_a1 = meso_a1["planned_sessions"][0]["id"]
+    ps_a2 = meso_a2["planned_sessions"][0]["id"]
+    ps_b = meso_b["planned_sessions"][0]["id"]
+
+    base_sets = [
+        {
+            "exercise_name": "Press banca",
+            "muscle_group": "pecho",
+            "set_order": 1,
+            "reps": 8,
+            "load": 70.0,
+            "unit": "kg",
+        }
+    ]
+
+    # POST with another Athlete's planned_session_id (no active mesocycle) -> 422
+    r_foreign_no_meso = await client.post(
+        "/api/v1/training/sessions",
+        headers=_auth_header(token_a),
+        json={
+            "session_date": date.today().isoformat(),
+            "name": "Intento ajeno",
+            "planned_session_id": ps_b,
+            "sets": base_sets,
+        },
+    )
+    assert r_foreign_no_meso.status_code == 422
+
+    # POST with another Mesocycle's planned_session_id -> 422
+    r_wrong_meso = await client.post(
+        "/api/v1/training/sessions",
+        headers=_auth_header(token_a),
+        json={
+            "session_date": date.today().isoformat(),
+            "name": "Intento cruzado",
+            "mesocycle_id": meso_a1["id"],
+            "planned_session_id": ps_a2,
+            "sets": base_sets,
+        },
+    )
+    assert r_wrong_meso.status_code == 422
+
+    # Valid POST with matching mesocycle_id and planned_session_id -> 201
+    r_ok = await client.post(
+        "/api/v1/training/sessions",
+        headers=_auth_header(token_a),
+        json={
+            "session_date": date.today().isoformat(),
+            "name": "Sesión válida",
+            "mesocycle_id": meso_a1["id"],
+            "planned_session_id": ps_a1,
+            "sets": base_sets,
+        },
+    )
+    assert r_ok.status_code == 201
+    session_id = r_ok.json()["id"]
+
+    # PUT with another Mesocycle's planned_session_id -> 422
+    r_put_wrong = await client.put(
+        f"/api/v1/training/sessions/{session_id}",
+        headers=_auth_header(token_a),
+        json={
+            "session_date": date.today().isoformat(),
+            "name": "Editado inválido",
+            "mesocycle_id": meso_a1["id"],
+            "planned_session_id": ps_a2,
+            "sets": base_sets,
+        },
+    )
+    assert r_put_wrong.status_code == 422
+
+    # PUT with another Athlete's planned_session_id -> 422
+    r_put_foreign = await client.put(
+        f"/api/v1/training/sessions/{session_id}",
+        headers=_auth_header(token_a),
+        json={
+            "session_date": date.today().isoformat(),
+            "name": "Editado ajeno",
+            "planned_session_id": ps_b,
+            "sets": base_sets,
+        },
+    )
+    assert r_put_foreign.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_draft_mesocycle_with_coach_falls_back_when_llm_returns_invalid_exercises(
+    client: AsyncClient,
+    seed_accounts: dict,
+    fake_ai: FakeAIProvider,
+) -> None:
+    from fitness_coach.application.ports.ai_provider import LLMResponse
+
+    _, token_a = seed_accounts["athlete_a"]
+    fake_ai.canned_responses.clear()
+    fake_ai.generate_calls.clear()
+    fake_ai.canned_responses.append(
+        LLMResponse(
+            text="Propuesta generada",
+            structured_data={
+                "name": "   ",
+                "goal": "",
+                "duration_weeks": "invalid",
+                "planned_sessions": [
+                    {
+                        "day_order": 1,
+                        "name": "Día inválido",
+                        "exercises": [
+                            {
+                                "exercise_name": "",
+                                "primary_muscle_group": "pecho",
+                                "target_sets": 0,
+                                "rep_range_min": 15,
+                                "rep_range_max": 5,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+    )
+
+    resp = await client.post(
+        "/api/v1/training/mesocycles/draft-with-coach",
+        headers=_auth_header(token_a),
+        json={"focus_notes": "Enfoque en espalda y pecho", "duration_weeks": 5},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    meso = data["mesocycle"]
+    assert meso["name"]
+    assert meso["goal"]
+    assert 2 <= meso["duration_weeks"] <= 16
+    assert len(meso["planned_sessions"]) >= 2
+    for ps in meso["planned_sessions"]:
+        assert len(ps["exercises"]) >= 1
+        for ex in ps["exercises"]:
+            assert ex["exercise_name"]
+            assert ex["target_sets"] >= 1
+            assert ex["rep_range_min"] <= ex["rep_range_max"]
+
+    # Structured json_schema was passed to AIProviderPort
+    schema = fake_ai.generate_calls[-1]["json_schema"]
+    assert schema is not None
+    props = schema.get("properties", {})
+    for key in (
+        "name",
+        "goal",
+        "duration_weeks",
+        "progression_criteria",
+        "deload_criteria",
+        "planned_sessions",
+    ):
+        assert key in props
+    ps_items_props = props["planned_sessions"]["items"]["properties"]
+    assert "exercises" in ps_items_props
+
+    # GET /mesocycles returns 200 with the persisted fallback mesocycle
+    list_resp = await client.get("/api/v1/training/mesocycles", headers=_auth_header(token_a))
+    assert list_resp.status_code == 200
+    assert any(m["id"] == meso["id"] for m in list_resp.json())
+
+

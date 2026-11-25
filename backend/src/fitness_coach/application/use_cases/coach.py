@@ -420,10 +420,44 @@ class RenameConversationUseCase:
 
 
 class DeleteConversationUseCase:
-    def __init__(self, repo: CoachRepositoryPort) -> None:
+    def __init__(
+        self,
+        repo: CoachRepositoryPort,
+        multimodal_repo: MultimodalRepositoryPort | None = None,
+        binary_storage: BinaryStoragePort | None = None,
+    ) -> None:
         self._repo = repo
+        self._multimodal_repo = multimodal_repo
+        self._binary_storage = binary_storage
 
     async def execute(self, *, auth: AuthContext, conversation_id: UUID) -> None:
+        conv = await self._repo.get_conversation(
+            athlete_id=auth.athlete_id,
+            conversation_id=conversation_id,
+        )
+        if conv is None:
+            raise ConversationNotFoundError("No se encontró la conversación solicitada.")
+
+        if self._multimodal_repo is not None:
+            attachments = await self._multimodal_repo.list_attachments_for_conversation(
+                athlete_id=auth.athlete_id,
+                conversation_id=conversation_id,
+            )
+            if attachments:
+                if self._binary_storage is not None:
+                    for att in attachments:
+                        try:
+                            await self._binary_storage.delete_athlete_object(
+                                athlete_id=auth.athlete_id,
+                                storage_path=att.storage_path,
+                            )
+                        except FileNotFoundError:
+                            pass
+                await self._multimodal_repo.delete_attachments_by_ids(
+                    athlete_id=auth.athlete_id,
+                    attachment_ids=[a.id for a in attachments],
+                )
+
         deleted = await self._repo.delete_conversation(
             athlete_id=auth.athlete_id,
             conversation_id=conversation_id,
@@ -498,6 +532,10 @@ class SendCoachMessageStreamUseCase:
             )
             if len(resolved_attachments) != len(unique_ids):
                 raise AttachmentNotFoundError("No se encontró el archivo adjunto solicitado.")
+            if any(att.message_id is not None for att in resolved_attachments):
+                raise CoachValidationError(
+                    "Uno o más archivos adjuntos ya están vinculados a otro mensaje."
+                )
             image_attachments = [
                 a for a in resolved_attachments if a.media_type == AttachmentMediaType.IMAGE
             ]
@@ -527,11 +565,15 @@ class SendCoachMessageStreamUseCase:
             content=cleaned,
         )
         if resolved_attachments and self._multimodal_repo is not None:
-            await self._multimodal_repo.link_attachments_to_message(
+            linked_count = await self._multimodal_repo.link_attachments_to_message(
                 athlete_id=auth.athlete_id,
                 attachment_ids=[a.id for a in resolved_attachments],
                 message_id=user_msg.id,
             )
+            if linked_count != len(resolved_attachments):
+                raise CoachValidationError(
+                    "Uno o más archivos adjuntos ya están vinculados a otro mensaje."
+                )
 
         # Auto-title default conversations on first message
         next_title: str | None = None

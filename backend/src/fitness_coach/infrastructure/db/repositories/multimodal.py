@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fitness_coach.domain.multimodal import (
@@ -13,6 +13,7 @@ from fitness_coach.domain.multimodal import (
     AttachmentMediaType,
     ImageAnalysisCategory,
 )
+from fitness_coach.infrastructure.db.models.coach import MessageModel
 from fitness_coach.infrastructure.db.models.multimodal import AttachmentModel
 
 
@@ -112,22 +113,53 @@ class SqlAlchemyMultimodalRepository:
                 grouped.setdefault(row.message_id, []).append(_to_attachment(row))
         return grouped
 
+    async def list_attachments_for_conversation(
+        self, *, athlete_id: UUID, conversation_id: UUID
+    ) -> list[Attachment]:
+        stmt = (
+            select(AttachmentModel)
+            .join(MessageModel, AttachmentModel.message_id == MessageModel.id)
+            .where(
+                AttachmentModel.athlete_id == athlete_id,
+                MessageModel.athlete_id == athlete_id,
+                MessageModel.conversation_id == conversation_id,
+            )
+            .order_by(AttachmentModel.created_at.asc())
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [_to_attachment(row) for row in rows]
+
+    async def delete_attachments_by_ids(
+        self, *, athlete_id: UUID, attachment_ids: Sequence[UUID]
+    ) -> int:
+        if not attachment_ids:
+            return 0
+        stmt = delete(AttachmentModel).where(
+            AttachmentModel.athlete_id == athlete_id,
+            AttachmentModel.id.in_(list(attachment_ids)),
+        )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return int(result.rowcount or 0)
+
     async def link_attachments_to_message(
         self,
         *,
         athlete_id: UUID,
         attachment_ids: Sequence[UUID],
         message_id: UUID,
-    ) -> None:
+    ) -> int:
         if not attachment_ids:
-            return
+            return 0
         stmt = (
             update(AttachmentModel)
             .where(
                 AttachmentModel.athlete_id == athlete_id,
                 AttachmentModel.id.in_(list(attachment_ids)),
+                AttachmentModel.message_id.is_(None),
             )
             .values(message_id=message_id)
         )
-        await self._session.execute(stmt)
+        result = await self._session.execute(stmt)
         await self._session.flush()
+        return int(result.rowcount or 0)

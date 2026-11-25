@@ -125,8 +125,13 @@ async def delete_conversation(
     conversation_id: UUID,
     auth: Annotated[AuthContext, Depends(get_current_auth)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    binary_storage: Annotated[BinaryStoragePort, Depends(get_binary_storage)],
 ) -> Response:
-    use_case = DeleteConversationUseCase(SqlAlchemyCoachRepository(session))
+    use_case = DeleteConversationUseCase(
+        SqlAlchemyCoachRepository(session),
+        multimodal_repo=SqlAlchemyMultimodalRepository(session),
+        binary_storage=binary_storage,
+    )
     await use_case.execute(auth=auth, conversation_id=conversation_id)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -200,6 +205,11 @@ async def send_message_stream(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No se encontró el archivo adjunto solicitado.",
+            )
+        if any(att.message_id is not None for att in owned):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Uno o más archivos adjuntos ya están vinculados a otro mensaje.",
             )
 
     assembler = CoachContextAssembler(

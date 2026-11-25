@@ -60,6 +60,14 @@ class InMemoryCoachConversationRepo:
         self.conversations[conv.id] = updated
         return updated
 
+    async def get_conversation(
+        self, *, athlete_id: UUID, conversation_id: UUID
+    ) -> Conversation | None:
+        conv = self.conversations.get(conversation_id)
+        if conv is None or conv.athlete_id != athlete_id:
+            return None
+        return conv
+
     async def delete_conversation(
         self, *, athlete_id: UUID, conversation_id: UUID
     ) -> bool:
