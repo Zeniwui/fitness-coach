@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fitness_coach.application.ports.identity_storage import VerifiedIdentity
@@ -13,12 +14,15 @@ from fitness_coach.application.use_cases.identity import (
     CreateInvitationUseCase,
     ListInvitationsUseCase,
     RedeemInvitationUseCase,
+    RevokeInvitationUseCase,
 )
 from fitness_coach.domain.identity import (
     AthleteAlreadyExistsError,
     AuthContext,
     ForbiddenError,
     InvalidInvitationError,
+    InvitationAlreadyAcceptedError,
+    InvitationNotFoundError,
 )
 from fitness_coach.infrastructure.api.deps import (
     get_current_auth,
@@ -141,3 +145,26 @@ async def create_invitation(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     summary = InvitationSummaryResponse.from_domain(invitation)
     return CreateInvitationResponse(**summary.model_dump(), invitation_token=raw_token)
+
+
+@router.delete(
+    "/curator/invitations/{invitation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def revoke_invitation(
+    invitation_id: UUID,
+    auth: Annotated[AuthContext, Depends(require_curator)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> Response:
+    repo = SqlAlchemyIdentityRepository(session)
+    use_case = RevokeInvitationUseCase(repo)
+    try:
+        await use_case.execute(auth=auth, invitation_id=invitation_id)
+        await session.commit()
+    except InvitationNotFoundError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except InvitationAlreadyAcceptedError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

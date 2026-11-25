@@ -35,6 +35,14 @@ class AthleteAlreadyExistsError(IdentityError):
     """Raised when attempting to register an already registered auth_subject or email."""
 
 
+class InvitationNotFoundError(IdentityError):
+    """Raised when an invitation cannot be found by its identifier."""
+
+
+class InvitationAlreadyAcceptedError(IdentityError):
+    """Raised when attempting to revoke an invitation that was already accepted."""
+
+
 @dataclass(frozen=True, slots=True)
 class AuthContext:
     """Request-scoped authenticated Athlete identity and roles."""

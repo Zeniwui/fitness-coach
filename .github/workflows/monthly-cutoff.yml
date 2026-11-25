@@ -1,5 +1,8 @@
 name: Corte Mensual
 
+permissions:
+  contents: read
+
 on:
   schedule:
     # Run on the 1st day of every month at 06:00 UTC (off free-tier web server per ADR-0003)
