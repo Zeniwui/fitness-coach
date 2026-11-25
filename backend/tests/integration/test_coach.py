@@ -70,6 +70,8 @@ class TestMultiProviderConfiguration:
         reasoning_model: str,
     ) -> None:
         settings = Settings(
+            environment="test",
+            _env_file=None,
             ai_provider=provider_name,
             ai_fast_model=fast_model,
             ai_reasoning_model=reasoning_model,
