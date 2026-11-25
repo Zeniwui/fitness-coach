@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from fitness_coach.domain.coach import (
+    AttachmentAlreadyLinkedError,
     CoachError,
     CoachValidationError,
     ConversationNotFoundError,
@@ -19,6 +20,7 @@ _COACH_ERROR_STATUS: dict[type[CoachError], int] = {
     MessageNotFoundError: status.HTTP_404_NOT_FOUND,
     ProposalNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidProposalStateError: status.HTTP_409_CONFLICT,
+    AttachmentAlreadyLinkedError: status.HTTP_409_CONFLICT,
     CoachValidationError: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 

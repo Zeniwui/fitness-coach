@@ -30,7 +30,7 @@ from fitness_coach.application.use_cases.coach import (
 )
 from fitness_coach.application.use_cases.nutrition import NutritionCoachContextProvider
 from fitness_coach.application.use_cases.training import TrainingCoachContextProvider
-from fitness_coach.domain.coach import ProposalStatus
+from fitness_coach.domain.coach import ProposalStatus, ensure_attachments_unlinked
 from fitness_coach.domain.identity import AuthContext
 from fitness_coach.domain.knowledge import (
     DuplicateActiveStudyError,
@@ -208,11 +208,7 @@ async def send_message_stream(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No se encontró el archivo adjunto solicitado.",
             )
-        if any(att.message_id is not None for att in owned):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Uno o más archivos adjuntos ya están vinculados a otro mensaje.",
-            )
+        ensure_attachments_unlinked(owned)
 
     assembler = CoachContextAssembler(
         profile_repo=SqlAlchemyProfileRepository(session),

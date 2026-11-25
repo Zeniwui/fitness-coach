@@ -9,12 +9,14 @@ Canonical vocabulary follows GLOSSARY.md and ADR-0001 / ADR-0002 / ADR-0003:
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+from fitness_coach.domain.multimodal import Attachment
 from fitness_coach.domain.profile import LivingProfile
 
 LIVE_SEARCH_QUARANTINE_LABEL = "fuente externa aún no verificada en Base de Conocimiento"
@@ -77,6 +79,18 @@ class ProposalNotFoundError(CoachError):
 
 class InvalidProposalStateError(CoachError):
     """Raised when attempting to accept or dismiss an already resolved proposal."""
+
+
+class AttachmentAlreadyLinkedError(CoachError):
+    """Raised when one or more attachments are already linked to another message."""
+
+
+def ensure_attachments_unlinked(attachments: Sequence[Attachment]) -> None:
+    """Ensure no attachment is already linked to another chat message."""
+    if any(att.message_id is not None for att in attachments):
+        raise AttachmentAlreadyLinkedError(
+            "Uno o más archivos adjuntos ya están vinculados a otro mensaje."
+        )
 
 
 def validate_conversation_title(title: str) -> str:

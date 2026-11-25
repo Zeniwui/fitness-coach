@@ -27,6 +27,7 @@ from fitness_coach.domain.coach import (
     GENERAL_KNOWLEDGE_DISCLOSURE_ES,
     LIVE_SEARCH_QUARANTINE_LABEL,
     PEDS_BOUNDARY_NOTICE_ES,
+    AttachmentAlreadyLinkedError,
     BoundaryKind,
     ChatMessage,
     Citation,
@@ -41,6 +42,7 @@ from fitness_coach.domain.coach import (
     ProposalNotFoundError,
     ProposalStatus,
     QuarantinedLiveResult,
+    ensure_attachments_unlinked,
     validate_conversation_title,
 )
 from fitness_coach.domain.identity import AuthContext
@@ -541,10 +543,7 @@ class SendCoachMessageStreamUseCase:
             )
             if len(resolved_attachments) != len(unique_ids):
                 raise AttachmentNotFoundError("No se encontró el archivo adjunto solicitado.")
-            if any(att.message_id is not None for att in resolved_attachments):
-                raise CoachValidationError(
-                    "Uno o más archivos adjuntos ya están vinculados a otro mensaje."
-                )
+            ensure_attachments_unlinked(resolved_attachments)
             image_attachments = [
                 a for a in resolved_attachments if a.media_type == AttachmentMediaType.IMAGE
             ]
@@ -580,7 +579,7 @@ class SendCoachMessageStreamUseCase:
                 message_id=user_msg.id,
             )
             if linked_count != len(resolved_attachments):
-                raise CoachValidationError(
+                raise AttachmentAlreadyLinkedError(
                     "Uno o más archivos adjuntos ya están vinculados a otro mensaje."
                 )
 
